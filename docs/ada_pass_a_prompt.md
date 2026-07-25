@@ -1,4 +1,4 @@
-# Startup prompt — RTX 2000 Ada, full Pass A ladder
+# Startup prompt — RTX 2000 Ada (Windows), full Pass A ladder
 
 Paste everything below the line into Claude Code on the run machine.
 
@@ -35,27 +35,36 @@ ls preregistration.md src/ scripts/ configs/
 
 Then:
 
-```bash
+```
 uv venv --python 3.11
-uv sync --extra dev || uv pip install -e ".[dev]"
+uv sync --extra dev
 ```
 
-`pyproject.toml` already routes torch to the CUDA 12.6 index on Linux via
-`[tool.uv.sources]`, so no manual torch install should be needed.
+`pyproject.toml` routes torch to the CUDA 12.6 index on any non-macOS platform.
+This matters on Windows specifically: PyPI's default torch wheel there is
+**CPU-only**, so if torch somehow arrives without CUDA, preflight will say so and
+give you the reinstall command.
 
-Llama-3.2-3B-Instruct is a gated repo. If you aren't already authenticated:
+Llama-3.2-3B-Instruct is a gated repo. If not already authenticated:
 
-```bash
-huggingface-cli login
 ```
+uv run hf auth login
+```
+
+(older `huggingface_hub` uses `uv run huggingface-cli login`)
 
 ## Run it
 
-```bash
-python scripts/preflight.py            # seconds; tokenizers only, no weights
-python scripts/preflight.py --download # ~22 GB of weights
-./scripts/run_pass_a_ladder.sh
+Use `uv run` throughout so the venv is picked up without activation:
+
 ```
+uv run python scripts/preflight.py             # seconds; tokenizers only
+uv run python scripts/preflight.py --download  # ~22 GB of weights
+uv run python scripts/run_pass_a_ladder.py
+```
+
+The ladder driver is Python, not shell, so it works from PowerShell, cmd or Git
+Bash without modification.
 
 `preflight.py` must pass before the ladder starts — it verifies CUDA and bf16,
 that all five pinned revision SHAs resolve and match, that every tokenizer
@@ -65,6 +74,11 @@ space, and git state. The ladder script refuses to run if preflight fails.
 Expect roughly 20–45 minutes of compute for all five models (4,000 forward passes
 each, ~76 tokens per prompt, ~300k prefill tokens per model). Download time
 usually dominates.
+
+Windows note on disk: `huggingface_hub` caches via symlinks, which need Developer
+Mode or an elevated shell. Without them it silently falls back to copying, which
+roughly doubles cache size — budget ~45 GB rather than ~22 GB, or enable
+Developer Mode first. Preflight reports free space against the smaller figure.
 
 ## Rules — these are not negotiable
 
@@ -98,11 +112,10 @@ does) and report:
 6. `digit_mass_p05` — if this drops well below ~0.9 for any model, the readout
    position may be wrong for that tokenizer and I need to know immediately.
 
-Then tell me how to copy the artifacts back:
-
-```bash
-rsync -av artifacts/ <me>@<mac>:~/Developer/2dumb4ts/artifacts/
-```
+Then tell me how to copy `artifacts/` back to my Mac. `rsync` is usually absent on
+Windows — `scp -r artifacts/ <me>@<mac>:~/Developer/2dumb4ts/artifacts/` works if
+Remote Login is on, otherwise just zip the directory and tell me where it is.
+It is small: parquet and JSON, no weights.
 
 Background on the design is in `preregistration.md` (frozen before any code was
 written) and `README.md`. Read `preregistration.md` §4 and §5 before interpreting

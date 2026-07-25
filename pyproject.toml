@@ -34,15 +34,20 @@ dev = [
 # One pyproject, platform-specific torch.
 #
 # Dev machine (M1 / darwin): the default PyPI wheel, which carries MPS + CPU.
-# Run machine (RTX 2000 Ada / linux): the CUDA 12.6 wheel from the PyTorch index.
+# Run machine (RTX 2000 Ada, Windows): the CUDA 12.6 wheel from the PyTorch index.
 #
-# The code itself is device-agnostic; only the wheel differs. Which one is in
-# use is recorded in every artifact's provenance block, and the analysis layer
-# refuses to pool artifacts across devices.
+# The marker is "not darwin" rather than "== linux" deliberately. On Linux the
+# default PyPI torch wheel happens to bundle CUDA, so a linux-only marker is
+# forgiving; on WINDOWS the default PyPI wheel is CPU-ONLY, so the same mistake
+# silently yields a CPU build and preflight fails at "device resolves to 'cpu'".
+#
+# The code itself is device-agnostic; only the wheel differs. Which one is in use
+# is recorded in every artifact's provenance block, and the analysis layer refuses
+# to pool artifacts across devices.
 # ---------------------------------------------------------------------------
 [tool.uv.sources]
 torch = [
-    { index = "pytorch-cu126", marker = "sys_platform == 'linux'" },
+    { index = "pytorch-cu126", marker = "sys_platform != 'darwin'" },
 ]
 
 [[tool.uv.index]]

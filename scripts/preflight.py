@@ -69,6 +69,19 @@ def main() -> int:
     print("\n== device ==")
     import torch
 
+    # The most likely Windows failure: PyPI's default torch wheel is CPU-only
+    # there (unlike Linux, where it bundles CUDA), so this check comes first and
+    # carries the fix.
+    if torch.version.cuda is None:
+        check(FAIL,
+              f"torch {torch.__version__} is a CPU-only build (torch.version.cuda is "
+              "None). On Windows the default PyPI wheel has no CUDA. Reinstall from "
+              "the PyTorch index:\n"
+              "         uv pip install --reinstall --index-url "
+              "https://download.pytorch.org/whl/cu126 torch")
+    else:
+        check(OK, f"torch built against CUDA {torch.version.cuda}")
+
     device = resolve_device("auto")
     check(OK if device == "cuda" else FAIL,
           f"device resolves to {device!r}" +
