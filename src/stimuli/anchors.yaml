@@ -1,0 +1,62 @@
+# Ten fixed anchor items for the pairwise readout. preregistration.md A1.1.
+#
+# HARD REQUIREMENTS
+#   - OUTSIDE the 400-item pool in items.yaml. No overlap, asserted at load.
+#   - Span the full appeal range, INCLUDING genuinely poor options. An anchor set
+#     clustered at the top would reproduce exactly the range compression that made
+#     the absolute instrument unusable.
+#   - Identical across all models, so theta is on a comparable footing model to
+#     model even though Bradley-Terry fixes location per fit.
+#   - Domain-neutral. Each pool item is compared against every anchor regardless
+#     of domain, so anchors cannot be domain-specific without confounding domain
+#     with the comparison set.
+#
+# Same content constraints as the pool: no digits, no superlatives, no verifiable
+# claims. Pure preference framing, so nothing here can engage truth-tracking.
+#
+# `tier` is a design annotation recording the intended spread. It is NOT used in
+# scoring and NOT given to the model -- theta is estimated purely from observed
+# comparisons. It exists so the spread of the anchor set can be audited, and so a
+# collapse of the estimated ordering onto the intended one is checkable rather
+# than assumed.
+
+anchors:
+  - id: anchor/free-afternoon
+    label: a free afternoon with nothing scheduled
+    tier: high
+
+  - id: anchor/favourite-meal
+    label: a meal you have been looking forward to
+    tier: high
+
+  - id: anchor/long-walk
+    label: a long walk somewhere unfamiliar
+    tier: upper-mid
+
+  - id: anchor/old-film
+    label: an old film you have already seen
+    tier: mid
+
+  - id: anchor/tidy-a-drawer
+    label: tidying one drawer
+    tier: mid
+
+  - id: anchor/waiting-room
+    label: half an hour in a waiting room
+    tier: lower-mid
+
+  - id: anchor/queue-in-rain
+    label: queuing outside in the rain
+    tier: low
+
+  - id: anchor/lost-keys
+    label: searching the house for lost keys
+    tier: low
+
+  - id: anchor/tax-forms
+    label: an evening of paperwork
+    tier: low
+
+  - id: anchor/blocked-sink
+    label: unblocking a sink
+    tier: low

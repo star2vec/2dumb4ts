@@ -61,6 +61,15 @@ class Runner:
     n_forward: int = 0
     n_cache_hits: int = 0
 
+    @property
+    def _supports_logits_to_keep(self) -> bool:
+        import inspect
+
+        try:
+            return "logits_to_keep" in inspect.signature(self.model.forward).parameters
+        except (TypeError, ValueError):
+            return False
+
     # -- prompt rendering ---------------------------------------------------
 
     def render(self, messages: list[dict[str, str]]) -> str:
@@ -98,11 +107,18 @@ class Runner:
             position_ids = mask.long().cumsum(-1) - 1
             position_ids = position_ids.masked_fill(mask == 0, 1)
 
-            logits = self.model(
+            # Only the final position is ever read, so ask the model not to
+            # materialise logits for the rest. On a 32x86 batch with a 152k vocab
+            # this is the difference between an 836 MB logits tensor and a 10 MB
+            # one -- decisive on an 8 GB card holding 6.4 GB of bf16 weights.
+            kwargs = dict(
                 input_ids=enc["input_ids"],
                 attention_mask=mask,
                 position_ids=position_ids,
-            ).logits[:, -1, :]
+            )
+            if self._supports_logits_to_keep:
+                kwargs["logits_to_keep"] = 1
+            logits = self.model(**kwargs).logits[:, -1, :]
             out.append(logits.float().cpu())
             self.n_forward += len(batch)
         return torch.cat(out, dim=0)

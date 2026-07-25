@@ -6,3 +6,9 @@ model:
   revision: aa8e72537993ba99e69dfaafa59ed015b17504d1
   dtype: bfloat16
   device: auto
+
+# 8 GB VRAM on the run machine (RTX 2000 Ada Generation Laptop GPU, not the 16 GB
+# workstation card). A 3B model in bf16 is ~6.4 GB of weights, so headroom is thin;
+# halving the batch keeps activations comfortably clear. batch_size is part of the
+# pass_a cache key, so it is set before any run rather than adjusted after one.
+batch_size: 16

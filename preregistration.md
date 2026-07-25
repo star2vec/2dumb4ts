@@ -510,3 +510,198 @@ Recorded here so that every departure is visible rather than buried in code.
 
 Items 1–3 are arithmetic or tokenizer facts. Items 4–10 are design decisions taken before any data
 existed.
+
+---
+
+# Amendment 1 — 2026-07-26
+
+**Appended, not edited.** §1–13 above are frozen at commit `57ef60d` and are unchanged. This section
+records three instrument-level amendments, the pilot evidence that motivated them, and one newly
+preregistered gate.
+
+## A1.0 Evidentiary status — read before anything below
+
+**No confirmatory data has been observed.** Every number cited in this amendment comes from
+development-machine pilot runs (Apple M1, MPS) and from a standalone diagnostic probe. Not one
+figure below comes from the run machine, and no analysis bearing on H1–H5 has been performed on any
+model at any scale.
+
+**The pilot set is not the confirmatory set.** Pilots used **12 items per domain (48 items)** against
+the confirmatory pool of **400**, **8 pairs** against 200, and **3 of the 5 models**
+(Qwen2.5-0.5B-Instruct, Qwen2.5-3B-Instruct, Gemma-2-2b-it) — the three that happened to be cached
+locally. Qwen2.5-1.5B-Instruct and Llama-3.2-3B-Instruct were never run. Pilot items, pilot pair
+counts, pilot models and pilot device are all disjoint from the confirmatory design, and pilot
+artifacts are rejected by `provenance.assert_reportable`.
+
+These amendments therefore change the **instrument**, on evidence about the instrument. They do not
+change any hypothesis, contrast, or decision rule in §2, §7 or §9.
+
+## A1.1 (D1) Rating instrument: absolute Likert → anchor-based pairwise
+
+**What changed.** Item scores are no longer read as an absolute 1–9 Likert judgement of a single
+item. Each pool item is instead compared against each of **10 fixed anchor items in both orders**
+(20 binary outcomes per item), and a latent appeal score `θ` is estimated by hierarchical
+Bradley-Terry with partial pooling across items, fitted per model. Anchors lie **outside** the
+400-item pool, span the full appeal range including genuinely poor options, and are identical across
+all models. Order is averaged **structurally** — both orders are always run — rather than corrected
+for at analysis time. Precision is reported as the **posterior SD of `θ`**, not as an ICC.
+
+**Why.** The absolute scale compressed almost all variance out of the measurement:
+
+| model | ascending rating range | mean | σ_between (ascending) |
+|---|---|---|---|
+| Qwen2.5-0.5B-Instruct | 2.34 – 7.96 | 5.30 | 0.425 |
+| Gemma-2-2b-it | 2.44 – 8.52 | 6.78 | 0.483 |
+| Qwen2.5-3B-Instruct | 3.18 – 9.00 | 7.58 | 0.581 |
+
+The consequence propagated directly into the difficulty manipulation. In a pilot Pass B, difficult
+and easy pools separated cleanly on the **selection** score (mean |diff| 0.001 vs 0.575) but were
+**indistinguishable on the independent analysis measurement** (0.295 vs 0.302). Difficulty was being
+selected on measurement error — which is precisely what the disjoint template split of §4.4 exists
+to detect, and it detected it.
+
+Critically, the latent ordering is intact; only the absolute readout destroys it. In the choice
+probe, Qwen2.5-3B assigns p = 0.958 to "Vienna" over "a motorway service station" when asked to
+choose, while rating both in the 7–9 band when asked to rate. A comparative instrument recovers what
+an absolute one flattens.
+
+## A1.2 (D2) Polarity-validity gate retired → order-invariance gate
+
+**What changed.** The scale-polarity gate of §5.1 (Spearman ρ ≥ 0.6 between ascending and reversed
+descending scores) is **retired as an exclusion criterion**. It is replaced by an **order-invariance
+gate** defined in A1.4. Polarity remains measured and reported for the instrument-validation record
+(A1.5) but no longer excludes any model.
+
+**Why.** Two reasons, and the second is the more serious.
+
+First, it excluded the entire ladder. Median ρ was **−0.951** (Qwen2.5-0.5B), **−0.490**
+(Qwen2.5-3B) and **−0.953** (Gemma-2-2b) — three models across two families, all strongly negative,
+meaning each answers on a fixed higher-is-better mapping and ignores a reversed anchor definition. A
+categorical criterion that rejects every candidate measures the elicitation, not the models.
+
+Second, it **double-counted**. When a model is polarity-blind, ascending ≈ descending, so the
+polarity-collapsed score `(asc + C − desc)/2` is mechanically driven toward the constant `C/2` for
+every item. The observed collapse of `σ_between` (0.425 → 0.042, 0.483 → 0.118, 0.581 → 0.299) is
+therefore an arithmetic consequence of the polarity failure, not independent evidence of a second
+defect. §5.2's dynamic-range criterion was firing on an artifact of §5.1's failure. Under a pairwise
+instrument neither quantity is defined in its original form, so both are superseded.
+
+Polarity-insensitivity is retained as a **reported property of these models**, not as grounds for
+exclusion: it is a substantive finding about instruction-tuned LMs and a reviewer will ask about it.
+
+## A1.3 (D3) Option elicitation: letter labels → digit labels
+
+**What changed.** Binary choices are elicited with `1`/`2` rather than `A`/`B`, in the pairwise
+readout and everywhere else a choice is read. Item-name first-token readout is retained as a
+**secondary arm**, reported alongside.
+
+**Why.** Letter labels were the worst-performing scheme tested on every model. On pairs with a wide,
+obvious appeal gap:
+
+| model | letters | digits | item-name |
+|---|---|---|---|
+| Qwen2.5-0.5B-Instruct | 0.513 | 0.550 | 0.667 |
+| Gemma-2-2b-it | 0.825 | **0.858** | 0.667 |
+| Qwen2.5-3B-Instruct | 0.783 | **0.829** | 0.688 |
+
+0.500 is chance. Qwen2.5-0.5B under letters is at chance *on obvious pairs*, and its order-invariance
+there is **0.025** — near-pure position responding, in which the same slot is chosen regardless of
+content so the winner flips on essentially every reversal. On close pairs the switch matters most:
+Qwen2.5-3B's rate of choosing the first-displayed option falls from **0.854 under letters to 0.421
+under digits**.
+
+A methodological note belongs here because it nearly produced a false result. The first version of
+the content-addressed arm retained lettered options in the prompt, so the model answered with the
+letter: **98.7% of the probability mass sat on the label tokens and 0.8% on the item-name tokens**,
+while the readout was reading item-name tokens. It returned clean-looking accuracy figures that were
+meaningless. This motivates A1.6.
+
+**Label rendering is standardised across templates; template prose is not.** In the pairwise readout
+each template contributes its own lead-in sentence and its own question wording, but options are
+always rendered as `N. item`. Template t4 natively renders options as `[1] item`; the model copies
+that format and answers `"[1]"`, so at the single readout position it emits `[` and the digit tokens
+lose their mass — median readout mass 0.38 with 568 of 800 comparisons below the floor, against
+~1.00 under a standardised rendering. Label syntax is part of the readout mechanism, not part of the
+paraphrase manipulation: varying it tests the parser rather than the model's robustness to wording.
+Paraphrase variation is preserved where it is meaningful, in the prose.
+
+## A1.4 (NEW GATE) Order invariance — preregistered before any pairwise data
+
+**Statistic.** Per model, the proportion of (pool item × anchor) comparisons in which the **same item
+wins under both presentation orders**. Computed on the **digits** arm. Reference points:
+
+| responding | order invariance |
+|---|---|
+| perfectly content-driven | 1.00 |
+| purely random | 0.50 |
+| purely positional (always the same slot) | 0.00 |
+
+Note the statistic separates the two failure modes, which a simple accuracy measure does not: a
+position-only responder scores 0, not 0.5, because the winner flips on every reversal.
+
+**Threshold.** A model is **excluded** if median order invariance across templates is **< 0.60**, or
+if fewer than **3 of 5** templates individually reach 0.60. Both failure regions are reported
+distinctly:
+
+- invariance **< 0.50** → *position-dominated*: responding is driven by slot, not content.
+- **0.50 ≤ invariance < 0.60** → *random-dominated*: responding carries no recoverable signal.
+
+**Justification for 0.60.** This is a floor against degenerate responding, not a reliability bar, and
+it is set that way deliberately. Because both orders are always run and each item accumulates 20
+binary outcomes, Bradley-Terry tolerates substantial per-comparison noise; the quantity that governs
+whether `θ` is usable is its **posterior SD**, which is reported separately and is not a gate. The
+gate's job is only to establish that comparisons carry content-driven signal at all.
+
+Pilot calibration on wide-gap comparisons (the analogue of anchor comparisons) gave invariance of
+**0.708** (Qwen2.5-3B, digits), **0.733** (Gemma-2-2b, digits) and **0.750** (Qwen2.5-0.5B,
+item-name) — so 0.60 passes all pilot-tested configurations with margin while decisively excluding
+the position-dominated case (0.025). A threshold that no candidate can clear is not a gate, and one
+that everything clears regardless of behaviour is not either; 0.60 sits between the observed failure
+mode and the observed working mode.
+
+Anchor comparisons are where signal should be **strongest**, since anchors span the appeal range by
+construction and most pool-vs-anchor gaps are wide. A model that cannot achieve order invariance
+there has no prospect on the near-equal pairs the paradigm requires. Sampling error is negligible
+(~4,000 comparisons per template; SE on a proportion ≈ 0.008), so the threshold is a substantive
+judgement, not a statistical one.
+
+## A1.5 Instrument-validation record
+
+The preregistered absolute-rating Pass A is run **once at full scale** (400 items, all five models,
+run machine) and archived under `artifacts/instrument_validation/`. It is expected to fail the
+retired polarity gate. It is **never read by any downstream stage** and contributes to no
+hypothesis test. Its sole purpose is to let the paper report "the preregistered instrument was run at
+full scale and these are the numbers" rather than resting the amendment on pilot runs.
+
+## A1.6 (NEW INVARIANT) Readout mass floor
+
+Every readout in the codebase — rating, choice, and pairwise — now checks the total probability mass
+falling on its candidate tokens. Below the floor the trial is marked **invalid and logged**; it is
+never silently scored. Invalid-trial counts are reported per model and per elicitation arm.
+
+This is a direct response to the failure in A1.3, where a readout with 0.8% of its mass on the
+candidate tokens produced plausible numbers. A readout that is not reading the intended distribution
+must fail loudly, not return a value. Applied retrospectively to the instrument-validation record via
+its recorded per-trial `digit_mass`.
+
+## A1.7 (NEW DIAGNOSTIC) Operating window — evaluated before Pass C
+
+The paradigm needs pairs that are **near-equal** (so the choice is difficult) and on which the model
+still responds to **content** rather than position. The pilot probe found content-driven choice only
+at *wide* gaps. Whether those two requirements overlap at all is therefore an open empirical
+question, and it is answered before any Pass C compute is spent.
+
+Choice consistency under order reversal is plotted against `|θ_i − θ_j|` in bins. A usable operating
+window requires a band where consistency is **above chance** while the gap is **small**. **If no such
+band exists, Pass C as designed cannot work**, and the paradigm is reconsidered rather than run.
+
+## A1.8 Unchanged by this amendment
+
+The spread DV structure; the 2 × 5 receipt-matched conditions; continuous difficulty selected on one
+template set and analysed on a disjoint one; the difficulty × agency interaction as the sole primary
+test; the third-party valence control arms; the cross-device pooling guard; zero-sum constrained
+random effects; and the exclusion of reporting thresholds from forward-pass cache keys.
+
+Where §4–§6 specify quantities in rating points (`match_tolerance`, `sigma_between_min`, the ±16
+spread bound), those units are defined against the absolute scale and do not transfer to `θ`. Their
+re-expression is deferred to a further amendment and is **not** settled here.

@@ -17,12 +17,14 @@ from __future__ import annotations
 
 from pathlib import Path
 
+import numpy as np
 import pandas as pd
 from tqdm import tqdm
 
 from src.config import RunConfig
 from src.models.runner import Runner
 from src.provenance import Provenance, write_parquet
+from src.readout.validity import attach
 from src.stimuli.build import load_items, load_templates, pass_a_messages
 
 
@@ -65,6 +67,10 @@ def run_pass_a(cfg: RunConfig, runner: Runner, prov: Provenance) -> pd.DataFrame
     frame["rating"] = ratings
     frame["digit_mass"] = masses
     frame["rating_argmax"] = argmaxes
+    # A1.6: the mass floor is a global invariant. Trials whose probability does
+    # not land on the digit tokens are marked invalid and logged, never scored
+    # silently.
+    frame = attach(frame, np.asarray(masses), context="pass A rating")
 
     return write_parquet(frame, artifact_path(cfg), prov)
 

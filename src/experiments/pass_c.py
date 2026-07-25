@@ -41,6 +41,7 @@ from tqdm import tqdm
 from src.config import RunConfig
 from src.models.runner import Runner
 from src.provenance import Provenance, read_parquet, write_parquet
+from src.readout.validity import attach
 from src.stimuli.build import (
     Template,
     balanced_designation,
@@ -191,6 +192,9 @@ def run_pass_c(
         frame["other_post"] - frame["other_pre"]
     )
     frame["digit_mass_min"] = frame[["pre_mass_min", "post_mass_min"]].min(axis=1)
+    # A1.6: a trial is only valid if EVERY one of its four ratings cleared the
+    # floor -- the DV is a difference of all four, so one bad readout poisons it.
+    frame = attach(frame, frame["digit_mass_min"].to_numpy(), context="pass C ratings")
 
     _validate(cfg, frame)
     return write_parquet(frame, artifact_path(cfg), prov)
