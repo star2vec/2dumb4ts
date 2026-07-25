@@ -1,0 +1,28 @@
+extends: base.yaml
+
+# M1 wiring check on the largest cached model, sized so Pass B and Pass C
+# actually execute. Not a scientific run -- `smoke: true` is in the config hash
+# and provenance.assert_reportable() rejects these artifacts.
+
+model:
+  name: qwen2.5-3b-instruct
+  hf_id: Qwen/Qwen2.5-3B-Instruct
+  revision: aa8e72537993ba99e69dfaafa59ed015b17504d1
+  dtype: bfloat16
+  device: auto
+
+smoke: true
+smoke_items_per_domain: 12
+smoke_pairs_per_level: 4      # must divide by the 4 domains
+batch_size: 8
+
+pass_b:
+  # Loosened for the smoke pool only: 12 items/domain gives 66 candidate pairs,
+  # so the production tolerance would fail matching for lack of candidates.
+  match_tolerance: 0.6
+
+analysis:
+  chains: 2
+  tune: 500
+  draws: 500
+  power_n_sims: 40

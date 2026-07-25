@@ -1,0 +1,155 @@
+# Five paraphrased templates. Template is a MODELED FACTOR, never silently
+# averaged: it carries a random intercept in the primary model, and the same five
+# templates are used in Pass A and Pass C so the factor is consistent across
+# Stage 0.
+#
+# Placeholders
+#   {item}              framed label of the item being rated
+#   {item_a} {item_b}    framed labels in presentation order
+#   {label_a} {label_b}  option labels, normally "A" and "B"
+#   {designated}         framed label of the designated / endorsed item
+#   {other}              framed label of the non-designated item
+#   {lo} {hi}            scale endpoints (1 and 9)
+#
+# Prompt assembly (see preregistration.md 6.3)
+#   pre    = pair_prefix + rating[ascending]
+#   choice = pair_prefix + choice                       (chose condition only)
+#   post   = pair_prefix + antecedent[cond] + receipt + rating[ascending]
+# Pass A uses rating[ascending] and rating[descending] with no pair prefix.
+# Pass C uses ascending only: polarity is a Pass A validity device, and a
+# difference-of-differences DV should not straddle two scale directions.
+#
+# ---------------------------------------------------------------------------
+# INVARIANTS asserted at load time by stimuli/build.py
+#
+# 1. antecedent[yoked] == antecedent[random] verbatim, and
+#    antecedent[3p-yoked] == antecedent[3p-random] verbatim.
+#    These condition pairs must differ ONLY in which item is designated. Any
+#    wording difference would confound the selection-artifact estimate with a
+#    text difference, and the artifact estimate is what licenses the claim that
+#    the artifact cancels in the primary contrast.
+#
+# 2. `receipt` is a single string per template, shared by all five conditions.
+#    Receipt is matched across conditions by construction; without this,
+#    3p-yoked - yoked would confound endorsement with ownership.
+#
+# 3. Every antecedent mentions {designated} exactly once and {other} exactly
+#    once, so no contrast is confounded with how many times an item is named.
+#    (This is a repetition/context confound of exactly the kind the rebuttal
+#    exploits.) Mention counts are re-verified empirically by the stimulus audit.
+#
+# KNOWN RESIDUAL, documented rather than hidden: the `chose` condition carries an
+# extra assistant turn (its own choice) and the choice question, so its context is
+# longer than the other four. Structure cannot be matched without either removing
+# the model's authorship or making the other conditions transcribe the designated
+# label, which would induce pseudo-commitment and bias the primary contrast toward
+# null on a kill gate. So it is left unmatched and MEASURED: the stimulus audit
+# reports turn counts, token counts and per-item mention counts for every
+# condition x template cell. The primary test is the interaction with |diff|, which
+# a constant context-length difference does not predict. A structurally matched
+# variant would be a new condition set and would require a preregistration
+# amendment; it is deliberately not built here.
+# ---------------------------------------------------------------------------
+
+templates:
+  - id: t0
+    rating:
+      ascending: >-
+        How appealing is {item} to you? Answer on a scale from {lo} to {hi},
+        where {lo} means not appealing at all and {hi} means extremely
+        appealing. Reply with the number only.
+      descending: >-
+        How appealing is {item} to you? Answer on a scale from {lo} to {hi},
+        where {lo} means extremely appealing and {hi} means not appealing at
+        all. Reply with the number only.
+    pair_prefix: "Here are two options.\n\n{label_a}. {item_a}\n{label_b}. {item_b}"
+    choice: "Which one would you choose for yourself? Reply with {label_a} or {label_b} only."
+    antecedent:
+      chose: "You chose {designated} over {other}."
+      yoked: "{designated}, rather than {other}, has been assigned to you."
+      random: "{designated}, rather than {other}, has been assigned to you."
+      3p-yoked: "Another person chose {designated} over {other} for you."
+      3p-random: "Another person chose {designated} over {other} for you."
+    receipt: "You receive {designated}. You will not receive {other}."
+
+  - id: t1
+    rating:
+      ascending: >-
+        Consider {item}. Rate your personal interest in it from {lo} to {hi}. A
+        {lo} indicates no interest whatsoever; a {hi} indicates the strongest
+        possible interest. Give a single number and nothing else.
+      descending: >-
+        Consider {item}. Rate your personal interest in it from {lo} to {hi}. A
+        {lo} indicates the strongest possible interest; a {hi} indicates no
+        interest whatsoever. Give a single number and nothing else.
+    pair_prefix: "Two possibilities are available:\n\n{label_a}) {item_a}\n{label_b}) {item_b}"
+    choice: "Pick the one you would rather have. Answer {label_a} or {label_b} and nothing else."
+    antecedent:
+      chose: "You selected {designated} instead of {other}."
+      yoked: "{designated} has been allocated to you instead of {other}."
+      random: "{designated} has been allocated to you instead of {other}."
+      3p-yoked: "Someone else selected {designated} instead of {other} on your behalf."
+      3p-random: "Someone else selected {designated} instead of {other} on your behalf."
+    receipt: "{designated} is yours. {other} is not."
+
+  - id: t2
+    rating:
+      ascending: >-
+        Thinking only about your own taste, how much would you like {item}? Use
+        the range {lo} to {hi}, where {lo} means you would not like it at all
+        and {hi} means you would like it enormously. Respond with just the
+        digit.
+      descending: >-
+        Thinking only about your own taste, how much would you like {item}? Use
+        the range {lo} to {hi}, where {lo} means you would like it enormously
+        and {hi} means you would not like it at all. Respond with just the
+        digit.
+    pair_prefix: "Below are two alternatives.\n\n{label_a} - {item_a}\n{label_b} - {item_b}"
+    choice: "Choose whichever you prefer. Respond with the single letter {label_a} or {label_b}."
+    antecedent:
+      chose: "Your choice was {designated}, not {other}."
+      yoked: "The allocation you were given is {designated}, not {other}."
+      random: "The allocation you were given is {designated}, not {other}."
+      3p-yoked: "Another person's choice for you was {designated}, not {other}."
+      3p-random: "Another person's choice for you was {designated}, not {other}."
+    receipt: "You will get {designated} and not {other}."
+
+  - id: t3
+    rating:
+      ascending: >-
+        Rate {item} according to your own preference, using a number between
+        {lo} and {hi}. Let {lo} stand for the least favourable rating and {hi}
+        for the most favourable. Output nothing but the number.
+      descending: >-
+        Rate {item} according to your own preference, using a number between
+        {lo} and {hi}. Let {lo} stand for the most favourable rating and {hi}
+        for the least favourable. Output nothing but the number.
+    pair_prefix: "You are presented with two candidates.\n\n{label_a}: {item_a}\n{label_b}: {item_b}"
+    choice: "Select the one you want. Give only the letter, {label_a} or {label_b}."
+    antecedent:
+      chose: "You picked {designated} in preference to {other}."
+      yoked: "You have been given {designated} in place of {other}."
+      random: "You have been given {designated} in place of {other}."
+      3p-yoked: "A different person picked {designated} in preference to {other} for you."
+      3p-random: "A different person picked {designated} in preference to {other} for you."
+    receipt: "{designated} goes to you; {other} does not."
+
+  - id: t4
+    rating:
+      ascending: >-
+        On a {lo} to {hi} scale, how attractive do you find {item}? The value
+        {lo} corresponds to entirely unattractive and the value {hi} to
+        exceptionally attractive. Answer with one number, no explanation.
+      descending: >-
+        On a {lo} to {hi} scale, how attractive do you find {item}? The value
+        {lo} corresponds to exceptionally attractive and the value {hi} to
+        entirely unattractive. Answer with one number, no explanation.
+    pair_prefix: "Consider the following pair of options.\n\n[{label_a}] {item_a}\n[{label_b}] {item_b}"
+    choice: "Decide between them. Output just {label_a} or {label_b}."
+    antecedent:
+      chose: "You decided on {designated} rather than {other}."
+      yoked: "It has been decided for you: {designated} rather than {other}."
+      random: "It has been decided for you: {designated} rather than {other}."
+      3p-yoked: "Another individual decided on {designated} rather than {other} for you."
+      3p-random: "Another individual decided on {designated} rather than {other} for you."
+    receipt: "What you receive is {designated}, not {other}."

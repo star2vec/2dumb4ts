@@ -1,0 +1,10 @@
+extends: base.yaml
+
+# Gated repo on HuggingFace; requires an accepted licence and a token in the
+# environment. Not present in the dev cache -- fetch on the run machine.
+model:
+  name: llama-3.2-3b-instruct
+  hf_id: meta-llama/Llama-3.2-3B-Instruct
+  revision: 0cb88a4f764b7a12671c53f0838cd831a0843b95
+  dtype: bfloat16
+  device: auto

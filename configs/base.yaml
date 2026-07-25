@@ -1,0 +1,63 @@
+# Shared defaults for every Stage 0 run.
+#
+# Never loaded on its own -- model configs pull it in with `extends: base.yaml`.
+# Every value here is preregistered; see preregistration.md. Changing any of them
+# changes the config hash and therefore the output filenames, so a modified
+# parameter cannot silently overwrite existing results.
+
+seed: 20261025
+batch_size: 32
+
+stimuli:
+  items_path: src/stimuli/items.yaml
+  templates_path: src/stimuli/templates.yaml
+  domains: [destinations, electronics, foods, activities]
+  items_per_domain: 100
+  n_templates: 5
+
+readout:
+  # 1-9, not 1-10: on Qwen2.5 and Gemma-2 the first token of "10" is
+  # byte-identical to the token for "1". preregistration.md section 3.2.
+  scale_min: 1
+  scale_max: 9
+  option_labels: [A, B]
+
+pass_a:
+  # Disjoint template sets. Selecting difficulty on a noisy |diff| and then
+  # analysing that same |diff| would make the regressor regression-contaminated.
+  selection_templates: [0, 1, 2]
+  analysis_templates: [3, 4]
+
+gates:
+  validity_rho_min: 0.6          # sole categorical exclusion
+  validity_min_surviving_templates: 3
+  sigma_between_min: 0.5         # no |diff| range means no manipulation
+  icc_tripwire: 0.4              # implementation-fault tripwire, not a halt
+
+pass_b:
+  n_difficult: 100
+  n_easy: 100
+  difficult_quantile: 0.10       # bottom decile of |diff|
+  easy_quantile: 0.75            # top quartile of |diff|
+  max_uses_per_item: 2
+  within_domain: true
+  match_on_mean_rating: true     # removes the extremity/ceiling confound
+  match_tolerance: 0.15
+
+pass_c:
+  conditions: [chose, yoked, 3p-yoked, 3p-random, random]
+  n_option_orders: 2
+
+analysis:
+  reference_condition: yoked     # makes chose - yoked a single coefficient
+  sesoi_sigma_fraction: 0.15     # SESOI = 0.15 * sigma_between
+  sesoi_raw_secondary: 0.25      # scale-free secondary anchor, rating points
+  equivalence_f: 0.25            # Stage 2 bound, fraction of comparison vector
+  chains: 4
+  tune: 2000
+  draws: 2000
+  hdi_prob: 0.95
+  rhat_max: 1.01
+  ess_min: 400
+  power_target: 0.80
+  power_n_sims: 500

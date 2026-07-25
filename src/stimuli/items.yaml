@@ -1,0 +1,429 @@
+# Stage 0 item pool: 400 items, 100 per domain, 4 neutral domains.
+#
+# HARD REQUIREMENT: no factual claim, verifiable property, or correctness-bearing
+# statement appears anywhere in this file. Items are bare names and noun phrases;
+# all framing is supplied by templates.yaml and is purely about personal appeal.
+# Stage 0 must not contain material that could engage truth-tracking, because the
+# project's later claims depend on the two paradigms being non-overlapping.
+#
+# Item ids are derived from the domain and a slug of the label, so reordering this
+# file does not renumber items and does not change any random-effect grouping key.
+# Uniqueness is asserted at load time.
+
+domains:
+  destinations:
+    # `frame` turns a bare label into the noun phrase templates interpolate.
+    frame: "a trip to {item}"
+    items:
+      - Lisbon
+      - Kyoto
+      - Reykjavik
+      - Marrakesh
+      - Vienna
+      - Queenstown
+      - Cusco
+      - Bruges
+      - Hanoi
+      - Cape Town
+      - Edinburgh
+      - Seville
+      - Dubrovnik
+      - Ljubljana
+      - Tallinn
+      - Porto
+      - Valencia
+      - Bergen
+      - Salzburg
+      - Bologna
+      - Krakow
+      - Riga
+      - Vilnius
+      - Zurich
+      - Copenhagen
+      - Helsinki
+      - Oslo
+      - Stockholm
+      - Amsterdam
+      - Ghent
+      - Antwerp
+      - Rotterdam
+      - Utrecht
+      - Strasbourg
+      - Lyon
+      - Bordeaux
+      - Nice
+      - Marseille
+      - Toulouse
+      - Montpellier
+      - Granada
+      - Cordoba
+      - Bilbao
+      - San Sebastian
+      - Santiago de Compostela
+      - Madeira
+      - the Azores
+      - Tenerife
+      - Mallorca
+      - Menorca
+      - Crete
+      - Santorini
+      - Rhodes
+      - Corfu
+      - Naxos
+      - Sicily
+      - Sardinia
+      - Puglia
+      - Tuscany
+      - Umbria
+      - the Dolomites
+      - Lake Como
+      - Interlaken
+      - Lucerne
+      - Innsbruck
+      - Hallstatt
+      - Budapest
+      - Prague
+      - Brno
+      - Bratislava
+      - Sofia
+      - Bucharest
+      - Split
+      - Zadar
+      - Kotor
+      - Tirana
+      - Istanbul
+      - Cappadocia
+      - Antalya
+      - Petra
+      - Wadi Rum
+      - Muscat
+      - Fez
+      - Essaouira
+      - Chefchaouen
+      - Zanzibar
+      - Nairobi
+      - Kigali
+      - Windhoek
+      - Victoria Falls
+      - Mauritius
+      - the Seychelles
+      - Kandy
+      - Colombo
+      - the Maldives
+      - Jaipur
+      - Udaipur
+      - Kerala
+      - Pokhara
+      - Kathmandu
+
+  electronics:
+    frame: "{item}"
+    items:
+      - noise-cancelling headphones
+      - wireless earbuds
+      - a mechanical keyboard
+      - an e-reader
+      - a smartwatch
+      - a fitness tracker
+      - a portable Bluetooth speaker
+      - a soundbar
+      - a record turntable
+      - a mirrorless camera
+      - an instant film camera
+      - an action camera
+      - a camera drone
+      - a portable projector
+      - a tablet
+      - a drawing tablet
+      - an ultrawide monitor
+      - a second monitor
+      - a webcam
+      - a ring light
+      - a condenser microphone
+      - a lavalier microphone
+      - an audio interface
+      - studio monitor speakers
+      - open-back headphones
+      - a portable headphone amplifier
+      - a handheld game console
+      - a retro game console
+      - a VR headset
+      - a wireless gaming mouse
+      - a trackball mouse
+      - a split ergonomic keyboard
+      - a laptop stand
+      - a docking station
+      - a portable SSD
+      - a network attached storage box
+      - a mesh wifi system
+      - a smart thermostat
+      - smart light bulbs
+      - a smart plug
+      - a video doorbell
+      - an indoor security camera
+      - a robot vacuum
+      - an air purifier
+      - a humidifier
+      - a dehumidifier
+      - a temperature-controlled electric kettle
+      - an espresso machine
+      - an electric burr grinder
+      - a sous vide circulator
+      - an air fryer
+      - a stand mixer
+      - an immersion blender
+      - a rice cooker
+      - a bread maker
+      - an ice cream maker
+      - a sparkling water maker
+      - a food dehydrator
+      - a digital kitchen scale
+      - a digital meat thermometer
+      - an electric toothbrush
+      - a water flosser
+      - a hair dryer with a diffuser
+      - an electric shaver
+      - a massage gun
+      - a smart bathroom scale
+      - a blood pressure monitor
+      - a sleep tracking ring
+      - a white noise machine
+      - a sunrise alarm clock
+      - an e-ink writing tablet
+      - a label printer
+      - a photo printer
+      - a document scanner
+      - a laser printer
+      - a vinyl cutter
+      - a soldering station
+      - a multimeter
+      - a cordless drill
+      - a laser measuring tool
+      - a thermal imaging camera
+      - a handheld vacuum
+      - a steam mop
+      - an electric bike
+      - an electric scooter
+      - a dash camera
+      - a portable jump starter
+      - a tyre inflator
+      - a power bank
+      - a solar charger
+      - a portable power station
+      - a satellite messenger
+      - a handheld GPS unit
+      - image-stabilised binoculars
+      - a motorised telescope mount
+      - a metal detector
+      - a digital piano
+      - a guitar loop pedal
+      - a MIDI controller
+      - a portable turntable
+
+  foods:
+    frame: "{item}"
+    items:
+      - ramen
+      - pad thai
+      - paella
+      - risotto
+      - sushi
+      - dumplings
+      - tacos
+      - pho
+      - laksa
+      - biryani
+      - moussaka
+      - lasagne
+      - gnocchi
+      - falafel
+      - shawarma
+      - hummus
+      - a tagine
+      - couscous
+      - jollof rice
+      - injera with stew
+      - bibimbap
+      - bulgogi
+      - tonkatsu
+      - tempura
+      - okonomiyaki
+      - takoyaki
+      - gyoza
+      - char siu
+      - dim sum
+      - wonton soup
+      - mapo tofu
+      - xiao long bao
+      - banh mi
+      - nasi goreng
+      - beef rendang
+      - chicken satay
+      - tom yum soup
+      - green curry
+      - massaman curry
+      - ceviche
+      - empanadas
+      - arepas
+      - feijoada
+      - churrasco
+      - gazpacho
+      - tortilla espanola
+      - croquetas
+      - pintxos
+      - pierogi
+      - borscht
+      - goulash
+      - schnitzel
+      - spatzle
+      - soft pretzels
+      - raclette
+      - fondue
+      - rosti
+      - smorrebrod
+      - gravlax
+      - fish and chips
+      - shepherd's pie
+      - a full English breakfast
+      - scones with clotted cream
+      - a bagel with lox
+      - clam chowder
+      - gumbo
+      - jambalaya
+      - barbecue brisket
+      - pulled pork
+      - buffalo wings
+      - a philly cheesesteak
+      - a lobster roll
+      - poutine
+      - butter chicken
+      - palak paneer
+      - chana masala
+      - dosa
+      - idli with sambar
+      - vada pav
+      - samosas
+      - pakoras
+      - naan
+      - kebabs
+      - baklava
+      - kunafa
+      - tiramisu
+      - panna cotta
+      - cannoli
+      - gelato
+      - churros
+      - flan
+      - mochi
+      - matcha ice cream
+      - macarons
+      - croissants
+      - pain au chocolat
+      - apple strudel
+      - black forest cake
+      - cheesecake
+      - banana bread
+
+  activities:
+    frame: "{item}"
+    items:
+      - hiking
+      - rock climbing
+      - bouldering
+      - kayaking
+      - canoeing
+      - sailing
+      - surfing
+      - paddleboarding
+      - snorkelling
+      - scuba diving
+      - skiing
+      - snowboarding
+      - ice skating
+      - cross-country skiing
+      - snowshoeing
+      - cycling
+      - mountain biking
+      - road cycling
+      - running
+      - trail running
+      - open water swimming
+      - yoga
+      - pilates
+      - tai chi
+      - aikido
+      - boxing
+      - fencing
+      - archery
+      - horse riding
+      - birdwatching
+      - stargazing
+      - camping
+      - backpacking
+      - geocaching
+      - orienteering
+      - gardening
+      - pottery
+      - woodworking
+      - knitting
+      - embroidery
+      - quilting
+      - calligraphy
+      - sketching
+      - watercolour painting
+      - oil painting
+      - printmaking
+      - photography
+      - darkroom printing
+      - journaling
+      - creative writing
+      - writing poetry
+      - learning a language
+      - chess
+      - bridge
+      - board games
+      - tabletop roleplaying games
+      - crossword puzzles
+      - jigsaw puzzles
+      - cryptic crosswords
+      - playing the piano
+      - playing the guitar
+      - singing in a choir
+      - playing in a band
+      - DJing
+      - producing music
+      - ballroom dancing
+      - salsa dancing
+      - swing dancing
+      - contemporary dance
+      - improv comedy
+      - amateur theatre
+      - stand-up comedy
+      - baking
+      - bread making
+      - fermenting vegetables
+      - home brewing
+      - cheese making
+      - cocktail making
+      - coffee roasting
+      - tea tasting
+      - wine tasting
+      - foraging for mushrooms
+      - beekeeping
+      - keeping an aquarium
+      - growing bonsai
+      - flower arranging
+      - model building
+      - model railways
+      - restoring furniture
+      - restoring bicycles
+      - metal detecting
+      - fossil hunting
+      - rock hounding
+      - amateur astronomy
+      - amateur radio
+      - electronics tinkering
+      - programming for fun
+      - volunteering at a shelter
+      - attending live concerts
+      - visiting museums

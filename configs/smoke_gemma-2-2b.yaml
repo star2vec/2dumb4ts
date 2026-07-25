@@ -1,0 +1,26 @@
+extends: base.yaml
+
+# Pass A only in practice: used to test whether polarity-blindness is
+# Qwen-specific or general across model families. Not a scientific run.
+
+model:
+  name: gemma-2-2b-it
+  hf_id: google/gemma-2-2b-it
+  revision: 299a8560bedf22ed1c72a8a11e7dce4a7f9f51f8
+  dtype: bfloat16
+  device: auto
+  attn_implementation: eager
+
+smoke: true
+smoke_items_per_domain: 12
+smoke_pairs_per_level: 4
+batch_size: 8
+
+pass_b:
+  match_tolerance: 0.6
+
+analysis:
+  chains: 2
+  tune: 500
+  draws: 500
+  power_n_sims: 40

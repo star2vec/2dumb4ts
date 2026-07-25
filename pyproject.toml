@@ -1,0 +1,65 @@
+[project]
+name = "consistency-vs-truth"
+version = "0.1.0"
+description = "Stage 0: free-choice spreading of alternatives in instruction-tuned LMs"
+requires-python = ">=3.11"
+
+dependencies = [
+    "torch==2.8.0",
+    "transformers>=4.44",
+    "accelerate>=0.34",
+    "huggingface-hub>=0.25",
+    "pydantic>=2.8",
+    "pyyaml>=6.0",
+    "pandas>=2.2",
+    "pyarrow>=17.0",
+    "numpy>=1.26",
+    "scipy>=1.14",
+    "safetensors>=0.4",
+    "pymc>=5.16",
+    "arviz>=0.19",
+    # arviz-plots still imports matplotlib.style.core, removed in matplotlib 3.11.
+    "matplotlib>=3.9,<3.11",
+    "tqdm>=4.66",
+]
+
+[project.optional-dependencies]
+dev = [
+    "pytest>=8.3",
+    "ipykernel>=6.29",
+    "jupyter>=1.1",
+]
+
+# ---------------------------------------------------------------------------
+# One pyproject, platform-specific torch.
+#
+# Dev machine (M1 / darwin): the default PyPI wheel, which carries MPS + CPU.
+# Run machine (RTX 2000 Ada / linux): the CUDA 12.6 wheel from the PyTorch index.
+#
+# The code itself is device-agnostic; only the wheel differs. Which one is in
+# use is recorded in every artifact's provenance block, and the analysis layer
+# refuses to pool artifacts across devices.
+# ---------------------------------------------------------------------------
+[tool.uv.sources]
+torch = [
+    { index = "pytorch-cu126", marker = "sys_platform == 'linux'" },
+]
+
+[[tool.uv.index]]
+name = "pytorch-cu126"
+url = "https://download.pytorch.org/whl/cu126"
+explicit = true
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+filterwarnings = ["ignore::DeprecationWarning"]
+markers = [
+    "slow: fits a Bayesian model; excluded with -m 'not slow'",
+]
+
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
+[tool.hatch.build.targets.wheel]
+packages = ["src"]

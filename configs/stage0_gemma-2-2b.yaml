@@ -1,0 +1,12 @@
+extends: base.yaml
+
+# Gemma-2 chat template has no system role; the prompt builder folds any system
+# content into the first user turn for this model family.
+model:
+  name: gemma-2-2b-it
+  hf_id: google/gemma-2-2b-it
+  revision: 299a8560bedf22ed1c72a8a11e7dce4a7f9f51f8
+  dtype: bfloat16
+  device: auto
+  # Gemma-2 soft-caps attention logits; the sdpa path does not implement it.
+  attn_implementation: eager

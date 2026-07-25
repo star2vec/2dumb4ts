@@ -1,0 +1,53 @@
+# DIAGNOSTIC ONLY -- not part of the preregistered stimulus pool.
+#
+# Deliberately low-appeal items, used solely to construct choices with an obvious
+# appeal gap. Their job is to answer one question: when the choice is NOT close,
+# does the model's pick track content at all, or does it still take whichever
+# option is displayed first?
+#
+# These never enter Pass A, Pass B or Pass C. The preregistered 400 items in
+# items.yaml are untouched.
+#
+# Same constraints as the main pool: no digits, no superlatives, no verifiable
+# claims -- pure preference framing, so nothing here could engage truth-tracking.
+
+domains:
+  destinations:
+    frame: "a trip to {item}"
+    items:
+      - a motorway service station
+      - a landfill site
+      - a disused car park
+      - an airport baggage hall
+      - a tax office
+      - a bus depot
+
+  electronics:
+    frame: "{item}"
+    items:
+      - a broken toaster
+      - a tangled extension lead
+      - a dead battery
+      - a cracked phone screen
+      - an obsolete fax machine
+      - a squealing smoke alarm
+
+  foods:
+    frame: "{item}"
+    items:
+      - cold leftover porridge
+      - a stale sandwich
+      - burnt toast
+      - watery instant soup
+      - a lukewarm boiled egg
+      - unseasoned plain rice
+
+  activities:
+    frame: "{item}"
+    items:
+      - queuing at a post office
+      - filling in tax forms
+      - cleaning a drain
+      - waiting on hold
+      - sorting through junk mail
+      - defrosting a freezer

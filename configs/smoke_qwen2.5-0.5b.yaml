@@ -1,0 +1,23 @@
+extends: base.yaml
+
+# M1 wiring check. Not a scientific run: `smoke: true` is part of the config
+# hash, so these artifacts land in their own directory and can never be mistaken
+# for run-machine output. provenance.assert_reportable() rejects them regardless.
+
+model:
+  name: qwen2.5-0.5b-instruct
+  hf_id: Qwen/Qwen2.5-0.5B-Instruct
+  revision: 7ae557604adf67be50417f59c2c2f167def9a775
+  dtype: bfloat16
+  device: auto
+
+smoke: true
+smoke_items_per_domain: 10
+smoke_pairs_per_level: 5
+batch_size: 8
+
+analysis:
+  chains: 2
+  tune: 500
+  draws: 500
+  power_n_sims: 50

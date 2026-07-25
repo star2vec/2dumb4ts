@@ -1,0 +1,42 @@
+extends: base.yaml
+
+# ---------------------------------------------------------------------------
+# ENGINEERING WIRING CHECK -- NOT A SCIENTIFIC RUN, NOT A RESULT.
+#
+# Every model tested so far halts at the preregistered polarity-validity gate, so
+# Pass B, Pass C and the analysis layer would never execute and their code would
+# be unverified. This config disables the gate thresholds for the sole purpose of
+# exercising those code paths end-to-end.
+#
+# It carries `smoke: true`, so provenance.assert_reportable() rejects its
+# artifacts and they land under their own config hash. Nothing produced by this
+# file may appear in the paper. The preregistered gate values live in base.yaml
+# and are inherited unchanged by every stage0_*.yaml.
+# ---------------------------------------------------------------------------
+
+model:
+  name: qwen2.5-3b-instruct
+  hf_id: Qwen/Qwen2.5-3B-Instruct
+  revision: aa8e72537993ba99e69dfaafa59ed015b17504d1
+  dtype: bfloat16
+  device: auto
+
+smoke: true
+smoke_items_per_domain: 12
+smoke_pairs_per_level: 4
+batch_size: 8
+
+gates:
+  validity_rho_min: -1.0            # disabled
+  validity_min_surviving_templates: 0
+  sigma_between_min: 0.0            # disabled
+  icc_tripwire: 0.0
+
+pass_b:
+  match_tolerance: 0.6
+
+analysis:
+  chains: 2
+  tune: 500
+  draws: 500
+  power_n_sims: 40

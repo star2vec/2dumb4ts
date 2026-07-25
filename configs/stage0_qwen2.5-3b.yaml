@@ -1,0 +1,8 @@
+extends: base.yaml
+
+model:
+  name: qwen2.5-3b-instruct
+  hf_id: Qwen/Qwen2.5-3B-Instruct
+  revision: aa8e72537993ba99e69dfaafa59ed015b17504d1
+  dtype: bfloat16
+  device: auto
