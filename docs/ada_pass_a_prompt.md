@@ -1,7 +1,9 @@
 # Startup prompt — RTX 2000 Ada, full Pass A ladder
 
-Paste everything below the line into Claude Code on the run machine, from an empty
-directory. Replace `<REPO_URL>` with the clone URL.
+Paste everything below the line into Claude Code on the run machine.
+
+If the repo is not there yet:
+`git clone https://github.com/star2vec/2dumb4ts.git && cd 2dumb4ts`
 
 ---
 
@@ -20,8 +22,20 @@ whether it also holds for the two models I could not test locally
 
 ## Setup
 
+You are already inside the repo, but it was cloned while the remote was still
+empty, so there is nothing in it. Pull first and confirm you actually have the
+code before doing anything else:
+
 ```bash
-git clone <REPO_URL> && cd 2dumb4ts
+git fetch origin
+git checkout -B main origin/main
+git log --oneline          # expect 12a825a then 57ef60d
+ls preregistration.md src/ scripts/ configs/
+```
+
+Then:
+
+```bash
 uv venv --python 3.11
 uv sync --extra dev || uv pip install -e ".[dev]"
 ```
