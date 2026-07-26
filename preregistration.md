@@ -1033,6 +1033,63 @@ gap to gap SD and so scale-invariant; the A2.2 reliability gate is a Spearman
 correlation. The one scale-dependent quantity, `pass_b.match_tolerance`, is expressed in
 absolute rating points and its re-expression is explicitly deferred (A1.8, A2.5).
 
+## A2.8 What a positive H1 would and would not establish
+
+**Written before any Pass C data exists.** This is a limitation of the design, not a caveat
+discovered after seeing a result, and it is the reason the project's unit of submission is Stage 0
+**and** Stage 1 together rather than Stage 0 alone.
+
+### The deflation
+
+A positive H1 — a negative `(chose − yoked) × |diff|` interaction — rules out the crude
+context-window account of §1.1, because a context that merely names one option favourably does not
+predict a *dependency on choice difficulty*. That was the account the published rebuttal used, and
+ruling it out is real.
+
+It does **not** rule out at least two others:
+
+**Self-perception (Bem).** The model infers its preference from its own observed behaviour rather
+than resolving any conflict. Under this account, a choice between near-equal options is the more
+*informative* observation — precisely because it was not forced by a large prior preference — so
+self-perception predicts **larger spreading for difficult choices, the same sign as H1.**
+
+**Bayesian conditioning on the self-generated choice token.** The choice token enters the context
+and the model conditions on it. When the pre-choice preference is weak, the token carries more
+information about which option is preferred, so the posterior update is larger. Again the **same
+sign as H1**, and it requires no dissonance-like mechanism at all — only that the model treats its
+own output as evidence.
+
+### Why the existing conditions do not separate them
+
+`3p-yoked` holds designation and information constant while removing authorship, so it separates
+authorship from information. It does **not** separate dissonance from self-perception or from
+conditioning, because another agent's choice is *weaker evidence about the model's own preferences*
+than its own choice is. All three accounts therefore predict `chose > 3p-yoked`, and the contrast
+cannot adjudicate between them.
+
+### Why behaviour cannot settle it here
+
+In the human literature this was settled with arousal-misattribution designs — manipulating an
+incidental state the participant could attribute the discomfort to. There is no available analogue
+for a language model, and inventing one would be a larger research program than this paper.
+
+**Consequence: Stage 0 alone is deflatable.** A skeptic can grant every result in it and still hold
+that the model is doing self-perception or Bayesian updating. **Stage 1 — representation-level
+evidence that the manipulation acts on a specific, identifiable mechanism rather than on general
+belief updating — is what makes the claim survive contact with that skeptic.** Stage 0 is reported
+as a kill gate, which is what §1 always said it was.
+
+### The one behavioural lever available
+
+Commitment/irrevocability is a boundary condition for dissonance but **not** for self-perception: a
+model observing its own provisional choice has observed it just as much as a final one, whereas
+dissonance requires the decision to be difficult to undo. A `chose-provisional` arm therefore
+carries genuine discriminating weight at low cost, and it is preregistered in A2.9.
+
+It is not decisive on its own — a null there is also consistent with the model simply not
+representing revocability — but it is the only behavioural handle this paradigm affords, and it is
+cheap enough that omitting it would be indefensible.
+
 ## A2.5 Unchanged
 
 Everything in A1.8 stands, minus the retired A1.4 gate. In particular: the spread DV structure, the
