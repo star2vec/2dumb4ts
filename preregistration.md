@@ -659,11 +659,22 @@ the position-dominated case (0.025). A threshold that no candidate can clear is 
 that everything clears regardless of behaviour is not either; 0.60 sits between the observed failure
 mode and the observed working mode.
 
-Anchor comparisons are where signal should be **strongest**, since anchors span the appeal range by
-construction and most pool-vs-anchor gaps are wide. A model that cannot achieve order invariance
-there has no prospect on the near-equal pairs the paradigm requires. Sampling error is negligible
-(~4,000 comparisons per template; SE on a proportion ≈ 0.008), so the threshold is a substantive
-judgement, not a statistical one.
+Sampling error is negligible (~4,000 comparisons per template; SE on a proportion ≈ 0.008), so the
+threshold is a substantive judgement, not a statistical one.
+
+> **Correction, entered 2026-07-26 after the first pairwise pilot run.** The paragraph originally
+> here argued that anchor comparisons are "where signal should be strongest, since anchors span the
+> appeal range by construction and most pool-vs-anchor gaps are wide." **That reasoning was wrong,
+> and self-contradictory.** An anchor set that spans the appeal range necessarily produces many
+> *narrow* gaps — that is what spanning means. The high-tier anchors sit close to a typical pool
+> item by design, so the gate is a considerably more demanding test than the pilot calibration
+> figures (0.708–0.750, measured on deliberately wide-gap pairs) implied.
+>
+> The threshold of 0.60 is **not** changed: it was chosen as a floor against degenerate responding,
+> and that rationale is unaffected. What is withdrawn is the claim that pilot wide-gap invariance
+> transfers to anchor comparisons as a margin estimate. It does not, and the first pilot run showed
+> the difference directly — Qwen2.5-3B scored 0.744 against low-tier anchors and 0.290 against
+> high-tier ones, a range the original paragraph would not have anticipated.
 
 ## A1.5 Instrument-validation record
 

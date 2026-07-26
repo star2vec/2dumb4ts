@@ -324,14 +324,23 @@ def order_invariance(frame: pd.DataFrame, by: list[str] | None = None) -> pd.Dat
     """
     valid = frame[frame["readout_valid"]]
     keys = ["item_id", "anchor_id", "template", "arm"]
+    # Carry through any grouping column the caller asked for that is constant
+    # within a comparison (anchor_tier, domain, ...), so invariance can be
+    # decomposed without re-deriving the pivot.
+    passthrough = [
+        c for c in (by or []) if c not in keys and c in valid.columns
+    ]
     wide = valid.pivot_table(
-        index=keys, columns="order", values="item_wins", aggfunc="first"
+        index=keys + passthrough, columns="order", values="item_wins", aggfunc="first"
     ).dropna()
     if not {0, 1} <= set(wide.columns):
         return pd.DataFrame()
 
     wide = wide.reset_index()
     wide["invariant"] = wide[0] == wide[1]
+    # An unambiguous win: the pool item beats the anchor under BOTH orders. This
+    # is the content signal that survives order averaging.
+    wide["unambiguous_item_win"] = wide[0] & wide[1]
 
     group = by or ["arm"]
     rows = []
@@ -342,6 +351,7 @@ def order_invariance(frame: pd.DataFrame, by: list[str] | None = None) -> pd.Dat
             **dict(zip(group, key)),
             "n_pairs": len(block),
             "order_invariance": inv,
+            "unambiguous_item_win": float(block["unambiguous_item_win"].mean()),
             "regime": (
                 "position-dominated" if inv < 0.5
                 else "random-dominated" if inv < 0.6
