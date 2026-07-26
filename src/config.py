@@ -244,6 +244,26 @@ class RunConfig(Frozen):
     def n_easy(self) -> int:
         return self.smoke_pairs_per_level if self.smoke else self.pass_b.n_easy
 
+    def stimuli_digest(self) -> str:
+        """Digest of the actual stimulus FILE CONTENTS, not just their paths.
+
+        Without this, editing items.yaml, templates.yaml or anchors.yaml leaves
+        every hash unchanged, so cached artifacts are silently reused against
+        different prompts. That is the worst class of reproducibility bug: it
+        produces no error and no warning, just numbers attributed to stimuli that
+        did not generate them. Discovered after a template wording fix changed no
+        hash at all.
+        """
+        parts = []
+        for rel in (
+            self.stimuli.items_path,
+            self.stimuli.templates_path,
+            Path("src/stimuli/anchors.yaml"),
+        ):
+            p = self.resolve(rel)
+            parts.append(p.read_bytes() if p.exists() else b"")
+        return hashlib.sha256(b"\x00".join(parts)).hexdigest()[:12]
+
     def hash(self, stage: str | None = None) -> str:
         """Deterministic 12-hex digest.
 
@@ -260,6 +280,8 @@ class RunConfig(Frozen):
         fields = STAGE_HASH_FIELDS.get(stage) if stage else None
         if fields:
             payload = {k: payload[k] for k in fields}
+        # Stimulus content reaches every stage that runs a forward pass.
+        payload["_stimuli_digest"] = self.stimuli_digest()
         canonical = json.dumps(payload, sort_keys=True, separators=(",", ":"))
         return hashlib.sha256(canonical.encode()).hexdigest()[:12]
 

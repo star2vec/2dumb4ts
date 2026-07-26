@@ -6,7 +6,14 @@
 # Placeholders
 #   {item}              framed label of the item being rated
 #   {item_a} {item_b}    framed labels in presentation order
-#   {label_a} {label_b}  option labels, normally "A" and "B"
+#   {label_a} {label_b}  option labels. LABEL-AGNOSTIC WORDING IS REQUIRED: these
+#                        were "A"/"B" originally and are digits under D3, so no
+#                        `choice` string may say "letter", "number", or anything
+#                        else that names the label type. t2 and t3 originally read
+#                        "the single letter {label_a} or {label_b}", which under
+#                        digits became "the single letter 1 or 2" -- incoherent, and
+#                        the model answered in prose instead of emitting a label.
+#                        39% of readouts fell below the mass floor as a result.
 #   {designated}         framed label of the designated / endorsed item
 #   {other}              framed label of the non-designated item
 #   {lo} {hi}            scale endpoints (1 and 9)
@@ -105,7 +112,7 @@ templates:
         and {hi} means you would not like it at all. Respond with just the
         digit.
     pair_prefix: "Below are two alternatives.\n\n{label_a} - {item_a}\n{label_b} - {item_b}"
-    choice: "Choose whichever you prefer. Respond with the single letter {label_a} or {label_b}."
+    choice: "Choose whichever you prefer. Respond with {label_a} or {label_b}, nothing more."
     antecedent:
       chose: "Your choice was {designated}, not {other}."
       yoked: "The allocation you were given is {designated}, not {other}."
@@ -125,7 +132,7 @@ templates:
         {lo} and {hi}. Let {lo} stand for the most favourable rating and {hi}
         for the least favourable. Output nothing but the number.
     pair_prefix: "You are presented with two candidates.\n\n{label_a}: {item_a}\n{label_b}: {item_b}"
-    choice: "Select the one you want. Give only the letter, {label_a} or {label_b}."
+    choice: "Select the one you want. Give only {label_a} or {label_b}."
     antecedent:
       chose: "You picked {designated} in preference to {other}."
       yoked: "You have been given {designated} in place of {other}."
