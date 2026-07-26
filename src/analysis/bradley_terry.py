@@ -18,9 +18,38 @@ PRECISION IS REPORTED AS THE POSTERIOR SD OF theta, not as an ICC. Reliability o
 a single comparison is not the quantity of interest; the quantity of interest is
 how well theta is pinned down after 20 of them.
 
-No order term appears in the likelihood. Order is averaged structurally by always
-running both -- a position-bias parameter would be estimated from the very
-comparisons it is meant to purge.
+AN ORDER TERM IS INCLUDED, per template (Amendment 2, A2.1):
+
+    P(item beats anchor) = sigmoid(theta_i - alpha_a + s * beta_t)
+    s = +1 when the item is in slot 1, -1 when in slot 2
+
+This file previously argued the opposite -- that a position term "would be
+estimated from the very comparisons it is meant to purge." That was backwards.
+Because both orders are run for EVERY cell, per cell we see logit p0 = x + beta and
+logit p1 = x - beta, so the symmetric contrast identifies x = theta - alpha and the
+antisymmetric contrast identifies beta. They are orthogonal contrasts of the same
+two observations; balance is what makes beta identifiable, not what makes it
+unnecessary. Simulation: true beta 1.0, recovered 1.016.
+
+Omitting it is not harmless. Fitting one Bernoulli to two cells with probabilities
+sigmoid(x+beta) and sigmoid(x-beta) lands the MLE on their average, which by Jensen
+sits closer to 0.5 than sigmoid(x). The induced bias is zero at x=0, saturates at
+-ln cosh(beta), and its local slope dx_hat/dx is MINIMAL at x=0 -- so the latent
+scale is compressed most at small gaps, the only regime the paradigm operates in.
+Measured: slope on true theta 0.746 without the term, 0.907 with it; sigma_item
+0.928 vs 1.118 against a true 1.086. Rankings survive, the metric does not.
+
+beta is per template because it is strongly heterogeneous: +1.645, +1.360, +1.211,
++4.302, +0.551 across t0..t4 on Gemma-2-2b, and a single global beta leaves residual
+compression (excess-on-gap slope +0.0240, 95% CI [+0.0140, +0.0338]). Its sign is
+also model-specific -- Gemma favours slot 1, Qwen2.5-3B slot 2.
+
+NO cell-level random effect is included. An earlier analysis reported template
+non-independence (ICC 0.529, design effect 3.12), but that ICC treated templates as
+raters over cells and so conflated genuine between-cell variation in p -- which
+theta - alpha already captures -- with excess dependence. The correct over-dispersion
+test against the binomial expectation gives 1.070, 95% CI [0.907, 1.258],
+i.e. consistent with independence. See A2.3 W2.
 """
 
 from __future__ import annotations
@@ -39,23 +68,32 @@ from src.config import RunConfig
 class BTFit:
     theta: pd.DataFrame           # item_id, theta_mean, theta_sd, hdi_low, hdi_high
     anchors: pd.DataFrame         # anchor_id, alpha_mean, alpha_sd
+    beta: pd.DataFrame            # template, beta_mean, beta_sd, hdi
     sigma_item: float
+    model_reliability: float
     idata: az.InferenceData = field(repr=False, default=None)
     n_comparisons: int = 0
     n_dropped_invalid: int = 0
 
     def summary(self) -> str:
         sd = self.theta["theta_sd"]
+        b = self.beta
+        signed = "slot 1" if b["beta_mean"].mean() > 0 else "slot 2"
         return (
-            f"Bradley-Terry: {len(self.theta)} items from {self.n_comparisons} valid "
-            f"comparisons ({self.n_dropped_invalid} dropped below the mass floor)\n"
+            f"Bradley-Terry (+ per-template order term): {len(self.theta)} items from "
+            f"{self.n_comparisons} valid comparisons "
+            f"({self.n_dropped_invalid} dropped below the mass floor)\n"
             f"  theta spread: sd across items = {self.theta['theta_mean'].std(ddof=1):.3f}, "
             f"range {self.theta['theta_mean'].min():.2f} to {self.theta['theta_mean'].max():.2f}\n"
             f"  precision: posterior SD of theta, median {sd.median():.3f} "
             f"(min {sd.min():.3f}, max {sd.max():.3f})\n"
             f"  sigma_item (between-item scale) = {self.sigma_item:.3f}\n"
-            f"  separation ratio sigma_item / median posterior SD = "
-            f"{self.sigma_item / sd.median():.2f}"
+            f"  separation ratio = {self.sigma_item / sd.median():.2f}\n"
+            f"  model reliability = {self.model_reliability:.3f} "
+            "(compare against the EMPIRICAL split-half figure)\n"
+            f"  beta: mean {b['beta_mean'].mean():+.3f} (favours {signed}), "
+            f"range {b['beta_mean'].min():+.3f} to {b['beta_mean'].max():+.3f} "
+            f"across {len(b)} templates"
         )
 
 
@@ -90,11 +128,16 @@ def fit_bradley_terry(
 
     items = sorted(block["item_id"].unique())
     anchors = sorted(block["anchor_id"].unique())
+    tmpl = sorted(block["template"].unique())
     item_idx = block["item_id"].map({v: i for i, v in enumerate(items)}).to_numpy()
     anchor_idx = block["anchor_id"].map({v: i for i, v in enumerate(anchors)}).to_numpy()
+    tmpl_idx = block["template"].map({v: i for i, v in enumerate(tmpl)}).to_numpy()
     wins = block["item_wins"].to_numpy().astype(int)
+    # +1 when the pool item occupies slot 1, -1 when it occupies slot 2. This is the
+    # antisymmetric contrast that identifies beta.
+    slot = np.where(block["order"].to_numpy() == 0, 1.0, -1.0)
 
-    coords = {"item": items, "anchor": anchors}
+    coords = {"item": items, "anchor": anchors, "template": tmpl}
     with pm.Model(coords=coords) as model:
         # Partial pooling: the shrinkage strength is estimated, not assumed.
         sigma_item = pm.HalfNormal("sigma_item", sigma=2.0)
@@ -102,10 +145,13 @@ def fit_bradley_terry(
         # Zero-sum on anchors fixes the location that theta and alpha otherwise
         # share.
         alpha = pm.ZeroSumNormal("alpha", sigma=2.0, dims="anchor")
+        # Position bias, per template (A2.1). Orthogonal to theta and alpha, which
+        # enter symmetrically across order.
+        beta = pm.Normal("beta", mu=0.0, sigma=1.5, dims="template")
 
         pm.Bernoulli(
             "wins",
-            logit_p=theta[item_idx] - alpha[anchor_idx],
+            logit_p=theta[item_idx] - alpha[anchor_idx] + beta[tmpl_idx] * slot,
             observed=wins,
         )
 
@@ -140,10 +186,28 @@ def fit_bradley_terry(
         "alpha_sd": al.std("sample").to_numpy(),
     })
 
+    bt = post["beta"].stack(sample=("chain", "draw"))
+    beta_frame = pd.DataFrame({
+        "template": tmpl,
+        "beta_mean": bt.mean("sample").to_numpy(),
+        "beta_sd": bt.std("sample").to_numpy(),
+        "beta_hdi_low": az.hdi(idata, var_names=["beta"], hdi_prob=cfg.analysis.hdi_prob)
+            ["beta"].sel(hdi="lower").to_numpy(),
+        "beta_hdi_high": az.hdi(idata, var_names=["beta"], hdi_prob=cfg.analysis.hdi_prob)
+            ["beta"].sel(hdi="higher").to_numpy(),
+    })
+
+    sigma = float(post["sigma_item"].mean())
     return BTFit(
         theta=theta_frame,
         anchors=anchor_frame,
-        sigma_item=float(post["sigma_item"].mean()),
+        beta=beta_frame,
+        sigma_item=sigma,
+        # sigma^2 / (sigma^2 + E[posterior var]). Reported alongside the EMPIRICAL
+        # split-half figure; a gap between them signals misspecification (A2.2).
+        model_reliability=float(
+            sigma ** 2 / (sigma ** 2 + np.mean(theta_frame["theta_sd"].to_numpy() ** 2))
+        ),
         idata=idata,
         n_comparisons=len(block),
         n_dropped_invalid=n_dropped,
@@ -216,6 +280,56 @@ def test_retest(
         "median_posterior_sd_b": float(fit_b.theta["theta_sd"].median()),
         "theta": merged,
     }
+
+
+def excess_consistency_slope(
+    comparisons: pd.DataFrame, fit: BTFit, *, arm: str = "digits", n_boot: int = 2000,
+    seed: int = 0,
+) -> dict:
+    """Preregistered fit-quality diagnostic (A2.1).
+
+    Under a correctly specified order model, observed order-reversal consistency
+    should match what content-plus-position predicts, with no residual trend in gap.
+    A slope credibly different from zero means remaining compression.
+
+    A global beta leaves slope +0.0240 [+0.0140, +0.0338] on Gemma; per-template beta
+    is preregistered because of it. This recomputes the same statistic so the fix can
+    be checked rather than assumed.
+    """
+    block = comparisons[(comparisons["arm"] == arm) & comparisons["readout_valid"]]
+    wide = block.pivot_table(
+        index=["item_id", "anchor_id", "template"], columns="order",
+        values="item_wins", aggfunc="first",
+    ).dropna().reset_index()
+    if not {0, 1} <= set(wide.columns) or len(wide) < 20:
+        return {"slope": float("nan"), "ci_low": float("nan"), "ci_high": float("nan"),
+                "n_cells": len(wide), "flat": None}
+
+    th = dict(zip(fit.theta["item_id"], fit.theta["theta_mean"]))
+    al = dict(zip(fit.anchors["anchor_id"], fit.anchors["alpha_mean"]))
+    bt = dict(zip(fit.beta["template"], fit.beta["beta_mean"]))
+
+    x = np.array([abs(th[i] - al[a]) for i, a in zip(wide["item_id"], wide["anchor_id"])])
+    b = np.array([bt[t] for t in wide["template"]])
+    p0, p1 = _sigmoid(x + b), _sigmoid(x - b)
+    pred = p0 * p1 + (1 - p0) * (1 - p1)
+    excess = (wide[0] == wide[1]).to_numpy().astype(float) - pred
+
+    design = np.column_stack([np.ones(len(x)), x])
+    slope = float(np.linalg.lstsq(design, excess, rcond=None)[0][1])
+    rng = np.random.default_rng(seed)
+    boots = []
+    for _ in range(n_boot):
+        k = rng.integers(0, len(x), len(x))
+        boots.append(np.linalg.lstsq(design[k], excess[k], rcond=None)[0][1])
+    lo, hi = np.percentile(boots, [2.5, 97.5])
+    return {"slope": slope, "ci_low": float(lo), "ci_high": float(hi),
+            "n_cells": int(len(x)), "mean_excess": float(excess.mean()),
+            "flat": bool(lo < 0 < hi)}
+
+
+def _sigmoid(z: np.ndarray) -> np.ndarray:
+    return 1.0 / (1.0 + np.exp(-z))
 
 
 def anchor_ordering_check(fit: BTFit, anchors: list) -> pd.DataFrame:

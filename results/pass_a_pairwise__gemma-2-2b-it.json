@@ -1,0 +1,124 @@
+{
+  "model": "gemma-2-2b-it",
+  "config_hash": "3cd37c22f210",
+  "provenance": {
+    "device": "mps",
+    "device_name": "apple-arm64",
+    "dtype": "bfloat16",
+    "attn_implementation": "eager",
+    "torch_version": "2.8.0",
+    "transformers_version": "5.14.1",
+    "model_name": "gemma-2-2b-it",
+    "model_hf_id": "google/gemma-2-2b-it",
+    "model_revision": "299a8560bedf22ed1c72a8a11e7dce4a7f9f51f8",
+    "model_revision_pinned": true,
+    "seed": 20261025,
+    "config_hash": "3cd37c22f210",
+    "git_sha": "fee6a0d972d0b55a9290ff86d5c269b54c578811",
+    "git_dirty": false,
+    "platform": "macOS-14.2.1-arm64-arm-64bit",
+    "python_version": "3.11.14",
+    "created_utc": "2026-07-26T00:45:00+00:00"
+  },
+  "readout_mass": [
+    {
+      "arm": "digits",
+      "n": 4800,
+      "n_invalid": 338,
+      "frac_invalid": 0.07041666666666667,
+      "mass_median": 0.991669774055481,
+      "mass_min": 0.001990357181057334
+    }
+  ],
+  "theta": {
+    "n_items": 48,
+    "sigma_item": 1.3070687717473453,
+    "posterior_sd_median": 0.28193564153469475,
+    "separation_ratio": 4.636053691659622
+  },
+  "test_retest": {
+    "split_a": [
+      "t0",
+      "t1",
+      "t2"
+    ],
+    "split_b": [
+      "t3",
+      "t4"
+    ],
+    "n_items": 48,
+    "pearson": 0.8345392460992417,
+    "spearman": 0.8011289622231871,
+    "sigma_item_a": 1.372515596256852,
+    "sigma_item_b": 1.2705782657464728,
+    "median_posterior_sd_a": 0.3730909181358805,
+    "median_posterior_sd_b": 0.42223889772315587
+  },
+  "operating_window": [
+    {
+      "gap_bin": "(0.0035900000000000003, 0.303]",
+      "gap_mid": 0.15076041658057499,
+      "n": 269,
+      "consistency": 0.3680297397769517,
+      "se": 0.029404489100205308,
+      "above_chance": false
+    },
+    {
+      "gap_bin": "(0.303, 0.644]",
+      "gap_mid": 0.4781502668957829,
+      "n": 267,
+      "consistency": 0.41198501872659177,
+      "se": 0.030121685984680645,
+      "above_chance": false
+    },
+    {
+      "gap_bin": "(0.644, 1.211]",
+      "gap_mid": 0.9206164408496973,
+      "n": 271,
+      "consistency": 0.39114391143911437,
+      "se": 0.029644284215577972,
+      "above_chance": false
+    },
+    {
+      "gap_bin": "(1.211, 1.925]",
+      "gap_mid": 1.5660149008826887,
+      "n": 266,
+      "consistency": 0.6466165413533834,
+      "se": 0.029309316810284192,
+      "above_chance": true
+    },
+    {
+      "gap_bin": "(1.925, 2.514]",
+      "gap_mid": 2.2452030276746227,
+      "n": 267,
+      "consistency": 0.8314606741573034,
+      "se": 0.02290951272638174,
+      "above_chance": true
+    },
+    {
+      "gap_bin": "(2.514, 3.05]",
+      "gap_mid": 2.8072623937234695,
+      "n": 272,
+      "consistency": 0.9117647058823529,
+      "se": 0.017198006359923048,
+      "above_chance": true
+    },
+    {
+      "gap_bin": "(3.05, 3.557]",
+      "gap_mid": 3.3198334386861417,
+      "n": 265,
+      "consistency": 0.9509433962264151,
+      "se": 0.013267928902345101,
+      "above_chance": true
+    },
+    {
+      "gap_bin": "(3.557, 5.592]",
+      "gap_mid": 4.070670026426847,
+      "n": 267,
+      "consistency": 0.9812734082397003,
+      "se": 0.008296000236868526,
+      "above_chance": true
+    }
+  ],
+  "outcome": "completed"
+}

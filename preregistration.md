@@ -716,3 +716,200 @@ random effects; and the exclusion of reporting thresholds from forward-pass cach
 Where §4–§6 specify quantities in rating points (`match_tolerance`, `sigma_between_min`, the ±16
 spread bound), those units are defined against the absolute scale and do not transfer to `θ`. Their
 re-expression is deferred to a further amendment and is **not** settled here.
+
+---
+
+# Amendment 2 — 2026-07-26
+
+**Appended, not edited.** §1–13 remain frozen at `57ef60d`; Amendment 1 is unchanged. This section
+adds an order term to the Bradley-Terry likelihood, retires the A1.4 gate, and withdraws two
+conclusions previously reported — one of which was the basis of a strategic plan.
+
+Prompted by external review of the repository. Each claim was verified against code and data before
+being acted on; two of the review's premises were also refuted and are recorded as such.
+
+## A2.0 Evidentiary status
+
+**No confirmatory data bearing on H1–H5 has been observed.** No Pass C data of any kind exists. The
+Bradley-Terry refits below reuse comparisons already collected and add **zero forward passes**; no
+new stimuli, models, or conditions were run to produce them. A1.0's statement stands unqualified.
+
+## A2.1 Order term added: `β` per template
+
+**What changed.** The Bradley-Terry likelihood becomes
+
+```
+P(item i beats anchor a) = sigmoid(θ_i − α_a + s · β_t)     s = +1 if the item is in slot 1, −1 if slot 2
+```
+
+with `β_t` a free parameter **per template**. Order remains fully crossed — both orders are run for
+every cell, as before. What changes is that the antisymmetric half of that design is now *used*
+rather than averaged away.
+
+**Why the previous justification was wrong.** The code justified omitting an order term on the
+grounds that "a position-bias parameter would be estimated from the very comparisons it is meant to
+purge." That is backwards. Because both orders are run for every cell, per cell we observe
+`logit p₀ = x + β` and `logit p₁ = x − β` where `x = θ_i − α_a`. The symmetric contrast
+`(logit p₀ + logit p₁)/2 = x` and the antisymmetric contrast `(logit p₀ − logit p₁)/2 = β` are
+**orthogonal contrasts of the same two observations**. Balance is exactly what makes `β` cleanly
+identifiable, not what makes it unnecessary. Simulation: true `β = 1.0`, recovered **1.016**.
+
+**Why it matters — the omission compresses θ, worst where the design needs it most.** Fitting one
+Bernoulli probability to two cells whose true probabilities are `sigmoid(x+β)` and `sigmoid(x−β)`
+puts the MLE at their average, which by Jensen lies closer to 0.5 than `sigmoid(x)`. The induced bias
+is 0 at `x = 0`, saturates at `−ln cosh β`, and — critically — the **local slope `dx̂/dx` is minimal
+at `x = 0`** (0.81 at β = 0.94; 0.60 at β = 1.5), rising toward 1 in the tails. So the latent scale is
+compressed **maximally at small gaps**, which is the only regime the paradigm operates in.
+
+Simulation (60 items, 10 anchors, true `β = 1.0`, true `σ_item = 1.086`):
+
+| model | σ_item | corr. with true θ | slope on true θ |
+|---|---|---|---|
+| no order term | 0.928 | 0.937 | **0.746** |
+| with order term | 1.118 | 0.936 | 0.907 |
+
+Rankings survive (correlation essentially unchanged); the **metric** does not. Since Pass B selects
+on gap *magnitude* and the operating window stratifies on it, the metric is what the design depends
+on.
+
+**On real data (Gemma-2-2b, 4,170 valid comparisons):** `β = +1.367 (sd 0.059)` for a single global
+term; `σ_item` rises 1.174 → 1.438 → **1.630** under a per-template `β`.
+
+**β is heterogeneous and signed.** Per template: `+1.645, +1.360, +1.211, +4.302, +0.551`
+(t0…t4), max–min spread **3.750 [3.254, 4.272]**. Excluding t3 — whose ~48% invalid-readout rate in
+that run makes its survivors a selected subset — the clean templates still span 3×. And the *sign* is
+model-specific: Gemma's slot-1 win rate is 0.654 (`β > 0`) while Qwen2.5-3B's is 0.28 (`β < 0`). This
+is not a universal primacy or recency effect.
+
+A global `β` leaves **residual compression**: regressing consistency excess on gap over 2,002 cells
+gives a slope of **+0.0240, 95% CI [+0.0140, +0.0338]**, excluding zero. Per-template `β` is
+therefore preregistered, not a global one.
+
+**Fit-quality criterion.** That excess-on-gap slope is retained as a preregistered diagnostic: under
+a correctly specified order model it should be flat. A slope credibly different from zero indicates
+remaining misspecification and is reported.
+
+**No cell-level random effect is added.** See A2.3.
+
+## A2.2 The A1.4 order-invariance gate is retired
+
+**What changed.** The order-invariance gate (median ≥ 0.60 across templates, ≥3 of 5 clearing) is
+**retired as an exclusion criterion**. It is replaced by a **θ reliability criterion**:
+
+> **Gate:** empirical split-half reliability of `θ` — the Spearman correlation between `θ` estimated
+> independently on the two disjoint template sets of §4.4 — must be **≥ 0.70**.
+
+Model-internal reliability `σ_item² / (σ_item² + E[posterior var])` is reported alongside, and the
+**gap between the two is a preregistered misspecification diagnostic**: they should agree.
+
+**Why the old gate does not measure the intended thing.** Under position bias alone with no content
+signal at all, expected order invariance at `x = 0` is `2s(1−s)` with `s = sigmoid(β)` — **not 0.5**.
+With `β` per template ranging 0.55–4.30 in a single model, that null ranges from **0.464 to 0.026**.
+A flat 0.60 threshold applied against a null that moves with a signed nuisance parameter is
+predominantly a test of `|β|`, and would exclude a model for having a large position bias rather than
+for lacking content signal. Those are now separable, so the gate should not conflate them.
+
+Redefining the gate on high-tier comparisons only (a reviewer suggestion) does not fix this: the null
+still moves with `β`, and `β` itself varies by tier.
+
+**Why reliability, and why empirical rather than model-internal.** Reliability is what Pass B
+actually depends on — items must be rankable well enough to select near-equal pairs and to detect
+movement. It is `β`-free once `β` is modelled. The **empirical** split-half version is preferred
+because it cannot be inflated by a misspecified likelihood, and it measures precisely the
+selection-versus-analysis independence §4.4 requires.
+
+**Threshold justification.** Gemma-2-2b reaches 0.738 (Spearman) under the corrected model; the two
+models that scored 0.000 and 0.275 on the retired gate have essentially no recoverable `θ` variance
+and fall far below. 0.70 sits between them. It is deliberately **not** set above the only currently
+passing model's value — doing so would repeat the polarity gate's error of adopting a criterion no
+candidate can meet.
+
+## A2.3 Withdrawals
+
+**W1 — "The operating window is closed at near-equal pairs." WITHDRAWN.**
+
+Reported in conversation as a paradigm-level finding, and the basis of a plan to fall back to a
+methods paper. It rested on comparing order-reversal consistency against a null of 0.5. The correct
+null under position bias is `2s(1−s)`; for Gemma `β = 1.367` gives **0.324**. Observed consistency
+tracks a content-plus-position model to within ±0.05:
+
+| gap | observed | predicted | excess |
+|---|---|---|---|
+| 0.30 | 0.288 | 0.334 | −0.046 |
+| 0.90 | 0.354 | 0.408 | −0.053 |
+| 1.68 | 0.536 | 0.569 | −0.033 |
+| 2.56 | 0.777 | 0.757 | +0.020 |
+| 4.48 | 0.964 | 0.955 | +0.009 |
+
+The bins reported as "below chance" are what `β = 1.37` predicts **with content signal present**. The
+estimator could not distinguish "no signal" from "signal plus unmodelled additive bias," and it was
+the second. Additionally, the window tables produced by the pipeline stratified on gaps computed from
+the *uncompressed* θ, so their x-axes were also wrong.
+
+**Consequence: Stage 0's hypothesis is live.** The instrument may reach the regime the paradigm
+requires. The plan built on W1 is void.
+
+**W2 — "Template responses are non-independent (ICC 0.529, design effect 3.12, posterior SD
+understated ~1.8×)." WITHDRAWN.**
+
+This was our own finding, not the review's, and the review built on it. The ICC treated templates as
+raters over cells, which conflates **genuine between-cell variation in `p`** — which the model
+already captures through `θ − α` — with excess dependence. The correct test is over-dispersion of
+within-cell success counts against the binomial expectation implied by the fitted probabilities:
+
+> dispersion = **1.070, 95% CI [0.907, 1.258]**; independence predicts 1.0.
+
+Consistent with independence. There is **no design effect**, so:
+
+- no cell-level random effect is added to the likelihood;
+- §4.4's disjoint-split independence is **intact** — the correlated-error concern does not arise;
+- the separation ratio is not reduced. Under the corrected model it **rises**: 4.39 → **4.82**, with
+  σ_item 1.630, median posterior SD 0.338, model reliability 0.957.
+
+## A2.4 Open, not resolved
+
+Empirical split-half test–retest is **0.770** (Spearman 0.738) against a model-implied reliability of
+**0.957**. Neither the order term nor over-dispersion explains the gap; the corrected model's figure
+(0.770) is marginally *lower* than the uncorrected one's (0.799).
+
+Leading candidate: in that run t3 was broken (~48% invalid readouts) and t3 falls in the two-template
+split, so one half is half-contaminated. The t3 re-collection discriminates this directly. Remaining
+candidates: residual misspecification (the +0.024 excess slope), or a template × item interaction too
+small to register in the dispersion test yet large enough to decorrelate halves.
+
+This is recorded as an open discrepancy rather than resolved, and the reliability gate deliberately
+uses the **lower** empirical figure.
+
+## A2.6 The operating-window diagnostic is redefined
+
+**What changed.** A1.7 asked whether order-reversal consistency exceeded 0.5 at small gaps. That is
+replaced by a **discriminability** measure: per gap stratum, the fraction of comparisons whose
+`θ_i − α_a` has a credible sign given posterior uncertainty. Consistency is still reported, against
+the `β`-model prediction, but **only as a fit check**.
+
+**Why.** The old form was wrong twice. Its null was 0.5 when the correct null under position bias is
+`2s(1−s)` (A2.3 W1). And more fundamentally: once `β` is in the model, order-reversal consistency
+carries no information about content signal beyond what `θ` already encodes, so testing it against
+its own model's prediction is vacuous by construction.
+
+The question that actually decides Pass C viability is a **precision** question, not a consistency
+one: at the gaps Pass B selects as difficult, is the sign of the preference credibly determined? If
+not, the difficulty regressor is attenuated by measurement error and Pass C requires a power
+simulation against that attenuation — which is a quantitative obstacle, not the categorical
+impossibility W1 claimed.
+
+**Decision rule.** Discriminability at Pass B's difficult-decile gap is reported with its interval.
+Below 0.5, Pass C is not run until a power simulation accounting for regressor attenuation is
+produced. This is a **power gate, not a viability gate** — the distinction W1 got wrong.
+
+## A2.5 Unchanged
+
+Everything in A1.8 stands, minus the retired A1.4 gate. In particular: the spread DV structure, the
+2 × 5 receipt-matched conditions, continuous difficulty selected on one template set and analysed on
+a disjoint one, the interaction as the sole primary test, the mass-floor invariant, and the
+device-pooling guard.
+
+The Pass C dependent-variable choice (audit item T1) remains **unsettled** and is not decided here.
+T1's rejection of absolute-Likert ratings for the DV stands — that instrument fails polarity validity
+at full sample across all three models tested (ρ = −0.964, −0.916, −0.944) — but the choice among the
+θ-based alternatives is deferred, and will be made without inspecting any H1-bearing quantity.

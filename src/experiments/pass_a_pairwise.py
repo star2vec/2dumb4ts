@@ -1,13 +1,14 @@
-"""Pairwise Pass A: anchor comparisons -> order-invariance gate -> theta.
+"""Pairwise Pass A: anchor comparisons -> theta -> reliability gate -> window.
 
-preregistration.md A1.1, A1.3, A1.4, A1.7.
+preregistration.md A1.1, A1.3, A1.6 and Amendment 2 (A2.1, A2.2, A2.6).
 
     python -m src.experiments.pass_a_pairwise --config configs/stage0_qwen2.5-3b.yaml
 
-Order of operations is deliberate. The order-invariance gate is evaluated BEFORE
-Bradley-Terry is fitted: fitting theta to comparisons that carry no content signal
-would produce a tidy posterior that means nothing, and the gate exists precisely
-to stop that from reaching a table.
+Fitting now precedes the gate. Amendment 1 gated first, on the grounds that fitting
+signal-free comparisons yields a meaningless posterior. The A2.2 gate is computed
+FROM fits (empirical split-half reliability of theta), so it cannot precede them. The
+protection is preserved by the gate itself: a model whose theta does not replicate
+across disjoint template splits is excluded and no theta is reported for it.
 """
 
 from __future__ import annotations
@@ -21,7 +22,8 @@ import numpy as np
 import pandas as pd
 
 from src.analysis.bradley_terry import (
-    anchor_ordering_check, convergence_summary, fit_bradley_terry, test_retest,
+    anchor_ordering_check, convergence_summary, excess_consistency_slope,
+    fit_bradley_terry, test_retest,
 )
 from src.config import RunConfig, load_config
 from src.provenance import Provenance, capture, read_parquet, write_parquet
@@ -29,9 +31,16 @@ from src.readout import validity
 from src.readout.pairwise import collect_comparisons, load_anchors, order_invariance
 from src.stimuli.build import load_items, load_templates
 
-# A1.4, preregistered before any pairwise data was collected.
-ORDER_INVARIANCE_MIN = 0.60
-MIN_TEMPLATES_CLEARING = 3
+# A2.2: the A1.4 order-invariance gate is RETIRED. Its null, 2*s*(1-s) with
+# s = sigmoid(beta), moves with a signed nuisance parameter that ranges 0.464 to
+# 0.026 across templates in a single model, so a flat threshold was predominantly a
+# test of |beta| rather than of content signal. Replaced by empirical split-half
+# reliability of theta, which is beta-free once beta is modelled and is the quantity
+# Pass B actually depends on.
+RELIABILITY_MIN = 0.70
+
+# Retained for reporting only -- never an exclusion criterion.
+ORDER_INVARIANCE_REPORTED_ONLY = True
 
 HALT = 2
 
@@ -45,63 +54,71 @@ def _echo(title: str) -> None:
     print(f"\n{'=' * 72}\n{title}\n{'=' * 72}", flush=True)
 
 
-def evaluate_order_invariance_gate(comparisons: pd.DataFrame) -> dict:
-    """A1.4. Median across templates >= 0.60, and >= 3 of 5 templates clearing."""
-    per_template = order_invariance(comparisons, by=["arm", "template"])
-    per_arm = order_invariance(comparisons, by=["arm"])
+def report_order_invariance(comparisons: pd.DataFrame) -> pd.DataFrame:
+    """Order invariance, REPORTED ONLY (A2.2). No longer a gate.
 
-    digits = per_template[per_template["arm"] == "digits"]
-    if digits.empty:
-        return {"passed": False, "reason": "no valid digit-arm comparisons",
-                "per_template": per_template, "per_arm": per_arm}
+    Kept because it is an interpretable description of how much of a model's
+    responding is slot-driven, and because the retired threshold's failure is part of
+    the record. It must not be used to exclude a model: its null moves with beta.
+    """
+    return order_invariance(comparisons, by=["arm", "template"])
 
-    median = float(digits["order_invariance"].median())
-    clearing = sorted(digits.loc[digits["order_invariance"] >= ORDER_INVARIANCE_MIN, "template"])
 
+def evaluate_reliability_gate(
+    cfg: RunConfig, comparisons: pd.DataFrame, templates: list
+) -> dict:
+    """A2.2 gate: empirical split-half reliability of theta across the disjoint
+    template sets of section 4.4.
+
+    Empirical rather than model-internal, because a misspecified likelihood can
+    report a confident posterior while the two halves disagree. The gap between the
+    two is itself a preregistered misspecification diagnostic.
+    """
+    names = [t.id for t in templates]
+    split_a = [names[i] for i in cfg.pass_a.selection_templates if i < len(names)]
+    split_b = [names[i] for i in cfg.pass_a.analysis_templates if i < len(names)]
+
+    tr = test_retest(cfg, comparisons, split_a, split_b, arm="digits")
+    empirical = tr["spearman"]
+
+    passed = empirical >= RELIABILITY_MIN
     reasons: list[str] = []
-    passed = True
-    if median < ORDER_INVARIANCE_MIN:
-        passed = False
-        regime = "position-dominated" if median < 0.5 else "random-dominated"
+    if not passed:
         reasons.append(
-            f"EXCLUDED: median order invariance {median:.3f} < {ORDER_INVARIANCE_MIN} "
-            f"({regime}). "
-            + ("Responding is driven by slot rather than content."
-               if median < 0.5 else
-               "Comparisons carry no recoverable content signal.")
+            f"EXCLUDED: empirical split-half reliability of theta "
+            f"(Spearman {empirical:.3f}) < {RELIABILITY_MIN}. Items cannot be ranked "
+            "well enough to select near-equal pairs or to detect movement."
         )
-    if len(clearing) < MIN_TEMPLATES_CLEARING:
-        passed = False
-        reasons.append(
-            f"EXCLUDED: only {len(clearing)} template(s) reach "
-            f"{ORDER_INVARIANCE_MIN}, need {MIN_TEMPLATES_CLEARING}."
-        )
-    elif len(clearing) < len(digits):
-        reasons.append(
-            f"template(s) {sorted(set(digits['template']) - set(clearing))} fall below "
-            f"{ORDER_INVARIANCE_MIN} and are reported."
-        )
-
     return {
         "passed": passed,
-        "median_order_invariance": median,
-        "clearing_templates": clearing,
-        "threshold": ORDER_INVARIANCE_MIN,
+        "empirical_reliability_spearman": empirical,
+        "empirical_reliability_pearson": tr["pearson"],
+        "threshold": RELIABILITY_MIN,
+        "split_a": split_a,
+        "split_b": split_b,
         "reasons": reasons,
-        "per_template": per_template,
-        "per_arm": per_arm,
     }
 
 
 def operating_window(
-    comparisons: pd.DataFrame, theta: pd.DataFrame, anchors_alpha: pd.DataFrame,
-    n_bins: int = 8,
+    comparisons: pd.DataFrame, fit, n_bins: int = 8,
 ) -> pd.DataFrame:
-    """A1.7. Order-reversal consistency against |theta_i - alpha_a|, binned.
+    """A2.6. Discriminability of pairs by gap, plus a beta-aware fit check.
 
-    Uses the item-vs-anchor comparisons already collected, so it costs nothing
-    extra. A usable window needs a band where consistency is above chance AND the
-    gap is small. If none exists, Pass C cannot work as designed.
+    REDEFINED. A1.7 asked whether order-reversal consistency exceeded 0.5. That was
+    wrong twice over: the null under position bias is 2*s*(1-s) with s = sigmoid(beta),
+    not 0.5; and once beta IS modelled, consistency carries no information about
+    content signal beyond what theta already encodes, so testing it becomes vacuous.
+
+    The question that actually decides Pass C viability is a PRECISION question: at
+    the gaps Pass B would select, is the sign of theta_i - alpha_a credibly
+    determined? So the window now reports, per gap stratum:
+
+      discriminable  fraction of comparisons whose theta-alpha difference has a
+                     credible sign given posterior uncertainty
+      consistency    observed, alongside the beta-model prediction, as a FIT CHECK
+                     only -- these should agree, and a gap between them indicates
+                     misspecification rather than absence of signal
     """
     valid = comparisons[comparisons["readout_valid"] & (comparisons["arm"] == "digits")]
     wide = valid.pivot_table(
@@ -113,51 +130,81 @@ def operating_window(
 
     wide = wide.reset_index()
     wide["consistent"] = wide[0] == wide[1]
-    wide = wide.merge(theta[["item_id", "theta_mean"]], on="item_id")
-    wide = wide.merge(anchors_alpha[["anchor_id", "alpha_mean"]], on="anchor_id")
-    wide["gap"] = (wide["theta_mean"] - wide["alpha_mean"]).abs()
 
-    wide["bin"] = pd.qcut(wide["gap"], n_bins, duplicates="drop")
+    th = fit.theta.set_index("item_id")
+    al = fit.anchors.set_index("anchor_id")
+    bt = dict(zip(fit.beta["template"], fit.beta["beta_mean"]))
+
+    wide["gap"] = (th.loc[wide["item_id"], "theta_mean"].to_numpy()
+                   - al.loc[wide["anchor_id"], "alpha_mean"].to_numpy())
+    # Posterior sd of the difference, treating theta and alpha as independent.
+    wide["gap_sd"] = np.sqrt(
+        th.loc[wide["item_id"], "theta_sd"].to_numpy() ** 2
+        + al.loc[wide["anchor_id"], "alpha_sd"].to_numpy() ** 2
+    )
+    wide["discriminable"] = wide["gap"].abs() > 1.96 * wide["gap_sd"]
+    wide["abs_gap"] = wide["gap"].abs()
+
+    b = np.array([bt[t] for t in wide["template"]])
+    p0, p1 = _sig(wide["abs_gap"].to_numpy() + b), _sig(wide["abs_gap"].to_numpy() - b)
+    wide["pred_consistency"] = p0 * p1 + (1 - p0) * (1 - p1)
+
+    wide["bin"] = pd.qcut(wide["abs_gap"], n_bins, duplicates="drop")
     rows = []
-    for b, block in wide.groupby("bin", observed=True):
-        n = len(block)
-        p = float(block["consistent"].mean())
-        # Binomial SE; chance is 0.5.
-        se = float(np.sqrt(max(p * (1 - p), 1e-9) / n))
+    for bn, blk in wide.groupby("bin", observed=True):
+        n = len(blk)
+        disc = float(blk["discriminable"].mean())
         rows.append({
-            "gap_bin": str(b),
-            "gap_mid": float(block["gap"].mean()),
+            "gap_mid": float(blk["abs_gap"].mean()),
             "n": n,
-            "consistency": p,
-            "se": se,
-            "above_chance": bool(p - 1.96 * se > 0.5),
+            "discriminable": disc,
+            "disc_se": float(np.sqrt(max(disc * (1 - disc), 1e-9) / n)),
+            "consistency": float(blk["consistent"].mean()),
+            "pred_consistency": float(blk["pred_consistency"].mean()),
+            "excess": float(blk["consistent"].mean() - blk["pred_consistency"].mean()),
         })
     return pd.DataFrame(rows)
 
 
-def describe_window(window: pd.DataFrame) -> str:
+def _sig(z):
+    return 1.0 / (1.0 + np.exp(-z))
+
+
+def describe_window(window: pd.DataFrame, difficult_gap: float | None = None) -> str:
+    """Verdict on whether Pass C's difficult cell is measurable (A2.6)."""
     if window.empty:
-        return "operating window: could not be computed (missing both orders)"
-    usable = window[window["above_chance"]]
-    if usable.empty:
-        return (
-            "OPERATING WINDOW EMPTY: consistency is not above chance at ANY gap. "
-            "Pass C as designed cannot work -- reconsider the paradigm before "
-            "spending run-machine time."
-        )
-    narrowest = usable.loc[usable["gap_mid"].idxmin()]
-    widest_gap = window["gap_mid"].max()
+        return "operating window: not computable (an order is missing)"
     lines = [
-        f"operating window: consistency above chance in {len(usable)}/{len(window)} bins; "
-        f"narrowest usable gap = {narrowest['gap_mid']:.3f} "
-        f"(consistency {narrowest['consistency']:.3f})"
+        f"discriminability rises from {window['discriminable'].iloc[0]:.2f} at gap "
+        f"{window['gap_mid'].iloc[0]:.2f} to {window['discriminable'].iloc[-1]:.2f} at gap "
+        f"{window['gap_mid'].iloc[-1]:.2f}"
     ]
-    if narrowest["gap_mid"] > 0.4 * widest_gap:
-        lines.append(
-            "  WARNING: the usable band sits at LARGE gaps only. Spreading of "
-            "alternatives requires near-equal pairs, so a window that opens only "
-            "where the choice is easy does not support the paradigm."
-        )
+    worst = float(window["excess"].abs().max())
+    lines.append(
+        f"fit check: |excess consistency| <= {worst:.3f} across bins "
+        + ("(consistent with the beta model)" if worst < 0.08 else
+           "(LARGE -- the order model is still misspecified)")
+    )
+    if difficult_gap is not None:
+        at = window[window["gap_mid"] <= difficult_gap]
+        if at.empty:
+            lines.append(
+                f"  no stratum at or below Pass B's difficult-decile gap "
+                f"({difficult_gap:.3f}); increase small-gap resolution"
+            )
+        else:
+            d = float(at["discriminable"].max())
+            lines.append(
+                f"  at Pass B's difficult-decile gap ({difficult_gap:.3f}), "
+                f"discriminability = {d:.2f}"
+            )
+            lines.append(
+                "  -> difficult pairs are individually resolvable"
+                if d >= 0.5 else
+                "  -> difficult pairs are NOT individually resolvable; the difficulty "
+                "regressor will be heavily attenuated and Pass C needs a power "
+                "simulation against that attenuation before it is run"
+            )
     return "\n".join(lines)
 
 
@@ -205,37 +252,62 @@ def run(cfg: RunConfig, *, progressbar: bool = True) -> int:
     results["readout_mass"] = mass.to_dict("records")
     results["readout_mass_by_template"] = per_t.to_dict("records")
 
-    # ---- gate BEFORE fitting -------------------------------------------
-    _echo("Order-invariance gate (A1.4)")
-    gate = evaluate_order_invariance_gate(comparisons)
-    print(f"threshold {ORDER_INVARIANCE_MIN}; "
-          f"chance 0.50; pure position responding 0.00\n")
-    print(gate["per_template"].to_string(index=False))
-    print()
-    print(f"median (digits arm) = {gate.get('median_order_invariance', float('nan')):.3f}"
-          f"  ->  {'PASS' if gate['passed'] else 'HALT'}")
-    for r in gate["reasons"]:
-        print(f"  - {r}")
+    # ---- order invariance: REPORTED, not a gate (A2.2) -------------------
+    _echo("Order invariance -- reported only, no longer a gate (A2.2)")
+    inv = report_order_invariance(comparisons)
+    print("retired as an exclusion criterion: its null is 2*s*(1-s) with "
+          "s = sigmoid(beta),\nwhich moves with a signed, template-varying nuisance "
+          "parameter.\n")
+    print(inv.to_string(index=False))
+    results["order_invariance_reported"] = inv.to_dict("records")
+    inv.to_csv(out_dir / f"order_invariance_{cfg.hash('pass_a')}.csv", index=False)
 
-    results["order_invariance_gate"] = {
-        k: v for k, v in gate.items() if k not in ("per_template", "per_arm")
-    }
-    gate["per_template"].to_csv(out_dir / f"order_invariance_{cfg.hash('pass_a')}.csv",
-                                index=False)
-
-    if not gate["passed"]:
-        (out_dir / f"results_{cfg.hash()}.json").write_text(
-            json.dumps({**results, "outcome": "halted-order-invariance"}, indent=2, default=str)
-        )
-        _echo("HALTED. theta is not fitted: a posterior from signal-free comparisons "
-              "would look tidy and mean nothing.")
-        return HALT
-
-    # ---- Bradley-Terry --------------------------------------------------
-    _echo("Hierarchical Bradley-Terry (A1.1)")
+    # ---- Bradley-Terry, then the gate -----------------------------------
+    # Order reversed relative to Amendment 1. The old gate ran first on the grounds
+    # that fitting signal-free comparisons yields a meaningless posterior; the new
+    # gate is computed FROM fits, so it cannot precede them. The protection that
+    # rationale sought is preserved by the gate itself: a model whose theta does not
+    # replicate across template splits is excluded, and no theta is reported for it.
+    _echo("Hierarchical Bradley-Terry with per-template order term (A2.1)")
     fit = fit_bradley_terry(cfg, comparisons, arm="digits", progressbar=progressbar)
     print(fit.summary())
     print(convergence_summary(cfg, fit.idata))
+
+    print("\nposition bias by template (beta):")
+    print(fit.beta.round(3).to_string(index=False))
+    fit.beta.to_parquet(out_dir / f"beta_{cfg.hash('pass_a')}.parquet", index=False)
+    results["beta"] = fit.beta.to_dict("records")
+
+    # Preregistered fit-quality diagnostic (A2.1): should be flat.
+    ex = excess_consistency_slope(comparisons, fit)
+    print(f"\nfit quality -- excess consistency on gap: slope {ex['slope']:+.4f} "
+          f"95% CI [{ex['ci_low']:+.4f}, {ex['ci_high']:+.4f}] over {ex['n_cells']} cells")
+    print("  " + ("FLAT: no residual compression detected"
+                  if ex["flat"] else
+                  "NOT FLAT: residual compression remains, model still misspecified"))
+    results["excess_consistency_slope"] = ex
+
+    # ---- reliability gate (A2.2) ----------------------------------------
+    _echo("Reliability gate (A2.2)")
+    gate = evaluate_reliability_gate(cfg, comparisons, templates)
+    print(f"empirical split-half reliability of theta across {gate['split_a']} vs "
+          f"{gate['split_b']}:")
+    print(f"  Spearman {gate['empirical_reliability_spearman']:.3f} "
+          f"(Pearson {gate['empirical_reliability_pearson']:.3f}), "
+          f"threshold {gate['threshold']}")
+    print(f"  model-internal reliability {fit.model_reliability:.3f} -- a gap between "
+          "these two signals misspecification")
+    print(f"  ->  {'PASS' if gate['passed'] else 'HALT'}")
+    for r in gate["reasons"]:
+        print(f"  - {r}")
+    results["reliability_gate"] = {**gate, "model_reliability": fit.model_reliability}
+
+    if not gate["passed"]:
+        (out_dir / f"results_{cfg.hash()}.json").write_text(
+            json.dumps({**results, "outcome": "halted-reliability"}, indent=2, default=str)
+        )
+        _echo("HALTED on reliability. theta is not reported for this model.")
+        return HALT
 
     fit.theta.to_parquet(out_dir / f"theta_{cfg.hash('pass_a')}.parquet", index=False)
     results["theta"] = {
@@ -249,22 +321,9 @@ def run(cfg: RunConfig, *, progressbar: bool = True) -> int:
           "to the model):")
     print(anchor_ordering_check(fit, anchors).to_string(index=False))
 
-    # ---- test-retest ----------------------------------------------------
-    _echo("Test-retest across disjoint template splits (A1.1)")
-    names = [t.id for t in templates]
-    split_a = [names[i] for i in cfg.pass_a.selection_templates]
-    split_b = [names[i] for i in cfg.pass_a.analysis_templates]
-    tr = test_retest(cfg, comparisons, split_a, split_b, arm="digits")
-    print(f"splits {tr['split_a']} vs {tr['split_b']}")
-    print(f"  Pearson  r = {tr['pearson']:.3f}")
-    print(f"  Spearman r = {tr['spearman']:.3f}")
-    print(f"  median posterior SD: {tr['median_posterior_sd_a']:.3f} / "
-          f"{tr['median_posterior_sd_b']:.3f}")
-    results["test_retest"] = {k: v for k, v in tr.items() if k != "theta"}
-
     # ---- operating window ----------------------------------------------
     _echo("Operating-window diagnostic (A1.7) -- evaluated BEFORE Pass C")
-    window = operating_window(comparisons, fit.theta, fit.anchors)
+    window = operating_window(comparisons, fit)
     if not window.empty:
         print(window.to_string(index=False))
     print()
