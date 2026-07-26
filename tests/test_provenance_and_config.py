@@ -343,3 +343,45 @@ def test_stimulus_digest_is_independent_of_line_endings():
     finally:
         for f, raw in originals.items():
             f.write_bytes(raw)
+
+
+@pytest.mark.parametrize("config", CONFIGS)
+def test_config_hash_is_independent_of_the_os_path_separator(config):
+    """The stage hash must not encode which operating system computed it.
+
+    `model_dump(mode="json")` renders a Path with `str()`. On Windows the field holds a
+    `WindowsPath`, so `items_path` serialised as `src\\stimuli\\items.yaml` and went into
+    the hash payload with backslashes. The same commit therefore produced `417d714030e5`
+    on macOS and `d870ea4af66f` on the run machine, for byte-identical stimuli and
+    byte-identical config -- the run machine could never reproduce a hash quoted here, and
+    the natural reading of that was a corrupted checkout rather than a defect in the hash.
+
+    This is the third checkout- or platform-dependent input found in the digest, after the
+    unscoped templates.yaml and the raw-bytes stimulus read, so the assertion is the blunt
+    one: no separator-bearing string may appear anywhere in the payload.
+    """
+    import json
+
+    from src.config import STAGE_HASH_FIELDS
+
+    cfg = load_config(config)
+    dumped = cfg.model_dump(mode="json")
+    for stage, fields in STAGE_HASH_FIELDS.items():
+        blob = json.dumps({k: dumped[k] for k in fields}, sort_keys=True)
+        assert "\\" not in blob, f"{stage} payload carries an OS path separator: {blob}"
+
+
+def test_paths_serialise_posix_style_even_when_the_path_is_windows_flavoured():
+    """Pins the mechanism, not just the symptom: the serialiser is `as_posix`.
+
+    The payload assertion above passes vacuously on a POSIX box -- there are no
+    backslashes to find -- so the actual conversion is exercised directly here, since CI
+    and both working machines are POSIX and would never construct a `WindowsPath`.
+    """
+    from pathlib import PureWindowsPath
+
+    from src.config import StimuliConfig
+
+    windows = PureWindowsPath("src") / "stimuli" / "items.yaml"
+    assert "\\" in str(windows), "precondition: PureWindowsPath must use backslashes"
+    assert StimuliConfig()._as_posix(windows) == "src/stimuli/items.yaml"

@@ -19,7 +19,14 @@ from pathlib import Path
 from typing import Literal
 
 import yaml
-from pydantic import BaseModel, ConfigDict, Field, field_validator, model_validator
+from pydantic import (
+    BaseModel,
+    ConfigDict,
+    Field,
+    field_serializer,
+    field_validator,
+    model_validator,
+)
 
 REPO_ROOT = Path(__file__).resolve().parent.parent
 _SHA_RE = re.compile(r"^[0-9a-f]{40}$")
@@ -143,6 +150,20 @@ class StimuliConfig(Frozen):
     domains: tuple[str, ...] = ("destinations", "electronics", "foods", "activities")
     items_per_domain: int = 100
     n_templates: int = 5
+
+    @field_serializer("items_path", "templates_path")
+    def _as_posix(self, p: Path) -> str:
+        """Serialise paths POSIX-style so the config hash is platform-independent.
+
+        `model_dump(mode="json")` renders a Path with `str()`, and on Windows that
+        is a `WindowsPath` -- `src\\stimuli\\items.yaml`, backslashes and all. Those
+        strings go into the hash payload, so the SAME repository at the SAME commit
+        produced different stage hashes on macOS and Windows: a config hash that
+        silently encodes the operating system. This is the same class of defect as
+        the checkout-dependent stimulus digest, one layer up, and it is why the
+        run machine could never match a hash computed here.
+        """
+        return p.as_posix()
 
 
 class PassAConfig(Frozen):
