@@ -34,6 +34,7 @@ from src.models.runner import Runner
 from src.readout.choice import read_choice
 from src.readout.digits import DigitMap, build_label_map
 from src.readout.validity import attach
+from src.stimuli.build import render_choice
 
 # D3: digits, not letters. Letters were the worst scheme on every model tested,
 # and drove Qwen2.5-3B to pick the first-displayed option 85% of the time on
@@ -108,7 +109,7 @@ def comparison_prompt(
     return (
         f"{lead_in(template)}\n\n"
         f"{la}. {first}\n{lb}. {second}\n\n"
-        f"{template.choice.format(label_a=la, label_b=lb)}"
+        f"{render_choice(template, labels)}"
     )
 
 

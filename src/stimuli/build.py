@@ -34,6 +34,24 @@ def slug(text: str) -> str:
     return _SLUG_RE.sub("-", text.lower()).strip("-")
 
 
+def label_noun(labels: tuple[str, ...]) -> str:
+    """What to call the option labels in prompt text: "number", "letter", "option".
+
+    Templates originally hardcoded "letter", which D3's switch to digits turned into
+    "the single letter 1 or 2" -- incoherent, and models answered in prose. Banning
+    the noun outright was worse: "Give only 1 or 2" reads as a QUANTITY ("give only
+    one or two of them") and "Output just 1 or 2" led Gemma to emit the item name
+    instead. Naming the label type is what makes the instruction unambiguous, so the
+    noun is derived from the labels actually in use rather than written into the
+    template or removed from it.
+    """
+    if all(x.isdigit() for x in labels):
+        return "number"
+    if all(x.isalpha() and len(x) == 1 for x in labels):
+        return "letter"
+    return "option"
+
+
 # ---------------------------------------------------------------------------
 # items
 
@@ -226,12 +244,17 @@ def pre_messages(
     return [{"role": "user", "content": f"{prefix}\n\n{q}"}]
 
 
+def render_choice(t: Template, labels: tuple[str, str]) -> str:
+    """Fill a template's choice question, including the label noun."""
+    la, lb = labels
+    return t.choice.format(label_a=la, label_b=lb, label_noun=label_noun(labels))
+
+
 def choice_messages(
     t: Template, framed_a: str, framed_b: str, cfg: RunConfig
 ) -> list[dict[str, str]]:
-    la, lb = cfg.readout.option_labels
     prefix = pair_block(t, framed_a, framed_b, cfg)
-    q = t.choice.format(label_a=la, label_b=lb)
+    q = render_choice(t, cfg.readout.option_labels)
     return [{"role": "user", "content": f"{prefix}\n\n{q}"}]
 
 

@@ -9,7 +9,9 @@
 #   {label_a} {label_b}  option labels. LABEL-AGNOSTIC WORDING IS REQUIRED: these
 #                        were "A"/"B" originally and are digits under D3, so no
 #                        `choice` string may say "letter", "number", or anything
-#                        else that names the label type. t2 and t3 originally read
+#                        {label_noun} instead, which the code fills from the labels
+#                        actually in use ("number" for digits, "letter" for letters).
+#                        t2 and t3 originally read
 #                        "the single letter {label_a} or {label_b}", which under
 #                        digits became "the single letter 1 or 2" -- incoherent, and
 #                        the model answered in prose instead of emitting a label.
@@ -132,7 +134,7 @@ templates:
         {lo} and {hi}. Let {lo} stand for the most favourable rating and {hi}
         for the least favourable. Output nothing but the number.
     pair_prefix: "You are presented with two candidates.\n\n{label_a}: {item_a}\n{label_b}: {item_b}"
-    choice: "Select the one you want. Give only {label_a} or {label_b}."
+    choice: "Select the one you want. Reply {label_a} or {label_b}, and nothing besides."
     antecedent:
       chose: "You picked {designated} in preference to {other}."
       yoked: "You have been given {designated} in place of {other}."
@@ -152,7 +154,7 @@ templates:
         {lo} corresponds to exceptionally attractive and the value {hi} to
         entirely unattractive. Answer with one number, no explanation.
     pair_prefix: "Consider the following pair of options.\n\n[{label_a}] {item_a}\n[{label_b}] {item_b}"
-    choice: "Decide between them. Output just {label_a} or {label_b}."
+    choice: "Decide between them. Your reply must be {label_a} or {label_b}, nothing else."
     antecedent:
       chose: "You decided on {designated} rather than {other}."
       yoked: "It has been decided for you: {designated} rather than {other}."
