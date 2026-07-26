@@ -21,9 +21,10 @@ TWO THINGS THIS FILE USED TO GET WRONG, both from the Pass C audit:
   T2.2  It fed Pass B polarity-collapsed absolute ratings -- the retired instrument.
         Pass B now receives Bradley-Terry theta fitted on the disjoint template sets.
 
-The power simulation is NOT run. It was built on rating-scale ICC and is invalid for a
-logit-scale DV; running it would produce a confident number about the wrong quantity.
-Rebuilding it is pending, and A2.9.5 costs the inconclusive branch in the meantime.
+Power IS run, between Pass B and Pass C, because section 8 requires that ordering and
+because a power figure computed after the outcomes is a number chosen with knowledge of
+the answer. It reports the minimum detectable effect; section 8's "80% power at the SESOI"
+was withdrawn by Amendment 3 A3.1 as unsatisfiable at any sample size.
 
 Exit codes:  0 completed   2 halted by the reliability gate   1 error
 """
@@ -213,6 +214,13 @@ def run(cfg: RunConfig, *, stop_after: str | None = None, progressbar: bool = Tr
     print(diag.to_string(index=False))
     print("matching quality:", {k: round(v, 4) for k, v in diag.attrs.items()})
     results["pairs"] = {"n": int(len(pairs)), "diagnostics": diag.to_dict("records")}
+
+    # ---- power, on the realized design, BEFORE the experiment ------------
+    # Section 8 requires this ordering and it is the whole point: computed here, the power
+    # figure is produced by code that has not seen a single Pass C outcome. Computed after
+    # Pass C it would be a number chosen with knowledge of the answer.
+    _echo("Power on the realized design (A3.1/A3.4) -- computed before Pass C runs")
+    results["power"] = _power(cfg, pairs, instrument)
     if stop_after == "pass_b":
         return _finish(out_dir, cfg, results, "stopped-after-pass-b")
 
@@ -332,6 +340,7 @@ def _instrument_fit(cfg: RunConfig, comparisons: pd.DataFrame, *, progressbar: b
     print(printed)
 
     rec = {
+        "sigma_item": fit.sigma_item,
         "beta": fit.beta.to_dict("records"),
         "excess_consistency_slope": {**ex, **null, "z_vs_null": z},
         "reliability_gate": {**gate, "model_reliability": fit.model_reliability},
@@ -345,6 +354,46 @@ def _instrument_fit(cfg: RunConfig, comparisons: pd.DataFrame, *, progressbar: b
     path.write_text(json.dumps(rec, indent=2, default=str), encoding="utf-8")
     print(f"\nwrote: {path}")
     return rec
+
+
+def _power(cfg: RunConfig, pairs: pd.DataFrame, instrument: dict) -> dict:
+    """Report the minimum detectable effect, not power at the SESOI (A3.1).
+
+    Section 8's criterion is unsatisfiable: it asks for 80% power AT the SESOI while
+    section 9.2's `pass` cell requires the median to EXCEED the SESOI, so power there
+    converges to exactly 0.500 at any sample size. Amendment 3 withdrew it. The MDE is
+    reported instead, along with whether the equivalence branch is reachable at all --
+    because if it is not, a null can only be `inconclusive`, and that has to be known
+    before the data rather than discovered while writing it up.
+    """
+    from src.analysis import power as power_mod
+
+    sigma_item = instrument.get("sigma_item")
+    if sigma_item is None:
+        # A cached fit written before sigma_item was recorded. Refusing to guess: an
+        # invented scale would silently rescale the SESOI, which is the one number
+        # Amendment 3 was careful not to touch.
+        print("SKIPPED: cached instrument fit predates the sigma_item field. Delete "
+              f"the instrument_fit cache for {cfg.model.name} to recompute it.")
+        return {"skipped": "sigma_item absent from cached instrument fit"}
+
+    res = power_mod.analyze(cfg, pairs, pd.DataFrame(instrument["beta"]), sigma_item)
+    print(res.summary())
+    sens = power_mod.gamma_sensitivity(cfg, pairs, pd.DataFrame(instrument["beta"]), sigma_item)
+    print("\ngamma sensitivity (gamma is the one quantity unknown before Pass C):")
+    print(sens.round(4).to_string(index=False))
+
+    return {
+        "se": res.se, "sesoi": res.sesoi,
+        "min_detectable_effect": res.min_detectable,
+        "mde_over_sesoi": res.min_detectable / res.sesoi,
+        "power_at_sesoi_not_a_criterion": res.power_at_sesoi,
+        "equivalence_reachable": res.equivalence_reachable,
+        "information_by_stratum": res.information.to_dict("records"),
+        "gamma_sensitivity": sens.to_dict("records"),
+        "assumptions": res.assumptions,
+        "section_8_criterion": "withdrawn by Amendment 3 A3.1 as unsatisfiable",
+    }
 
 
 def _finish(out_dir: Path, cfg: RunConfig, results: dict, outcome: str, code: int = 0) -> int:

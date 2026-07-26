@@ -313,27 +313,36 @@ class RunConfig(Frozen):
         never reach the model -- no longer invalidate anything either.
         """
         fields = _STAGE_TEMPLATE_FIELDS.get(stage) if stage else None
-        parts: list[bytes] = []
 
-        items = self.resolve(self.stimuli.items_path)
-        parts.append(items.read_bytes() if items.exists() else b"")
+        def canonical(path: Path, project: tuple[str, ...] | None = None) -> bytes:
+            """Parsed content, canonically serialised. NEVER raw bytes.
 
-        tmpl = self.resolve(self.stimuli.templates_path)
-        if not tmpl.exists():
-            parts.append(b"")
-        elif fields is None:
-            parts.append(tmpl.read_bytes())
-        else:
-            loaded = yaml.safe_load(tmpl.read_text()) or []
-            rows = loaded["templates"] if isinstance(loaded, dict) else loaded
-            projected = [{k: t.get(k) for k in fields} for t in rows]
-            parts.append(json.dumps(projected, sort_keys=True,
-                                    separators=(",", ":")).encode())
+            Raw bytes make the digest depend on the CHECKOUT rather than the content. The
+            blobs here are LF; a Windows clone with core.autocrlf=true (the default) gets
+            CRLF in its working tree and computes a different digest for identical
+            stimuli. That means no cache can ever transfer between the development machine
+            and the run machine -- strictly worse than the Pass C over-invalidation this
+            digest was scoped to fix, because it is silent and permanent. Found when the
+            run machine's hashes would not reproduce mine.
 
-        anchors = self.resolve(Path("src/stimuli/anchors.yaml"))
-        parts.append(anchors.read_bytes() if anchors.exists() else b"")
+            Parsing first makes line endings, trailing whitespace, comments, indentation
+            and mapping key order all irrelevant, which is correct: none of them reach the
+            model. Only the values do.
+            """
+            if not path.exists():
+                return b""
+            loaded = yaml.safe_load(path.read_text(encoding="utf-8"))
+            if project is not None:
+                rows = loaded["templates"] if isinstance(loaded, dict) else (loaded or [])
+                loaded = [{k: t.get(k) for k in project} for t in rows]
+            return json.dumps(loaded, sort_keys=True, separators=(",", ":"),
+                              ensure_ascii=True, default=str).encode()
 
-        return hashlib.sha256(b"\x00".join(parts)).hexdigest()[:12]
+        return hashlib.sha256(b"\x00".join([
+            canonical(self.resolve(self.stimuli.items_path)),
+            canonical(self.resolve(self.stimuli.templates_path), fields),
+            canonical(self.resolve(Path("src/stimuli/anchors.yaml"))),
+        ])).hexdigest()[:12]
 
     def hash(self, stage: str | None = None) -> str:
         """Deterministic 12-hex digest.

@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import pandas as pd
 import pytest
+from pathlib import Path
 
 from src.config import load_config
 from src.provenance import (
@@ -312,3 +313,33 @@ def test_stimulus_digest_ignores_formatting_but_not_content():
         assert load_config("configs/stage0_qwen2.5-0.5b.yaml").hash("pass_a") == before
     finally:
         tp.write_bytes(original)
+
+
+def test_stimulus_digest_is_independent_of_line_endings():
+    """A CRLF checkout must compute the same digest as an LF one.
+
+    The digest hashed items.yaml and anchors.yaml as raw bytes, so it depended on the
+    CHECKOUT rather than the content: the blobs are LF, and a Windows clone with
+    core.autocrlf=true (the default) gets CRLF and a different digest for identical
+    stimuli. No cache could ever transfer between the development machine and the run
+    machine. Silent, permanent, and strictly worse than the over-invalidation the scoping
+    was meant to fix -- so it is pinned here in both directions.
+    """
+    from src.config import load_config
+
+    cfg = load_config("configs/stage0_qwen2.5-0.5b.yaml")
+    files = [cfg.resolve(cfg.stimuli.items_path),
+             cfg.resolve(cfg.stimuli.templates_path),
+             cfg.resolve(Path("src/stimuli/anchors.yaml"))]
+    before = {s: cfg.hash(s) for s in ("pass_a", "pass_b", "pass_c")}
+    originals = {f: f.read_bytes() for f in files}
+    try:
+        for f, raw in originals.items():
+            f.write_bytes(raw.replace(b"\r\n", b"\n").replace(b"\n", b"\r\n"))
+        assert any(b"\r\n" in f.read_bytes() for f in files), "CRLF conversion did nothing"
+        after = {s: load_config("configs/stage0_qwen2.5-0.5b.yaml").hash(s)
+                 for s in ("pass_a", "pass_b", "pass_c")}
+        assert after == before, f"line endings changed the digest: {before} -> {after}"
+    finally:
+        for f, raw in originals.items():
+            f.write_bytes(raw)

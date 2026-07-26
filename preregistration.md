@@ -1351,6 +1351,23 @@ larger β loses information and may lose the branch entirely. `power.analyze` th
 `equivalence_reachable` per model, and any model where it is false may report a null **only** as
 inconclusive, never as equivalence.
 
+**A3.1's argument applied to the `fail` cell, which A3.3 originally stopped one short of.**
+Reachable is not the same as likely. Equivalence needs the whole HDI inside the ROPE, i.e. a median
+within `SESOI − 1.96·SE = 0.236 − 0.199 = 0.038`. Under a true null the median has sampling SD ≈ SE,
+so that window is only 0.37 SE wide either side. The three cells, computed blind on gemma's realised
+design:
+
+| truth | `pass` | `fail` (equivalence) | **`inconclusive`** |
+|---|---|---|---|
+| true null | 0.010 | 0.292 | **0.698** |
+| true effect = SESOI | 0.495 | 0.022 | **0.483** |
+| true effect = MDE (0.323) | 0.800 | 0.002 | **0.198** |
+
+**Inconclusive is the modal outcome across the plausible range**, including when the effect is real
+and exactly at the smallest size we declared interesting. This is stated before the data so that an
+inconclusive primary is understood as the design's expected behaviour rather than as a failure or a
+surprise, and so that §A3.2's finding — that scaling does not fix it — is read alongside it.
+
 ## A3.4 What the power module is, and what it is not
 
 It computes the Fisher information of the exact Pass C design under the exact `spread_model`
@@ -1358,8 +1375,26 @@ likelihood: I = X′WX with W = diag(p(1−p)), SE = √(c′I⁻¹c). It is a d
 against an actual sampler fit rather than trusted on its algebra. Pair and template effects are
 absorbed as fixed rather than partially pooled, which makes every figure above **conservative**.
 
-The one quantity unknown before Pass C is γ, the post shift. It enters only through p(1−p); across
-γ ∈ [0, 1.5] the SE moves from 0.1629 to 0.1642. The assumption is not load-bearing.
+The one quantity unknown before Pass C is γ, the post shift. It enters only through p(1−p).
+
+**Correction to this paragraph's first draft.** It originally read "across γ ∈ [0, 1.5] the SE moves
+from 0.1629 to 0.1642, the assumption is not load-bearing." Those figures came from a version of the
+design calculation that modelled designation as alternating across conditions. Six of the eight
+conditions actually designate the model's own pick, and on easy pairs that pick is near-deterministic,
+so `d` aligns with the pair gap. Correcting it changes the sensitivity materially:
+
+| γ | SE | MDE | equivalence reachable |
+|---|---|---|---|
+| 0.0 | 0.0941 | 0.316 | yes |
+| 0.4 (assumed) | 0.1014 | 0.323 | yes |
+| 0.8 | 0.1101 | 0.330 | yes |
+| 1.5 | 0.1299 | 0.365 | **no** |
+
+So γ **is** load-bearing, for the equivalence branch specifically: a large post shift pushes
+observations away from p = 0.5, costs information, and closes the `fail` cell entirely. The MDE is
+comparatively stable (0.316 → 0.365). γ is measured directly by Pass C, so this resolves itself on
+first contact with the data — but if γ lands near 1.5, A3.3's reachability claim does not hold and a
+null is reportable only as inconclusive.
 
 Two structural facts it makes visible, both properties of the design rather than choices:
 
