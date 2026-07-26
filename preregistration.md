@@ -1372,3 +1372,29 @@ Two structural facts it makes visible, both properties of the design rather than
    0.5. Easy pairs lose information twice. Modelling designation as alternating across conditions —
    the obvious synthetic shortcut — inflates the SE by about 60% by inventing within-pair contrast
    the real design does not have.
+
+## A3.5 A2.9.6's activation cache is not implemented
+
+A2.9.6 states that last-token hidden states "are written during Pass C so Stage 1 does not require
+re-running it." **No module in `src/` collects hidden states.** `pass_c.py` writes parquet only. The
+Pass C run in flight will not produce the cache, so Stage 1 does require re-running Pass C's forward
+passes — roughly 30–60 minutes per model.
+
+Recorded rather than fixed mid-run, deliberately. The run machine has no second drive and needed
+`HF_HUB_DISABLE_XET=1` to fetch the 3B weights at all, so adding ~6.9 GB of writes to a live run
+risks failing it. The dominant Pass C cost was the instrument fit, and that is now cached. Re-running
+forward passes later is the cheaper of the two mistakes.
+
+Sized for the three models that passed A2.2, at 18,000 observations each (2,000 shared pre + 16,000
+post — A2.9.6's table predates the eight-condition design and assumed 20,000):
+
+| model | KB/pass | total |
+|---|---|---|
+| qwen2.5-1.5b | 87 | 1.57 GB |
+| gemma-2-2b | 122 | 2.20 GB |
+| llama-3.2-3b | 174 | 3.13 GB |
+| **total** | | **6.90 GB** |
+
+The Stage 1 draft (`preregistration_stage1.md` §3) specifies a separate `collect_activations` pass
+that replays the identical prompts and asserts a matching prompt digest, rather than amending Pass C.
+That keeps Stage 0's artifacts as they are and decouples Stage 1's disk needs from Stage 0's runtime.
