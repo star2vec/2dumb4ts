@@ -164,6 +164,7 @@ def collect_comparisons(
     *,
     arms: tuple[str, ...] = ("digits",),
     desc: str = "pairwise",
+    checkpoint: Path | None = None,
 ) -> pd.DataFrame:
     """Every (item x anchor x template x order x arm) comparison.
 
@@ -228,15 +229,9 @@ def collect_comparisons(
     if dropped:
         print(f"  dropped {dropped} name-arm comparisons (labels share a first token)")
 
-    picks, margins, masses = [], [], []
-    chunk = max(cfg.batch_size * 8, cfg.batch_size)
-    for start in tqdm(range(0, len(prompts), chunk), desc=desc, unit="chunk", leave=False):
-        logits = runner.last_logits(prompts[start : start + chunk])
-        for j in range(logits.shape[0]):
-            out = read_choice(logits[j : j + 1], maps[start + j])
-            picks.append(int(out.index[0]))
-            margins.append(float(out.margin[0]))
-            masses.append(float(out.mass[0]))
+    picks, margins, masses = _run_with_checkpoint(
+        cfg, runner, prompts, maps, desc=desc, checkpoint=checkpoint
+    )
 
     frame = pd.DataFrame(rows)
     frame["pick_slot"] = picks
@@ -250,6 +245,72 @@ def collect_comparisons(
 
 # ---------------------------------------------------------------------------
 # order invariance (A1.4)
+
+
+def _run_with_checkpoint(
+    cfg: RunConfig, runner: Runner, prompts: list[str], maps: list[DigitMap],
+    *, desc: str, checkpoint: Path | None, every: int = 20,
+) -> tuple[list[int], list[float], list[float]]:
+    """Read every prompt, saving partial results so a long run is resumable.
+
+    At full scale one model is 400 items x 10 anchors x 5 templates x 2 orders =
+    40,000 comparisons -- hours. Without this, a failure at 95% loses everything,
+    which is a bad property for a job running unattended overnight on a machine
+    with 8 GB of VRAM and a known OOM risk.
+
+    Resume is by ROW COUNT, which is safe only because prompt order is fully
+    deterministic: items, anchors and templates are all iterated in sorted order
+    with no sampling anywhere in the loop.
+    """
+    from tqdm import tqdm
+
+    picks: list[int] = []
+    margins: list[float] = []
+    masses: list[float] = []
+
+    if checkpoint is not None and checkpoint.exists():
+        done = pd.read_parquet(checkpoint)
+        if len(done) > len(prompts):
+            raise RuntimeError(
+                f"checkpoint {checkpoint} holds {len(done)} rows but only "
+                f"{len(prompts)} prompts are planned -- it belongs to a different "
+                "configuration. Delete it rather than resuming from it."
+            )
+        picks = done["pick_slot"].tolist()
+        margins = done["margin"].tolist()
+        masses = done["readout_mass_raw"].tolist()
+        print(f"  resuming from checkpoint: {len(picks)}/{len(prompts)} done")
+
+    chunk = max(cfg.batch_size * 8, cfg.batch_size)
+    start_at = (len(picks) // chunk) * chunk
+    # Drop any partial chunk so resumption lands on a chunk boundary.
+    picks, margins, masses = picks[:start_at], margins[:start_at], masses[:start_at]
+
+    steps = list(range(start_at, len(prompts), chunk))
+    for n, start in enumerate(tqdm(steps, desc=desc, unit="chunk", leave=False)):
+        logits = runner.last_logits(prompts[start : start + chunk])
+        for j in range(logits.shape[0]):
+            out = read_choice(logits[j : j + 1], maps[start + j])
+            picks.append(int(out.index[0]))
+            margins.append(float(out.margin[0]))
+            masses.append(float(out.mass[0]))
+        if checkpoint is not None and (n + 1) % every == 0:
+            _save_checkpoint(checkpoint, picks, margins, masses)
+
+    if checkpoint is not None:
+        _save_checkpoint(checkpoint, picks, margins, masses)
+    return picks, margins, masses
+
+
+def _save_checkpoint(path: Path, picks, margins, masses) -> None:
+    path.parent.mkdir(parents=True, exist_ok=True)
+    tmp = path.with_suffix(".tmp")
+    pd.DataFrame({
+        "pick_slot": picks, "margin": margins, "readout_mass_raw": masses,
+    }).to_parquet(tmp, index=False)
+    # Atomic replace, so a crash mid-write cannot leave a truncated checkpoint
+    # that would then be resumed from.
+    tmp.replace(path)
 
 
 def order_invariance(frame: pd.DataFrame, by: list[str] | None = None) -> pd.DataFrame:

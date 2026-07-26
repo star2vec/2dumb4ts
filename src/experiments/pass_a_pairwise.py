@@ -185,7 +185,9 @@ def run(cfg: RunConfig, *, progressbar: bool = True) -> int:
 
         runner = load_runner(cfg)
         comparisons = collect_comparisons(
-            cfg, runner, items, anchors, templates, arms=("digits",), desc="pairwise"
+            cfg, runner, items, anchors, templates, arms=("digits",), desc="pairwise",
+            # Resumable: at full scale this is 40,000 comparisons per model.
+            checkpoint=out_dir / f"_checkpoint_{cfg.hash('pass_a')}.parquet",
         )
         comparisons = write_parquet(comparisons, path, prov)
         print(f"wrote: {path}")
