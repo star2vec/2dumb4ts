@@ -1,0 +1,122 @@
+WARNING (pytensor.configdefaults): g++ not available, if using conda: `conda install gxx`
+WARNING (pytensor.configdefaults): g++ not detected!  PyTensor will be unable to compile C-implementations and will default to Python. Performance may be severely degraded. To remove this warning, set PyTensor flags cxx to an empty string.
+[pairwise_seq] sampler_cores=1 full_hash=cc2b79aa933c pass_a_hash=e8513db39703
+
+========================================================================
+Pairwise Pass A  |  qwen2.5-1.5b-instruct  |  cuda bfloat16
+========================================================================
+400 items x 10 anchors x 5 templates x 2 orders = 40,000 comparisons
+  -> 20 binary outcomes per item per template
+cached: artifacts\pass_a_pairwise\qwen2.5-1.5b-instruct\e8513db39703\comparisons_e8513db39703.parquet
+
+readout mass (A1.6):
+   arm     n  n_invalid  frac_invalid  mass_median  mass_min
+digits 40000          0           0.0     0.999797   0.60989
+
+readout mass by template:
+   arm template    n  n_invalid  frac_invalid  mass_median  mass_min
+digits       t0 8000          0           0.0     0.993335  0.966965
+digits       t1 8000          0           0.0     0.998387  0.609890
+digits       t2 8000          0           0.0     0.999838  0.989341
+digits       t3 8000          0           0.0     0.999921  0.983728
+digits       t4 8000          0           0.0     0.999992  0.995814
+
+========================================================================
+Order invariance -- reported only, no longer a gate (A2.2)
+========================================================================
+retired as an exclusion criterion: its null is 2*s*(1-s) with s = sigmoid(beta),
+which moves with a signed, template-varying nuisance parameter.
+
+   arm template  n_pairs  order_invariance  unambiguous_item_win             regime
+digits       t0     4000           0.47800               0.39475 position-dominated
+digits       t1     4000           0.14825               0.14725 position-dominated
+digits       t2     4000           0.27775               0.26750 position-dominated
+digits       t3     4000           0.00150               0.00100 position-dominated
+digits       t4     4000           0.59550               0.43575   random-dominated
+
+========================================================================
+Hierarchical Bradley-Terry with per-template order term (A2.1)
+========================================================================
+Initializing NUTS using jitter+adapt_diag...
+Sequential sampling (4 chains in 1 job)
+NUTS: [sigma_item, theta, alpha, beta]
++-----------------------------------------------------------------------------+
+|         |      |         | Step    | Grad    |         |         |          |
+| Progre… | Draw | Diverg… | size    | evals   | Speed   | Elapsed | Remaini… |
+|---------+------+---------+---------+---------+---------+---------+----------|
+| ------- | 4000 | 0       | 0.312   | 15      | 43.56   | 0:01:31 | 0:00:00  |
+|         |      |         |         |         | draws/s |         |          |
+| ------- | 4000 | 0       | 0.291   | 15      | 22.00   | 0:03:01 | 0:00:00  |
+|         |      |         |         |         | draws/s |         |          |
+| ------- | 4000 | 0       | 0.239   | 15      | 14.65   | 0:04:33 | 0:00:00  |
+|         |      |         |         |         | draws/s |         |          |
+| ------- | 4000 | 0       | 0.270   | 15      | 10.98   | 0:06:04 | 0:00:00  |
+|         |      |         |         |         | draws/s |         |          |
++-----------------------------------------------------------------------------+
+Sampling 4 chains for 2_000 tune and 2_000 draw iterations (8_000 + 8_000 draws total) took 364 seconds.
+Bradley-Terry (+ per-template order term): 400 items from 40000 valid comparisons (0 dropped below the mass floor)
+  theta spread: sd across items = 1.149, range -1.30 to 4.95
+  precision: posterior SD of theta, median 0.322 (min 0.303, max 0.502)
+  sigma_item (between-item scale) = 1.612
+  separation ratio = 5.00
+  model reliability = 0.959 (compare against the EMPIRICAL split-half figure)
+  beta: mean -3.214 (favours slot 2), range -8.730 to +0.228 across 5 templates
+convergence: max R-hat 1.0000 (limit 1.01), min ESS 7875 (limit 400), divergences 0, 0 parameter(s) failing
+
+position bias by template (beta):
+template  beta_mean  beta_sd  beta_hdi_low  beta_hdi_high
+      t0     -1.302    0.031        -1.363         -1.240
+      t1     -3.680    0.057        -3.795         -3.568
+      t2     -2.587    0.042        -2.668         -2.504
+      t3     -8.730    0.334        -9.398         -8.102
+      t4      0.228    0.027         0.173          0.279
+
+fit quality -- excess consistency on gap: slope +0.0197 95% CI [+0.0161, +0.0233] over 20000 cells
+  NOT FLAT: residual compression remains, model still misspecified
+
+========================================================================
+Reliability gate (A2.2)
+========================================================================
+Initializing NUTS using jitter+adapt_diag...
+Sequential sampling (4 chains in 1 job)
+NUTS: [sigma_item, theta, alpha, beta]
+Sampling 4 chains for 2_000 tune and 2_000 draw iterations (8_000 + 8_000 draws total) took 225 seconds.
+Initializing NUTS using jitter+adapt_diag...
+Sequential sampling (4 chains in 1 job)
+NUTS: [sigma_item, theta, alpha, beta]
+Sampling 4 chains for 2_000 tune and 2_000 draw iterations (8_000 + 8_000 draws total) took 152 seconds.
+empirical split-half reliability of theta across ['t0', 't1', 't2'] vs ['t3', 't4']:
+  Spearman 0.743 (Pearson 0.696), threshold 0.7
+  model-internal reliability 0.959 -- a gap between these two signals misspecification
+  ->  PASS
+
+anchor abilities (intended tier is a design annotation, never shown to the model):
+            anchor_id  alpha_mean  alpha_sd      tier  tier_rank  alpha_rank
+     anchor/long-walk    0.747930  0.049213 upper-mid          1           0
+ anchor/queue-in-rain    0.577295  0.048884       low          4           1
+anchor/favourite-meal    0.401204  0.050692      high          0           2
+     anchor/tax-forms    0.369650  0.049193       low          4           3
+      anchor/old-film    0.234261  0.049695       mid          2           4
+     anchor/lost-keys    0.229375  0.049131       low          4           5
+  anchor/blocked-sink    0.161567  0.049750       low          4           6
+anchor/free-afternoon    0.071957  0.050002      high          0           7
+ anchor/tidy-a-drawer   -0.145094  0.049140       mid          2           8
+  anchor/waiting-room   -2.648144  0.066794 lower-mid          3           9
+
+========================================================================
+Operating-window diagnostic (A1.7) -- evaluated BEFORE Pass C
+========================================================================
+ gap_mid    n  discriminable      disc_se  consistency  pred_consistency    excess
+0.102490 2500          0.000 6.324555e-07       0.1452          0.202508 -0.057308
+0.310470 2500          0.000 6.324555e-07       0.1408          0.207903 -0.067103
+0.539144 2500          0.156 7.257107e-03       0.1784          0.219850 -0.041450
+0.812984 2500          1.000 6.324555e-07       0.2224          0.241528 -0.019128
+1.133771 2500          1.000 6.324555e-07       0.2756          0.275278  0.000322
+1.580003 2500          1.000 6.324555e-07       0.3340          0.332804  0.001196
+2.391354 2500          1.000 6.324555e-07       0.4604          0.449813  0.010587
+3.873148 2500          1.000 6.324555e-07       0.6448          0.629134  0.015666
+
+discriminability rises from 0.00 at gap 0.10 to 1.00 at gap 3.87
+fit check: |excess consistency| <= 0.067 across bins (consistent with the beta model)
+
+results: artifacts\pass_a_pairwise\qwen2.5-1.5b-instruct\e8513db39703

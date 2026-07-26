@@ -1,0 +1,72 @@
+WARNING (pytensor.configdefaults): g++ not available, if using conda: `conda install gxx`
+WARNING (pytensor.configdefaults): g++ not detected!  PyTensor will be unable to compile C-implementations and will default to Python. Performance may be severely degraded. To remove this warning, set PyTensor flags cxx to an empty string.
+
+========================================================================
+Stage 0  |  qwen2.5-1.5b-instruct  |  config 8039aa22cb07
+========================================================================
+device=cuda (NVIDIA RTX 2000 Ada Generation Laptop GPU)  dtype=bfloat16
+revision=989aa7980e4cf806f80c7fef2b1adb7bc71aa306 pinned=True
+torch=2.8.0+cu126 transformers=5.14.1
+git=62ae47a3c0e3624ceaf442b2a7b655d580f704c8 dirty=False  seed=20261025
+
+stimulus audit (turn/mention balance across conditions):
+          n_turns     mentions_designated     mentions_other    
+              min max                 min max            min max
+condition                                                       
+3p-random       1   1                   3   3              3   3
+3p-yoked        1   1                   3   3              3   3
+chose           3   3                   3   3              3   3
+random          1   1                   3   3              3   3
+yoked           1   1                   3   3              3   3
+
+========================================================================
+Pass A -- item rating (400 items x 5 templates x 2 polarities)
+========================================================================
+loading model ...
+Loading weights:   0%|          | 0/338 [00:00<?, ?it/s]Loading weights: 100%|##########| 338/338 [00:00<00:00, 14696.11it/s]
+  device=cuda dtype=torch.bfloat16
+digit map (9 ids):
+  1: ids=[16] surfaces=["'1'"]
+  2: ids=[17] surfaces=["'2'"]
+  3: ids=[18] surfaces=["'3'"]
+  4: ids=[19] surfaces=["'4'"]
+  5: ids=[20] surfaces=["'5'"]
+  6: ids=[21] surfaces=["'6'"]
+  7: ids=[22] surfaces=["'7'"]
+  8: ids=[23] surfaces=["'8'"]
+  9: ids=[24] surfaces=["'9'"]
+label map (4 ids):
+  0: ids=[32, 362] surfaces=["' A'", "'A'"]
+  1: ids=[33, 425] surfaces=["' B'", "'B'"]
+pass A:   0%|          | 0/16 [00:00<?, ?chunk/s]pass A:   6%|6         | 1/16 [00:02<00:39,  2.64s/chunk]pass A:  12%|#2        | 2/16 [00:04<00:34,  2.45s/chunk]pass A:  19%|#8        | 3/16 [00:07<00:31,  2.40s/chunk]pass A:  25%|##5       | 4/16 [00:09<00:28,  2.38s/chunk]pass A:  31%|###1      | 5/16 [00:11<00:25,  2.34s/chunk]pass A:  38%|###7      | 6/16 [00:14<00:23,  2.31s/chunk]pass A:  44%|####3     | 7/16 [00:16<00:20,  2.29s/chunk]pass A:  50%|#####     | 8/16 [00:18<00:18,  2.27s/chunk]pass A:  56%|#####6    | 9/16 [00:20<00:15,  2.26s/chunk]pass A:  62%|######2   | 10/16 [00:23<00:13,  2.25s/chunk]pass A:  69%|######8   | 11/16 [00:25<00:11,  2.26s/chunk]pass A:  75%|#######5  | 12/16 [00:27<00:08,  2.25s/chunk]pass A:  81%|########1 | 13/16 [00:29<00:06,  2.24s/chunk]pass A:  88%|########7 | 14/16 [00:32<00:04,  2.24s/chunk]pass A:  94%|#########3| 15/16 [00:34<00:02,  2.24s/chunk]pass A: 100%|##########| 16/16 [00:35<00:00,  1.98s/chunk]                                                          wrote: artifacts\pass_a\qwen2.5-1.5b-instruct\e8513db39703\ratings_e8513db39703.parquet
+4000 ratings   digit_mass min=0.9181 median=0.9995
+
+========================================================================
+Exclusion criteria (preregistration.md section 5)
+========================================================================
+[HALT] qwen2.5-1.5b-instruct
+  validity: median rho = -0.916 (threshold >= gate); surviving templates = []
+  reliability (ascending only): ICC(C,1) over 5 templates = 0.343
+  selection score reliability: ICC(C,3) = 0.361, ICC(A,3) = 0.042
+  same on polarity-collapsed scores: ICC(C,1) = 0.090  (a large gap means the collapse is destroying variance)
+  sigma_between = 0.098 rating points (collapsed, drives the SESOI)  |  ascending only = 0.502
+  SESOI (primary, 0.15*sigma) = 0.015; secondary fixed anchor = 0.250
+  TRIPWIRE: ICC(C,1) below threshold -- investigate for an implementation fault before trusting Pass C
+  - EXCLUDED: median polarity validity rho = -0.916 < 0.6. The model has not demonstrated that it reads the response scale; this is not evidence about the hypotheses in either direction.
+  - EXCLUDED: only 0 template(s) reach rho >= 0.6, need 3.
+  - EXCLUDED: sigma_between = 0.098 < 0.5. With no between-item variance there is no |diff| range, so the difficulty manipulation is undefined rather than null.
+  - TRIPWIRE (not an exclusion): ICC(C,1) = 0.343 < 0.4. Check for an implementation fault; if none, the binding criterion is power on the primary contrast at the SESOI.
+
+per-template polarity validity:
+template  spearman_rho       p_value  n_items  sd_ascending  sd_descending_reversed
+      t0     -0.858374 2.007796e-117      400      0.197554                0.464039
+      t1     -0.982666 2.019259e-293      400      0.525136                0.516883
+      t2     -0.915559 1.588892e-159      400      0.683956                0.465302
+      t3     -0.893189 3.212302e-140      400      0.675826                0.620078
+      t4     -0.916793 9.620031e-161      400      0.448235                0.359321
+
+results: artifacts\analysis\qwen2.5-1.5b-instruct\8039aa22cb07\results_8039aa22cb07.json
+
+========================================================================
+HALTED for this model. Reported, not treated as evidence either way.
+========================================================================
