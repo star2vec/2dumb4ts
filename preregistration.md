@@ -431,6 +431,16 @@ Per model, on the H1 interaction coefficient:
 | **fail** | 95% HDI lies entirely inside the ROPE `[−SESOI, +SESOI]` | equivalence to null for that model |
 | **inconclusive** | HDI overlaps both 0 and the SESOI boundary | reported as inconclusive; resolved by scaling items, not by reanalysis |
 
+> **The `pass` cell is unchanged, and A3.6 records a considered refusal to change it.** Dropping
+> the `median > SESOI` conjunct was computed blind and declined; see A3.6 for the arithmetic and
+> the reasoning. The `inconclusive` row's "resolved by scaling items" is retained as written but
+> should be read against **A3.2**, which prices that remedy and finds it close to worthless for
+> the primary contrast.
+>
+> **The project-level gate below is revised by A3.7**, also blind. The per-model outcome rule and
+> the project gate are separable: the first defines a claim about the world, the second allocates
+> resources. Only the second is revised.
+
 **Project-level gate:** Stage 1 is entered only if **at least two non-excluded models pass**. The
 ladder pattern — whether the interaction emerges with scale — is reported as a primary descriptive
 result regardless of the gate outcome. A gate failure is reported as a negative result, and the
@@ -1433,3 +1443,102 @@ post — A2.9.6's table predates the eight-condition design and assumed 20,000):
 The Stage 1 draft (`preregistration_stage1.md` §3) specifies a separate `collect_activations` pass
 that replays the identical prompts and asserts a matching prompt digest, rather than amending Pass C.
 That keeps Stage 0's artifacts as they are and decouples Stage 1's disk needs from Stage 0's runtime.
+
+## A3.6 Considered and declined: removing `median > SESOI` from §9.2's `pass` cell
+
+Considered removing the `median > SESOI` conjunct from §9.2's `pass` cell. Computed blind, on
+gemma's realised design (SE 0.1014, SESOI 0.2359): power at the SESOI would rise from **0.495 to
+0.641**, still short of 0.80, and the minimum detectable effect from **1.367× to 1.207× SESOI**.
+
+**Declined.** Three reasons, in increasing order of weight.
+
+1. *It is not the defect A3.1 identified.* That defect was in §8's power **target**, which is
+   withdrawn and not restated. The conjunct is the surviving half of the pair and is doing work.
+
+2. *It reduces to a rescale of the SESOI, obtained by deletion rather than by editing the number.*
+   With the conjunct gone, `pass` is `1.96·SE`, which on this design is **0.199 against a SESOI of
+   0.236** — a 16.0% reduction in the effective bar. A3.1 states that rescaling the SESOI in
+   response to a power calculation while a run is in flight is precisely what this project forbids.
+   Reaching the same place by deleting a clause does not make it a different act. If anything it is
+   worse than an honest rescale: a rescale would move the ROPE too, whereas deletion loosens `pass`
+   while leaving `fail` at ±0.236 — easier to declare an effect, no easier to declare equivalence.
+
+3. *It makes the threshold float with sample size.* Once the bar is `1.96·SE` it is whatever
+   precision happens to be, and shrinks toward zero as data accumulate. A SESOI exists so that the
+   bar does **not** do that. This is structural and does not depend on any figure above.
+
+**The cost is also larger than the gain.** Under a true null the per-model `pass` rate rises from
+**0.0097 to 0.0247** — a 2.55× increase in false positives, and the amended rule sits at exactly the
+nominal one-sided 2.5%. The current rule is conservative beyond nominal, and that conservatism is
+what the deletion spends. Fifteen points of power, on a design that remains underpowered either way,
+bought with a 2.55× false-positive increase and a floating threshold, taken immediately before
+reading results. Blindness is a partial defence only; the *direction* of the change is predictable
+without seeing anything, which is exactly what makes it attackable.
+
+Recorded rather than silently not-done, because a refusal under live temptation is evidence about
+the process and an undocumented non-decision is not. **`_decide_pass` in `src/analysis/power.py`
+retains the `max(z·post_sd, sesoi)` term, and the docstring points here.**
+
+## A3.7 The project-level gate is revised; the per-model `pass` rule is not
+
+§9.2 holds two separable objects, and A3.6 turns on the distinction:
+
+- **the per-model outcome rule** — what counts as a `pass`. It defines a claim about the world.
+  **Frozen.**
+- **the project gate** — "Stage 1 is entered only if at least two non-excluded models pass." It
+  allocates compute and asserts nothing. **Revised here, blind.**
+
+**The defect it inherits.** The project gate is a conjunction over per-model `pass`, and per-model
+`pass` is capped near 0.5 at the SESOI by A3.1's argument. So the gate inherits the cap: with three
+non-excluded models and a true effect exactly at the SESOI, **P(≥2 pass) = 0.493**. A real effect at
+the smallest size we declared interesting fails to open Stage 1 more than half the time. The gate is
+not merely strict, it is anti-correlated with what it is for.
+
+The conjunction itself is well-behaved and is not the problem — it is roughly neutral at the SESOI
+and *helps* above it, and it drives false entry under a true null to 0.0003. All of the damage comes
+from the per-model cap, which is frozen.
+
+**Priced and rejected: pooling.** Fitting the interaction hierarchically across models and gating on
+the pooled contrast gives **0.497** at the SESOI — no better than the current gate. The SESOI-floored
+bar caps at 0.5 at the SESOI *regardless of precision*, so pooling three models' data does not escape
+A3.1's cap; it only improves the MDE (1.247× → 1.211× SESOI). Not worth a new model, three models is
+a poor basis for a model-level variance, and λ would first have to be re-expressed per σ_item to be
+commensurable across the ladder. Recorded so it is not re-proposed.
+
+**Adopted — a corroboration gate.** Stage 1 is entered if:
+
+> **at least one** non-excluded model **passes** §9.2 in full (both conjuncts, unamended),
+> **and at least two** non-excluded models are **directional**, defined as
+> `P(λ_interaction < 0 | data) ≥ 0.95`.
+
+A passing model necessarily satisfies the directional condition, so it counts toward both; the gate
+therefore asks for one model that clears the full bar plus one further model that agrees in
+direction with high posterior mass. It does not ask lightning to strike twice.
+
+`τ = 0.95` was chosen by a rule stated before the number was picked: **the smallest conventional
+threshold whose project-level MDE is not below the SESOI.** A gate that could be cleared 80% of the
+time by an effect smaller than the smallest effect we declared interesting would be a backdoor
+loosening of the `pass` rule, which is the thing A3.6 refused. Computed over 400,000 simulated
+three-model draws:
+
+| τ | false entry (true null) | entry at the SESOI | project MDE / SESOI |
+|---|---|---|---|
+| — | 0.0003 | 0.493 | 1.247 | ← current: ≥2 of 3 pass |
+| 0.90 | 0.0051 | 0.839 | **0.959** ← below the SESOI |
+| 0.94 | 0.0031 | 0.799 | 1.001 ← on the boundary |
+| **0.95** | **0.0025** | **0.779** | **1.019** |
+| 0.975 | 0.0011 | 0.680 | 1.104 |
+
+Entry at the SESOI rises **0.493 → 0.779**; false entry under a true null rises 0.0003 → 0.0025,
+i.e. one Stage 1 wrongly begun in four hundred. That is a resource risk, not an inferential one: no
+claim is made by entering Stage 1, and Stage 1 has its own preregistered gates.
+
+**What is not changed.** The per-model `pass`, `fail` and `inconclusive` cells; the SESOI; the ROPE.
+A model that is inconclusive is still reported as inconclusive — the corroboration gate lets an
+inconclusive-but-directional model support *entry* without letting it support a *claim*. The ladder
+pattern is still reported as a primary descriptive result regardless of the gate outcome, and a
+failure to enter is still reported as a negative result.
+
+**If fewer than three models survive the reliability gate**, the rule is unchanged in form: one full
+pass plus two directional, counted over the surviving set. With two survivors it requires both. With
+one it cannot be met, and Stage 1 is not entered on a single model.

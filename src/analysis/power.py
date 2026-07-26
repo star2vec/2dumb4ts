@@ -247,6 +247,12 @@ def _decide_pass(true_lambda: float, se: float, sesoi: float, z: float) -> float
     `pass` requires BOTH that the 95% HDI excludes 0 in the predicted (negative)
     direction AND that the posterior median magnitude exceeds the SESOI. Powering on the
     HDI alone would overstate power wherever the SESOI is the binding constraint.
+
+    Removing the second conjunct was considered and **declined** (A3.6). It would have
+    raised power at the SESOI from 0.495 to 0.641, but it also sets the effective
+    threshold to `1.96 * SE`, which floats with sample size and shrinks toward zero --
+    the SESOI exists precisely so the bar does not do that. The `max` below is what keeps
+    the bar fixed.
     """
     from scipy import stats
 
