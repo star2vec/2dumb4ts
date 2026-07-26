@@ -21,6 +21,7 @@ dependencies = [
     # arviz-plots still imports matplotlib.style.core, removed in matplotlib 3.11.
     "matplotlib>=3.9,<3.11",
     "tqdm>=4.66",
+    "tabulate>=0.9",   # status.py renders markdown tables
 ]
 
 [project.optional-dependencies]

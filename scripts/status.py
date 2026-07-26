@@ -176,7 +176,7 @@ def main() -> int:
     print(text)
 
     if args.write:
-        (REPO / "STATUS.md").write_text(text)
+        (REPO / "STATUS.md").write_text(text, encoding="utf-8")
         OUT.mkdir(exist_ok=True)
         for r in results:
             name = f"{r['_stage']}__{r.get('model','unknown')}.json"
@@ -188,7 +188,7 @@ def main() -> int:
                              "excess_consistency_slope", "operating_window",
                              "readout_mass", "readout_mass_by_template",
                              "order_invariance_reported", "test_retest")}
-            (OUT / name).write_text(json.dumps(keep, indent=2, default=str))
+            (OUT / name).write_text(json.dumps(keep, indent=2, default=str), encoding="utf-8")
         print(f"\nwrote STATUS.md and {len(results)} summary file(s) to results/")
     return 0
 

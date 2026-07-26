@@ -331,6 +331,29 @@ def excess_consistency_slope(
             "flat": bool(lo < 0 < hi)}
 
 
+def predicted_split_half(model_reliability: float, frac_a: float, frac_b: float) -> float:
+    """What split-half correlation a full-data reliability implies.
+
+    A2.2 compares model-internal reliability against an EMPIRICAL split-half figure,
+    but those are not the same length. Model reliability comes from a fit using all
+    templates; the split-half correlation is between two SHORTER fits. Each half has
+    less data, hence a noisier theta, so its correlation is lower even under perfect
+    specification. Comparing them directly guarantees an apparent gap and would report
+    every model as misspecified.
+
+    With r_full = sigma^2/(sigma^2+v) and k = 1/r_full - 1, a half holding fraction f
+    of the data has v/f, so
+
+        r_split = 1 / sqrt((1 + k/frac_a) * (1 + k/frac_b))
+
+    Compare the observed split-half against THIS, not against r_full.
+    """
+    if not 0 < model_reliability < 1:
+        return float("nan")
+    k = 1.0 / model_reliability - 1.0
+    return float(1.0 / np.sqrt((1.0 + k / frac_a) * (1.0 + k / frac_b)))
+
+
 def excess_slope_ppc_null(
     cfg: RunConfig, comparisons: pd.DataFrame, fit: BTFit, *, n_rep: int = 24,
     arm: str = "digits", seed: int = 100,

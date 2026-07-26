@@ -23,7 +23,7 @@ import pandas as pd
 
 from src.analysis.bradley_terry import (
     anchor_ordering_check, convergence_summary, excess_consistency_slope,
-    excess_slope_ppc_null, fit_bradley_terry, test_retest,
+    excess_slope_ppc_null, fit_bradley_terry, predicted_split_half, test_retest,
 )
 from src.config import RunConfig, load_config
 from src.provenance import Provenance, capture, read_parquet, write_parquet
@@ -304,8 +304,15 @@ def run(cfg: RunConfig, *, progressbar: bool = True) -> int:
     print(f"  Spearman {gate['empirical_reliability_spearman']:.3f} "
           f"(Pearson {gate['empirical_reliability_pearson']:.3f}), "
           f"threshold {gate['threshold']}")
-    print(f"  model-internal reliability {fit.model_reliability:.3f} -- a gap between "
-          "these two signals misspecification")
+    na, nb = len(gate["split_a"]), len(gate["split_b"])
+    fa, fb = na / (na + nb), nb / (na + nb)
+    pred = predicted_split_half(fit.model_reliability, fa, fb)
+    print(f"  model-internal reliability {fit.model_reliability:.3f}; length-matched "
+          f"prediction for a {na}/{nb} split = {pred:.3f}")
+    print(f"  shortfall vs length-matched prediction: "
+          f"{gate['empirical_reliability_spearman'] - pred:+.3f} "
+          "(compare against THIS, not against the full-data figure)")
+    results["reliability_length_matched_prediction"] = pred
     print(f"  ->  {'PASS' if gate['passed'] else 'HALT'}")
     for r in gate["reasons"]:
         print(f"  - {r}")

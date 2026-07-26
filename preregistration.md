@@ -801,7 +801,19 @@ nonlinear function.
 > independently on the two disjoint template sets of §4.4 — must be **≥ 0.70**.
 
 Model-internal reliability `σ_item² / (σ_item² + E[posterior var])` is reported alongside, and the
-**gap between the two is a preregistered misspecification diagnostic**: they should agree.
+gap between the two is a preregistered misspecification diagnostic — but the comparison must be
+**length-matched**, which the original statement of this criterion got wrong.
+
+Model reliability comes from a fit using every template; the empirical figure is a correlation
+between two **shorter** fits, each on a subset. Each half carries a noisier `θ`, so its correlation
+is lower even under perfect specification, and comparing the two directly guarantees an apparent gap
+for every model. With `k = 1/r_model − 1` and halves holding fractions `f_a`, `f_b` of the data, the
+prediction is `r_split = 1 / sqrt((1 + k/f_a)(1 + k/f_b))`. The observed split-half is compared
+against **that**.
+
+On the 3/2 template split this matters: gemma-2-2b's shortfall is −0.068 rather than −0.105, and
+Qwen2.5-1.5B's is −0.175 rather than −0.216. The correction does not erase the difference between
+them — which is the point, since it is the difference that carries information.
 
 **Why the old gate does not measure the intended thing.** Under position bias alone with no content
 signal at all, expected order invariance at `x = 0` is `2s(1−s)` with `s = sigmoid(β)` — **not 0.5**.
@@ -959,11 +971,22 @@ The null is ~+0.004 regardless of design detail, so the verdict holds under eith
    nothing since has revived it. If it were ever fitted it would enter as a **declared robustness
    model compared by LOO**, never as primary.
 
-   **Status after both checks: every named candidate is eliminated except t3 contamination**, which
-   remains untested because it requires the re-collection. λ, a cell-level random effect, and prior
-   shrinkage are all ruled out on evidence. If clean t3 does not bring the slope within its null,
-   the residual is **documented as a limitation and not pursued further** — the time-box applies,
-   and nothing downstream consumes θ's absolute scale.
+   **RESOLVED for gemma-2-2b, 2026-07-26.** With t3 and t4 repaired and all five templates at zero
+   invalid readouts, the full-scale (400-item) refit gives an excess slope of **−0.0009 — flat**,
+   against +0.0202 on the contaminated data. Rule 1 is satisfied: the residual is attributed to t3
+   contamination, **no parameter is added, and the matter is closed for that model.** λ, a
+   cell-level random effect and prior shrinkage all remain eliminated and are not revisited.
+
+   **NOT resolved for the smaller models.** With the same clean templates, Qwen2.5-1.5B still shows
+   **+0.0197** and Qwen2.5-0.5B **+0.034**. So t3 explained gemma's residual but not theirs, and the
+   remaining effect is **model-dependent, concentrated in the weaker models**. The length-matched
+   reliability shortfall agrees and separates them the same way: −0.068 for gemma against −0.175 for
+   the 1.5B. Two independent diagnostics ordering the models identically is evidence the residual is
+   real rather than an artifact of either statistic.
+
+   Per the time-box this is now **documented as a limitation, not pursued**. It is recorded as a
+   caveat on any `θ` reported for the 0.5B and 1.5B, and it does not propagate: nothing downstream
+   consumes `θ`'s absolute scale.
 4. If any step brings the slope within its null, remaining candidates are **dropped, not
    revisited**. No further parameters are added to chase a statistic that no longer fires.
 
