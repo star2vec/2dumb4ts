@@ -1542,3 +1542,39 @@ failure to enter is still reported as a negative result.
 **If fewer than three models survive the reliability gate**, the rule is unchanged in form: one full
 pass plus two directional, counted over the surviving set. With two survivors it requires both. With
 one it cannot be met, and Stage 1 is not entered on a single model.
+
+## A3.8 §7.2's item random effect does not transfer to the logit DV
+
+§7.2 preregisters a **robustness model** adding an item random effect as
+`u_item[item1] + u_item[item2]`, the multi-membership form. `spread_model` does not implement
+it: there is no `u_item` and no `with_item` switch. Found while migrating the analysis
+notebook, which still called the retired `mixed.fit(cfg, design, with_item=True)`.
+
+This is not merely unimplemented. **The specified form is wrong for the current DV, and the
+corrected form is close to unidentified.**
+
+*The sum form does not transfer.* §7.2 was written when the DV was a per-pair spread in
+rating points, where both items contribute additively to one number. A2.9.1 replaced that
+with a comparison on a fixed pair axis — `logit P(item1 beats item2)` — where item quality
+enters as a **difference**, `u_item[item1] − u_item[item2]`, not a sum. Carrying the sum over
+would add a term with no interpretation on the new scale.
+
+*The difference form is barely identified.* The model already carries a free partially pooled
+`u_pair` per pair. For pair `p = (i1, i2)` the baseline would become
+`u_pair[p] + (u_item[i1] − u_item[i2])`, and those are separable only through items appearing
+in **more than one pair**. §5's cap is **two uses per item**, so each `u_item` is informed by
+at most two pairs whose own `u_pair` is free. The posterior would be dominated by the prior,
+and the "discrepancy is reported either way" clause of §7.2 would then be reporting prior
+sensitivity rather than robustness — the opposite of its purpose.
+
+**Withdrawn as specified**, and *not* silently replaced. The item-level scale is not
+unmeasured: it is what `θ` is, and it is estimated on the Bradley-Terry instrument from
+Pass A's anchor comparisons, where every item appears many times and identification is not in
+question. `|diff|` — the primary regressor — is a function of exactly that quantity. So the
+concern §7.2 existed to address is carried by the instrument rather than by a random effect in
+the Pass C model.
+
+Any replacement robustness model would have to be specified against the logit DV and its
+identification demonstrated before it is fit. That is Stage 1 work at the earliest, and doing
+it now, mid-run, is the move A3.6 declined. The notebook reports this section as withdrawn
+with a pointer here rather than omitting it.
