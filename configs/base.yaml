@@ -45,7 +45,9 @@ pass_b:
   match_tolerance: 0.15
 
 pass_c:
-  conditions: [chose, yoked, 3p-yoked, 3p-random, random]
+  # Amendment 2 A2.9.3. First four are the transcript-structure x wording 2x2.
+  conditions: [chose, structure-control, self-recounted, yoked,
+               3p-yoked, 3p-random, random, chose-provisional]
   n_option_orders: 2
 
 analysis:
