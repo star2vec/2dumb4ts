@@ -69,6 +69,10 @@ PLANNED: dict[str, tuple[str, str, int]] = {
 
 PRIMARY = "chose - yoked"
 
+#: Label for the shared pre-manipulation baseline. Not a condition -- one physical
+#: measurement per (pair, template, option order), emitted once.
+PRE_SENTINEL = "pre"
+
 
 @dataclass
 class SpreadDesign:
@@ -107,10 +111,17 @@ def prepare(cfg: RunConfig, trials: pd.DataFrame) -> SpreadDesign:
     f["d"] = np.where(f["designated_item_id"] == f["item1_id"], 1.0, -1.0)
     f["post"] = (f["timepoint"] == "post").astype(float)
 
-    # Pre observations are shared across conditions -- the same physical measurement.
-    # They carry post = 0, so they inform u_pair and beta_t but contribute nothing to
-    # gamma or lambda, which is exactly right: they are the baseline.
-    conditions = [c for c in cfg.pass_c.conditions if c in set(f["condition"])]
+    # Pre observations are ONE physical measurement per (pair, template, order),
+    # shared by every condition. They are emitted once, labelled with the PRE_SENTINEL,
+    # and carry post = 0 -- so they inform u_pair, u_template and beta_t but contribute
+    # nothing to gamma or lambda. Emitting them once per condition instead would feed
+    # the same observation to the likelihood eight times and over-weight the baseline.
+    pre_rows = f["condition"] == PRE_SENTINEL
+    if pre_rows.any() and not (f.loc[pre_rows, "timepoint"] == "pre").all():
+        raise ValueError(f"rows labelled {PRE_SENTINEL!r} must all have timepoint 'pre'")
+
+    conditions = [c for c in cfg.pass_c.conditions
+                  if c in set(f.loc[~pre_rows, "condition"])]
     pairs = sorted(f["pair_id"].unique())
     templates = sorted(f["template"].unique())
 
@@ -118,14 +129,18 @@ def prepare(cfg: RunConfig, trials: pd.DataFrame) -> SpreadDesign:
     # `chose` -- which mixed conditions together and attenuated every lambda toward
     # their average while leaving gamma looking correct. That is exactly the failure
     # the recovery test caught, and it was invisible because the fallback was silent.
-    unknown = sorted(set(f["condition"]) - set(conditions))
+    unknown = sorted(set(f.loc[~pre_rows, "condition"]) - set(conditions))
     if unknown:
         raise ValueError(
             f"conditions present in the data but not in cfg.pass_c.conditions: {unknown}. "
             "Refusing to guess -- an unmapped condition would be silently scored as "
             f"{conditions[0]!r}."
         )
-    f["cond_idx"] = f["condition"].map({c: i for i, c in enumerate(conditions)}).astype(int)
+    # Pre rows get index 0 purely so the array is well-formed; post = 0 makes it inert.
+    f["cond_idx"] = (
+        f["condition"].map({c: i for i, c in enumerate(conditions)}).fillna(0).astype(int)
+    )
+    f.loc[pre_rows, "cond_idx"] = 0
     f["pair_idx"] = f["pair_id"].map({p: i for i, p in enumerate(pairs)})
     f["tmpl_idx"] = f["template"].map({t: i for i, t in enumerate(templates)})
 

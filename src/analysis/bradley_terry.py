@@ -242,6 +242,46 @@ def convergence_summary(cfg: RunConfig, idata: az.InferenceData) -> str:
     return line
 
 
+def theta_item_scores(
+    cfg: RunConfig, comparisons: pd.DataFrame, *, arm: str = "digits",
+) -> pd.DataFrame:
+    """Per-item selection and analysis scores on the THETA scale (audit item T2.2).
+
+    Pass B was fed polarity-collapsed absolute ratings, an instrument Amendment 1
+    retired. This replaces them with theta fitted independently on the two disjoint
+    template sets of section 4.4, which preserves exactly the property that split
+    exists for: the score used to SELECT difficulty is measured on different templates
+    from the score used to ANALYSE it, so selecting on noise cannot contaminate the
+    regressor.
+    """
+    from src.stimuli.build import load_items
+
+    templates = sorted(comparisons["template"].unique())
+    sel = [templates[i] for i in cfg.pass_a.selection_templates if i < len(templates)]
+    ana = [templates[i] for i in cfg.pass_a.analysis_templates if i < len(templates)]
+    if set(sel) & set(ana):
+        raise ValueError("selection and analysis template sets overlap")
+
+    fit_sel = fit_bradley_terry(cfg, comparisons, arm=arm, templates=sel)
+    fit_ana = fit_bradley_terry(cfg, comparisons, arm=arm, templates=ana)
+
+    domain = {i.id: i.domain for i in load_items(cfg)}
+    out = (
+        fit_sel.theta[["item_id", "theta_mean"]]
+        .rename(columns={"theta_mean": "score_selection"})
+        .merge(
+            fit_ana.theta[["item_id", "theta_mean"]]
+            .rename(columns={"theta_mean": "score_analysis"}),
+            on="item_id",
+        )
+    )
+    out["domain"] = out["item_id"].map(domain)
+    missing = out["domain"].isna().sum()
+    if missing:
+        raise ValueError(f"{missing} scored item(s) are not in the item pool")
+    return out[["item_id", "domain", "score_selection", "score_analysis"]]
+
+
 def test_retest(
     cfg: RunConfig,
     comparisons: pd.DataFrame,
