@@ -1162,7 +1162,8 @@ context is processed identically to experimenter-supplied text. So this contrast
 **role-attribution in the transcript**, not production. The term "authorship" is retired from the
 paper wherever it implies otherwise; the manipulation is transcript-structural.
 
-The four conditions therefore form a **fully crossed 2×2**:
+The four conditions form a 2×2 **on the two factors that matter**, with one caveat entered on
+implementation and stated here rather than left to be noticed later:
 
 | | antecedent "You chose X over Y" | antecedent "X, rather than Y, assigned" |
 |---|---|---|
@@ -1172,6 +1173,30 @@ The four conditions therefore form a **fully crossed 2×2**:
 `structure-control` carries an assistant turn whose content is choice-irrelevant. **Without it a
 positive probe is uninterpretable**, because "an assistant turn is present" is trivially represented
 and a probe separating `chose` from `self-recounted` would likely read that.
+
+> **Correction entered 2026-07-26 on implementation.** Calling this "fully crossed" was imprecise.
+> Verified on rendered prompts, the edges are:
+>
+> | edge | factor isolated | changed lines |
+> |---|---|---|
+> | `chose` − `self-recounted` | turn presence, at "you chose" wording | 4 |
+> | `structure-control` − `yoked` | turn presence, at "assigned" wording | 4 |
+> | `self-recounted` − `yoked` | wording only | 2 |
+> | `chose` − `structure-control` | turn **content** *and* wording | 6 |
+>
+> Three edges isolate one factor; the fourth does not, because an assistant turn containing a
+> *choice* requires a *choice question* to elicit it, and coherence then requires the "you chose"
+> antecedent. The missing cell — turn present, neutral content, "you chose" wording — is semantically
+> incoherent (told you chose, but you acknowledged rather than chose) and is not added.
+>
+> **What this identifies is still sufficient for the purpose.** Turn presence is estimated at *both*
+> wording levels, so if the two estimates agree, a probe reading turn-presence is identified and can
+> be subtracted — which is exactly what the structure control was added to permit. What is *not*
+> separately identified is turn content independent of wording, and no claim will rest on it.
+>
+> Token counts, as a check on the structure factor being about structure: `chose` and
+> `structure-control` are both **125 tokens** — matched exactly. `self-recounted` is 97 and `yoked`
+> 103; the 6-token difference is the wording factor itself and is irreducible.
 
 Plus `3p-yoked`, `3p-random`, `random` (unchanged), and **`chose-provisional`** — identical to
 `chose` but with the finality clause replaced. A finality clause is added to **all** conditions so

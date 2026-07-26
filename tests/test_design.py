@@ -118,18 +118,61 @@ def test_mention_counts_are_balanced_across_conditions(templates):
         assert audit[col].nunique() == 1, f"{col} differs across conditions"
 
 
-def test_only_chose_has_an_extra_turn(cfg, templates):
-    """The documented residual: `chose` carries the choice question and the
-    model's own answer. It is measured, not hidden -- and the primary test is the
-    interaction, which a constant context-length difference does not predict."""
+def test_turn_structure_matches_the_condition_map(cfg, templates):
+    """Only TURN_CONDITIONS carry an assistant turn (A2.9.3).
+
+    Turn presence is a modelled factor, not an unmeasured residual: it is estimated
+    at both wording levels so a probe reading turn-presence can be subtracted.
+    """
+    from src.config import TURN_CONDITIONS
+    from src.stimuli.build import post_dv_messages
+
     t = templates[0]
     for condition in CONDITIONS:
-        label = "A" if condition == "chose" else None
-        msgs = post_messages(t, "X", "Y", "X", "X", "Y", condition, label, cfg)
-        assert len(msgs) == (3 if condition == "chose" else 1)
+        msgs = post_dv_messages(t, "X", "Y", "X", "Y", condition, "1", cfg)
+        assert len(msgs) == (3 if condition in TURN_CONDITIONS else 1), condition
+
     audit = audit_templates(templates)
-    assert (audit[audit.condition == "chose"]["n_turns"] == 3).all()
-    assert (audit[audit.condition != "chose"]["n_turns"] == 1).all()
+    for _, row in audit.iterrows():
+        assert row["n_turns"] == (3 if row["condition"] in TURN_CONDITIONS else 1)
+
+
+def test_the_2x2_borrows_antecedents_byte_for_byte(templates):
+    """self-recounted must reuse chose's antecedent and structure-control yoked's.
+
+    If either defined its own text the wording factor would be more than one
+    substitution and the 2x2 edges would confound wording with phrasing.
+    """
+    from src.config import ANTECEDENT_SOURCE
+
+    for t in templates:
+        assert t.antecedent[ANTECEDENT_SOURCE["self-recounted"]] == t.antecedent["chose"]
+        assert t.antecedent[ANTECEDENT_SOURCE["structure-control"]] == t.antecedent["yoked"]
+
+
+def test_dv_question_is_identical_pre_and_post(cfg, templates):
+    """The pre/post contrast is only a contrast if the question does not change."""
+    from src.stimuli.build import post_dv_messages, pre_dv_messages, prefer_question
+
+    t = templates[0]
+    q = prefer_question(t, cfg.readout.option_labels)
+    assert q in pre_dv_messages(t, "X", "Y", cfg)[0]["content"]
+    for condition in CONDITIONS:
+        msgs = post_dv_messages(t, "X", "Y", "X", "Y", condition, "1", cfg)
+        assert q in msgs[-1]["content"], condition
+
+
+def test_reversibility_is_a_one_clause_contrast(cfg, templates):
+    """chose vs chose-provisional must differ only in the finality clause."""
+    from src.stimuli.build import post_dv_messages
+
+    t = templates[0]
+    a = post_dv_messages(t, "X", "Y", "X", "Y", "chose", "1", cfg)
+    b = post_dv_messages(t, "X", "Y", "X", "Y", "chose-provisional", "1", cfg)
+    assert len(a) == len(b)
+    diffs = [i for i, (x, y) in enumerate(zip(a, b)) if x != y]
+    assert diffs == [len(a) - 1], "only the final turn may differ"
+    assert a[-1]["content"].replace(t.finality, t.provisional) == b[-1]["content"]
 
 
 def test_chose_requires_the_models_own_label(cfg, templates):

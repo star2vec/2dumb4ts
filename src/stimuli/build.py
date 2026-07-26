@@ -18,7 +18,9 @@ import numpy as np
 import pandas as pd
 import yaml
 
-from src.config import CONDITIONS, POLARITIES, RunConfig
+from src.config import (
+    ANTECEDENT_SOURCE, CONDITIONS, POLARITIES, TURN_CONDITIONS, RunConfig,
+)
 
 Polarity = Literal["ascending", "descending"]
 Role = Literal["user", "assistant"]
@@ -111,6 +113,13 @@ class Template:
     choice: str
     antecedent: dict[str, str]
     receipt: str
+    #: Amendment 2 A2.9. The DV question (identical pre and post), the neutral
+    #: instruction that elicits the structure control's acknowledgement, and the
+    #: finality / provisional clauses that make reversibility a one-clause contrast.
+    prefer: str = ""
+    confirm: str = ""
+    finality: str = ""
+    provisional: str = ""
 
 
 def load_templates(cfg: RunConfig) -> list[Template]:
@@ -130,6 +139,10 @@ def load_templates(cfg: RunConfig) -> list[Template]:
             choice=b["choice"],
             antecedent=b["antecedent"],
             receipt=b["receipt"],
+            prefer=b.get("prefer", ""),
+            confirm=b.get("confirm", ""),
+            finality=b.get("finality", ""),
+            provisional=b.get("provisional", ""),
         )
         for i, b in enumerate(blocks)
     ]
@@ -145,10 +158,26 @@ def assert_template_invariants(templates: list[Template]) -> None:
         for pol in POLARITIES:
             if pol not in t.rating:
                 problems.append(f"{t.id}: rating.{pol} missing")
-        missing = set(CONDITIONS) - set(t.antecedent)
+        # Conditions BORROW antecedents via ANTECEDENT_SOURCE (A2.9.3), so only the
+        # source set must be present. Requiring one per condition would demand text
+        # for `self-recounted` and `structure-control` that must NOT exist separately
+        # -- their whole point is being byte-identical to chose and yoked.
+        required = set(ANTECEDENT_SOURCE.values())
+        missing = required - set(t.antecedent)
         if missing:
             problems.append(f"{t.id}: antecedent missing {sorted(missing)}")
             continue
+
+        # A2.9.3: the 2x2 is only crossed if the borrowing is exact.
+        for borrower, source in ANTECEDENT_SOURCE.items():
+            if t.antecedent.get(borrower, t.antecedent[source]) != t.antecedent[source]:
+                problems.append(
+                    f"{t.id}: {borrower!r} defines its own antecedent but must borrow "
+                    f"{source!r} byte-for-byte, or the 2x2 is not crossed"
+                )
+        for field in ("prefer", "confirm", "finality", "provisional"):
+            if not getattr(t, field):
+                problems.append(f"{t.id}: {field} missing (required by A2.9)")
 
         # (1) verbatim-identical wording for the designation-only contrasts
         for a, b in VERBATIM_PAIRS:
@@ -189,15 +218,16 @@ def audit_templates(templates: list[Template]) -> pd.DataFrame:
     rows = []
     for t in templates:
         for cond in CONDITIONS:
-            ante, rec = t.antecedent[cond], t.receipt
-            body = f"{t.pair_prefix} {ante} {rec}"
-            if cond == "chose":
-                body = f"{body} {t.choice}"
+            ante, rec = t.antecedent[ANTECEDENT_SOURCE[cond]], t.receipt
+            clause = t.provisional if cond == "chose-provisional" else t.finality
+            body = f"{t.pair_prefix} {ante} {rec} {clause}"
+            if cond in TURN_CONDITIONS:
+                body = f"{body} {t.confirm if cond == 'structure-control' else t.choice}"
             rows.append(
                 {
                     "template": t.id,
                     "condition": cond,
-                    "n_turns": 3 if cond == "chose" else 1,
+                    "n_turns": 3 if cond in TURN_CONDITIONS else 1,
                     "mentions_designated": body.count("{designated}")
                     + body.count("{item_a}"),
                     "mentions_other": body.count("{other}") + body.count("{item_b}"),
@@ -256,6 +286,84 @@ def choice_messages(
     prefix = pair_block(t, framed_a, framed_b, cfg)
     q = render_choice(t, cfg.readout.option_labels)
     return [{"role": "user", "content": f"{prefix}\n\n{q}"}]
+
+
+def prefer_question(t: Template, labels: tuple[str, str]) -> str:
+    """The DV question. IDENTICAL at pre and post -- that is what makes the
+    pre/post contrast a contrast rather than two different measurements."""
+    return t.prefer.format(label_a=labels[0], label_b=labels[1],
+                           label_noun=label_noun(labels))
+
+
+def pre_dv_messages(
+    t: Template, framed_a: str, framed_b: str, cfg: RunConfig
+) -> list[dict[str, str]]:
+    """Pre-manipulation preference comparison. Shared across all conditions."""
+    prefix = pair_block(t, framed_a, framed_b, cfg)
+    return [{"role": "user",
+             "content": f"{prefix}\n\n{prefer_question(t, cfg.readout.option_labels)}"}]
+
+
+def post_dv_messages(
+    t: Template,
+    framed_a: str,
+    framed_b: str,
+    framed_designated: str,
+    framed_other: str,
+    condition: str,
+    chosen_label: str | None,
+    cfg: RunConfig,
+) -> list[dict[str, str]]:
+    """Post-manipulation preference comparison, for any of the eight conditions.
+
+    Amendment 2 A2.9.3. The first four conditions form a fully crossed 2x2:
+
+                          antecedent "you chose"   antecedent "assigned"
+      turn present        chose                    structure-control
+      turn absent         self-recounted           yoked
+
+    `self-recounted` borrows `chose`'s antecedent byte-for-byte and
+    `structure-control` borrows `yoked`'s, so the wording factor is exactly one
+    substitution and the structure factor is exactly the assistant turn. Any
+    departure from that breaks the crossing, which is why the mapping lives in
+    ANTECEDENT_SOURCE rather than being written out per condition.
+
+    A finality clause is appended in EVERY condition so receipt matching survives;
+    `chose-provisional` swaps it for the provisional wording, making reversibility a
+    one-clause contrast against `chose`.
+    """
+    from src.config import ANTECEDENT_SOURCE, TURN_CONDITIONS
+
+    if condition not in ANTECEDENT_SOURCE:
+        raise ValueError(f"unknown condition {condition!r}")
+
+    la, lb = cfg.readout.option_labels
+    prefix = pair_block(t, framed_a, framed_b, cfg)
+    ante = t.antecedent[ANTECEDENT_SOURCE[condition]].format(
+        designated=framed_designated, other=framed_other
+    )
+    rec = t.receipt.format(designated=framed_designated, other=framed_other)
+    clause = t.provisional if condition == "chose-provisional" else t.finality
+    tail = f"{ante} {rec} {clause}\n\n{prefer_question(t, (la, lb))}"
+
+    if condition not in TURN_CONDITIONS:
+        return [{"role": "user", "content": f"{prefix}\n\n{tail}"}]
+
+    # An assistant turn is present. What it contains is the structure factor's
+    # content: its own choice for `chose`, a content-free acknowledgement for
+    # `structure-control`. Both are single tokens, so turn LENGTH is matched too.
+    if condition == "structure-control":
+        lead, reply = t.confirm, "OK"
+    else:
+        if chosen_label is None:
+            raise ValueError(f"condition {condition!r} requires the model's chosen label")
+        lead, reply = render_choice(t, (la, lb)), chosen_label
+
+    return [
+        {"role": "user", "content": f"{prefix}\n\n{lead}"},
+        {"role": "assistant", "content": reply},
+        {"role": "user", "content": tail},
+    ]
 
 
 def post_messages(

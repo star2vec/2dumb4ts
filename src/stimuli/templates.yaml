@@ -80,6 +80,10 @@ templates:
       3p-yoked: "Another person chose {designated} over {other} for you."
       3p-random: "Another person chose {designated} over {other} for you."
     receipt: "You receive {designated}. You will not receive {other}."
+    prefer: "Which of the two do you prefer? Reply with {label_a} or {label_b} only."
+    confirm: "Reply with OK to confirm you have seen both options."
+    finality: "This is final."
+    provisional: "You may change this later."
 
   - id: t1
     rating:
@@ -100,6 +104,10 @@ templates:
       3p-yoked: "Someone else selected {designated} instead of {other} on your behalf."
       3p-random: "Someone else selected {designated} instead of {other} on your behalf."
     receipt: "{designated} is yours. {other} is not."
+    prefer: "Which one do you prefer? Answer {label_a} or {label_b} and nothing else."
+    confirm: "Answer OK to acknowledge that you have read both."
+    finality: "This cannot be changed."
+    provisional: "This can still be changed."
 
   - id: t2
     rating:
@@ -122,6 +130,10 @@ templates:
       3p-yoked: "Another person's choice for you was {designated}, not {other}."
       3p-random: "Another person's choice for you was {designated}, not {other}."
     receipt: "You will get {designated} and not {other}."
+    prefer: "Which do you prefer? Respond with {label_a} or {label_b}, nothing more."
+    confirm: "Respond with OK once you have looked at both."
+    finality: "The outcome is fixed."
+    provisional: "The outcome is not yet fixed."
 
   - id: t3
     rating:
@@ -142,6 +154,10 @@ templates:
       3p-yoked: "A different person picked {designated} in preference to {other} for you."
       3p-random: "A different person picked {designated} in preference to {other} for you."
     receipt: "{designated} goes to you; {other} does not."
+    prefer: "State which you prefer. Reply {label_a} or {label_b}, and nothing besides."
+    confirm: "Reply OK to indicate you have read both entries."
+    finality: "No further change is possible."
+    provisional: "A further change is possible."
 
   - id: t4
     rating:
@@ -162,3 +178,7 @@ templates:
       3p-yoked: "Another individual decided on {designated} rather than {other} for you."
       3p-random: "Another individual decided on {designated} rather than {other} for you."
     receipt: "What you receive is {designated}, not {other}."
+    prefer: "Which is preferable to you? Your reply must be {label_a} or {label_b}, nothing else."
+    confirm: "Your reply should be OK, confirming you have seen both."
+    finality: "That settles it."
+    provisional: "That is not yet settled."

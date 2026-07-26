@@ -24,7 +24,29 @@ from pydantic import BaseModel, ConfigDict, Field, field_validator, model_valida
 REPO_ROOT = Path(__file__).resolve().parent.parent
 _SHA_RE = re.compile(r"^[0-9a-f]{40}$")
 
-CONDITIONS: tuple[str, ...] = ("chose", "yoked", "3p-yoked", "3p-random", "random")
+# Amendment 2 A2.9.3. The first four form a fully crossed 2x2 of transcript structure
+# (assistant turn present/absent) x attribution wording (chose/assigned). Order matters
+# only for display; every contrast is computed from posterior draws.
+CONDITIONS: tuple[str, ...] = (
+    "chose",             # turn present, wording "you chose"
+    "structure-control", # turn present, wording "assigned"   <- controls turn-presence
+    "self-recounted",    # turn absent,  wording "you chose"
+    "yoked",             # turn absent,  wording "assigned"
+    "3p-yoked",
+    "3p-random",
+    "random",
+    "chose-provisional", # as chose, finality clause replaced
+)
+
+#: Conditions whose post context carries an assistant turn.
+TURN_CONDITIONS: frozenset[str] = frozenset({"chose", "structure-control", "chose-provisional"})
+#: Which condition's antecedent text each condition borrows. self-recounted must be
+#: byte-identical to chose, and structure-control to yoked, or the 2x2 is not crossed.
+ANTECEDENT_SOURCE: dict[str, str] = {
+    "chose": "chose", "self-recounted": "chose", "chose-provisional": "chose",
+    "structure-control": "yoked", "yoked": "yoked",
+    "3p-yoked": "3p-yoked", "3p-random": "3p-random", "random": "random",
+}
 POLARITIES: tuple[str, ...] = ("ascending", "descending")
 
 # Which config fields can change each stage's output. A stage's cache is keyed on
