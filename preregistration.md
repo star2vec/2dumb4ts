@@ -1567,12 +1567,17 @@ at most two pairs whose own `u_pair` is free. The posterior would be dominated b
 and the "discrepancy is reported either way" clause of §7.2 would then be reporting prior
 sensitivity rather than robustness — the opposite of its purpose.
 
-**Withdrawn as specified**, and *not* silently replaced. The item-level scale is not
-unmeasured: it is what `θ` is, and it is estimated on the Bradley-Terry instrument from
-Pass A's anchor comparisons, where every item appears many times and identification is not in
-question. `|diff|` — the primary regressor — is a function of exactly that quantity. So the
-concern §7.2 existed to address is carried by the instrument rather than by a random effect in
-the Pass C model.
+**Withdrawn as specified**, and *not* silently replaced. §7.2's concern is about the **DV**
+side — whether item-specific susceptibility to the manipulation is left unmodelled — so the
+answer has to be on that side too. It is: **`u_pair` is free per pair and absorbs
+item-pair-specific susceptibility entirely.** Every Pass C observation belongs to a pair whose
+baseline is estimated, so there is no unmodelled pair-level susceptibility for `u_item` to
+capture. What the design cannot do is *separate* `u_item` from `u_pair`, and that is a
+statement about identification, not about coverage: the variance §7.2 wanted modelled is
+already absorbed, just not attributed to items.
+
+(An earlier draft justified this by pointing at `θ` and `|diff|`. That answers the
+**regressor** side — whether the item scale is well measured — which was not what §7.2 asked.)
 
 Any replacement robustness model would have to be specified against the logit DV and its
 identification demonstrated before it is fit. That is Stage 1 work at the earliest, and doing
