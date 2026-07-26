@@ -785,9 +785,10 @@ A global `β` leaves **residual compression**: regressing consistency excess on 
 gives a slope of **+0.0240, 95% CI [+0.0140, +0.0338]**, excluding zero. Per-template `β` is
 therefore preregistered, not a global one.
 
-**Fit-quality criterion.** That excess-on-gap slope is retained as a preregistered diagnostic: under
-a correctly specified order model it should be flat. A slope credibly different from zero indicates
-remaining misspecification and is reported.
+**Fit-quality criterion.** That excess-on-gap slope is retained as a preregistered diagnostic,
+compared against its **posterior-predictive null** rather than against zero — see A2.7. It is biased
+away from zero even under correct specification, because the prediction plugs a posterior mean into a
+nonlinear function.
 
 **No cell-level random effect is added.** See A2.3.
 
@@ -901,6 +902,53 @@ impossibility W1 claimed.
 **Decision rule.** Discriminability at Pass B's difficult-decile gap is reported with its interval.
 Below 0.5, Pass C is not run until a power simulation accounting for regressor attenuation is
 produced. This is a **power gate, not a viability gate** — the distinction W1 got wrong.
+
+## A2.7 Pre-committed rule for the residual misspecification
+
+Written **before** the fits that will evaluate it, because a threshold chosen after
+seeing residuals is not a threshold.
+
+**Statistic.** The slope of excess consistency on gap, with a bootstrap interval, compared
+against its **posterior-predictive null** — regenerating outcomes from the fitted model on
+the same design, refitting, recomputing. The null is **not zero**: plug-in prediction of a
+nonlinear quantity biases the statistic even under correct specification (Gemma's design
+gives a null of +0.0044, sd 0.0025). Comparing against zero, as an earlier draft of A2.1
+did, would report a correctly specified model as broken.
+
+**Current value.** Observed **+0.0202**, null **+0.0044 (sd 0.0025)**, i.e. **+6.2 sd**,
+with 0 of 8 replicates at or above observed. Misspecification is real.
+
+**Candidates already eliminated, by evidence rather than by preference:**
+
+- *Position-capture mixture λ* — ruled out. `dC/dλ` is negative at every gap and largest
+  at wide gaps, so λ cannot generate a sign-changing residual; grid optimum is λ = 0.000.
+- *Cell-level random effect at (item, anchor)* — ruled out as the explanation. Simulating
+  data **with** a cell RE and fitting **without** it moves the slope *down*
+  (+0.0035 at σ_u = 0.5, −0.0044 at σ_u = 1.0), not up. It has the wrong sign.
+
+**The rule.**
+
+1. If the t3 re-collection brings the slope within **2 sd of its posterior-predictive
+   null**, the residual is attributed to t3 contamination, no parameter is added, and the
+   matter is closed.
+2. If a slope beyond 2 sd survives clean t3, the next candidate is **prior-induced
+   shrinkage of the θ and α scales**, not λ. The residual's sign — over-prediction at
+   narrow gaps, under-prediction at wide — is what a psychometric curve that is too
+   shallow produces, and the fitted α range (−3.28 to +4.98) is wide against its
+   `ZeroSumNormal(2)` prior. That is tested by loosening the α prior and re-running the
+   same statistic.
+3. **λ is not revisited** unless a slope beyond 2 sd survives both clean t3 *and* the
+   loosened prior. If it is ever fitted, it enters as a **declared robustness model
+   compared by LOO**, never as primary.
+4. If any step brings the slope within its null, remaining candidates are **dropped, not
+   revisited**. No further parameters are added to chase a statistic that no longer fires.
+
+**Nothing downstream currently consumes θ's absolute scale**, so waiting does not
+propagate bias into a pending decision. Verified: Pass B difficulty selection is
+quantile-based and therefore rank-only; the A2.6 discriminability measure is a ratio of
+gap to gap SD and so scale-invariant; the A2.2 reliability gate is a Spearman
+correlation. The one scale-dependent quantity, `pass_b.match_tolerance`, is expressed in
+absolute rating points and its re-expression is explicitly deferred (A1.8, A2.5).
 
 ## A2.5 Unchanged
 

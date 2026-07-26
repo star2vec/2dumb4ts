@@ -23,7 +23,7 @@ import pandas as pd
 
 from src.analysis.bradley_terry import (
     anchor_ordering_check, convergence_summary, excess_consistency_slope,
-    fit_bradley_terry, test_retest,
+    excess_slope_ppc_null, fit_bradley_terry, test_retest,
 )
 from src.config import RunConfig, load_config
 from src.provenance import Provenance, capture, read_parquet, write_parquet
@@ -280,12 +280,21 @@ def run(cfg: RunConfig, *, progressbar: bool = True) -> int:
 
     # Preregistered fit-quality diagnostic (A2.1): should be flat.
     ex = excess_consistency_slope(comparisons, fit)
-    print(f"\nfit quality -- excess consistency on gap: slope {ex['slope']:+.4f} "
-          f"95% CI [{ex['ci_low']:+.4f}, {ex['ci_high']:+.4f}] over {ex['n_cells']} cells")
-    print("  " + ("FLAT: no residual compression detected"
-                  if ex["flat"] else
-                  "NOT FLAT: residual compression remains, model still misspecified"))
-    results["excess_consistency_slope"] = ex
+    null = excess_slope_ppc_null(cfg, comparisons, fit)
+    z = ((ex["slope"] - null["null_mean"]) / null["null_sd"]
+         if null["null_sd"] > 0 else float("nan"))
+    print(f"\nfit quality -- excess consistency on gap (A2.1):")
+    print(f"  observed slope {ex['slope']:+.4f} 95% CI "
+          f"[{ex['ci_low']:+.4f}, {ex['ci_high']:+.4f}] over {ex['n_cells']} cells")
+    # The null is NOT zero: plug-in prediction of a nonlinear quantity biases this
+    # statistic even under correct specification.
+    print(f"  posterior-predictive null {null['null_mean']:+.4f} "
+          f"(sd {null['null_sd']:.4f}, {null['n_replicates']} replicates)")
+    print(f"  observed sits {z:+.2f} sd from the null")
+    print("  " + ("CONSISTENT with correct specification"
+                  if abs(z) < 2 else
+                  "BEYOND the null: residual misspecification is real"))
+    results["excess_consistency_slope"] = {**ex, **null, "z_vs_null": z}
 
     # ---- reliability gate (A2.2) ----------------------------------------
     _echo("Reliability gate (A2.2)")

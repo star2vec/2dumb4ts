@@ -292,9 +292,12 @@ def excess_consistency_slope(
     should match what content-plus-position predicts, with no residual trend in gap.
     A slope credibly different from zero means remaining compression.
 
-    A global beta leaves slope +0.0240 [+0.0140, +0.0338] on Gemma; per-template beta
-    is preregistered because of it. This recomputes the same statistic so the fix can
-    be checked rather than assumed.
+    THE NULL IS NOT ZERO. Because the prediction plugs in posterior-mean theta and
+    alpha and consistency is nonlinear in the gap, this statistic is biased away from
+    zero even under correct specification. On Gemma's design the posterior-predictive
+    null is +0.0044 (sd 0.0025), not 0. Compare against `excess_slope_ppc_null`,
+    never against zero -- an earlier version of this docstring said "should be flat",
+    which would have reported a correctly specified model as broken.
     """
     block = comparisons[(comparisons["arm"] == arm) & comparisons["readout_valid"]]
     wide = block.pivot_table(
@@ -326,6 +329,44 @@ def excess_consistency_slope(
     return {"slope": slope, "ci_low": float(lo), "ci_high": float(hi),
             "n_cells": int(len(x)), "mean_excess": float(excess.mean()),
             "flat": bool(lo < 0 < hi)}
+
+
+def excess_slope_ppc_null(
+    cfg: RunConfig, comparisons: pd.DataFrame, fit: BTFit, *, n_rep: int = 8,
+    arm: str = "digits", seed: int = 100,
+) -> dict:
+    """Posterior-predictive null for the excess-consistency slope.
+
+    Regenerates outcomes from the fitted model on the SAME design -- same cells,
+    templates, and mass-floor missingness -- refits, and recomputes the statistic.
+    Whatever bias the plug-in prediction induces is then present in the null too, so
+    the comparison isolates genuine misspecification.
+
+    Using a generic simulated design instead gives the wrong null: a 48x10 design with
+    no missingness reads +0.0109, while Gemma's actual design reads +0.0044.
+    """
+    block = comparisons[(comparisons["arm"] == arm) & comparisons["readout_valid"]].copy()
+    th = dict(zip(fit.theta["item_id"], fit.theta["theta_mean"]))
+    al = dict(zip(fit.anchors["anchor_id"], fit.anchors["alpha_mean"]))
+    bt = dict(zip(fit.beta["template"], fit.beta["beta_mean"]))
+    slot = np.where(block["order"].to_numpy() == 0, 1.0, -1.0)
+    p = _sigmoid(
+        np.array([th[i] for i in block["item_id"]])
+        - np.array([al[a] for a in block["anchor_id"]])
+        + np.array([bt[t] for t in block["template"]]) * slot
+    )
+
+    slopes = []
+    for r in range(n_rep):
+        rng = np.random.default_rng(seed + r)
+        rep = block.copy()
+        rep["item_wins"] = rng.random(len(p)) < p
+        f2 = fit_bradley_terry(cfg, rep, arm=arm)
+        slopes.append(excess_consistency_slope(rep, f2, arm=arm)["slope"])
+    s = np.array(slopes, dtype=float)
+    return {"null_mean": float(s.mean()), "null_sd": float(s.std(ddof=1)),
+            "null_min": float(s.min()), "null_max": float(s.max()),
+            "n_replicates": int(n_rep), "slopes": s.tolist()}
 
 
 def _sigmoid(z: np.ndarray) -> np.ndarray:

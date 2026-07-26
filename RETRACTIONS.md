@@ -14,6 +14,21 @@ or transferred by hand.
 
 ---
 
+## R5 — "lambda <= 0.04 from the high-gap consistency ceiling"
+
+- **Reported:** in conversation, as an argument that a position-capture mixture was
+  small enough not to need fitting.
+- **Refuted by:** the bound was derived against a null of 0.5. That is the same wrong
+  null that produced R3, so the bound is void rather than merely imprecise.
+- **Does not need redoing.** Independently of the bound, lambda is ruled out on a sign
+  argument: dC/dlambda is negative at every gap, and its magnitude is *largest* at wide
+  gaps (-0.95 at gap 4.5 versus -0.25 at gap 0.3), where the residual is already
+  positive. A grid search over (lambda, beta) against the observed curve puts the
+  optimum at **lambda = 0.000 exactly**. A mixture weight cannot produce a residual
+  that changes sign with gap.
+- **Consequences:** none downstream. Recorded because the log's value is being complete,
+  and because this is the third instance of the same error class.
+
 ## R4 — "Template responses are non-independent (ICC 0.529, design effect 3.12,
 posterior SD understated ~1.8x)"
 
