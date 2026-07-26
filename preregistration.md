@@ -1274,3 +1274,101 @@ The Pass C dependent-variable choice (audit item T1) remains **unsettled** and i
 T1's rejection of absolute-Likert ratings for the DV stands — that instrument fails polarity validity
 at full sample across all three models tested (ρ = −0.964, −0.916, −0.944) — but the choice among the
 θ-based alternatives is deferred, and will be made without inspecting any H1-bearing quantity.
+
+---
+
+# Amendment 3 — 2026-07-27
+
+**Status: OPEN.** Amendment 2 is frozen; this records what was found after it closed. Written
+**while blind to Pass C** — the run producing the first H1 estimate was launched before this was
+computed and no result from it had been seen. That sequencing is the point: A3.1 changes how a
+result is *judged*, and it would be illegitimate to decide it after seeing the estimate.
+
+## A3.1 §8's power criterion is unsatisfiable, and is withdrawn
+
+§8 requires **"power on the primary contrast at the SESOI"** to reach 0.80. §9.2's `pass` cell
+requires the 95% HDI to exclude 0 **and** the posterior median magnitude to **exceed** the SESOI.
+
+Those two rules cannot both be met, at any sample size, by any design.
+
+*Proof.* Let the true effect equal the SESOI exactly. As the standard error shrinks the posterior
+median converges to the true value, i.e. to the threshold the `pass` cell requires it to exceed. The
+median is asymptotically symmetric about it, so P(median exceeds the threshold) → **0.500** from
+below. It is bounded above by 0.5 for every finite n and never reaches 0.80. Computed:
+
+| SE | 1.96·SE | power at the SESOI | MDE at 80% |
+|---|---|---|---|
+| 0.200 | 0.392 | 0.212 | 0.564 |
+| 0.101 | 0.199 | 0.495 | 0.323 |
+| 0.050 | 0.098 | 0.498 | 0.278 |
+| 0.020 | 0.039 | 0.499 | 0.253 |
+| 0.001 | 0.002 | **0.500** | 0.237 |
+
+This is a defect in the interaction of two preregistered rules, not a property of any model or of
+the realized design. It was inherited from the rating-scale power module, which powered against an
+HDI-only rule and never had to reconcile the two.
+
+**Withdrawn:** "power at the SESOI ≥ 0.80" as a design criterion. It is not restated in a weaker
+form and no threshold replaces it.
+
+**Reported instead:** the **minimum detectable effect at 80% power** — the smallest |λ| the §9.2
+rule can certify 80% of the time — together with its ratio to the SESOI. Its floor is the SESOI
+itself, for the same reason.
+
+The SESOI is **not** changed. 0.15 × σ_item stands exactly as Amendment 2 set it. Rescaling it in
+response to a power calculation, while a run is in flight, is precisely the move this project
+forbids. The arithmetic is raised; the threshold is untouched.
+
+## A3.2 The A2.9.5 scaling branch is close to worthless for the primary contrast
+
+§8 and A2.9.5 resolve an inconclusive primary by scaling items first, pairs second. Priced on
+gemma's realized design:
+
+| pairs | observations | SE | MDE | as ×SESOI |
+|---|---|---|---|---|
+| 200 (realized) | 18,000 | 0.1014 | 0.323 | 1.37× |
+| 400 | 36,000 | 0.0714 | 0.297 | 1.26× |
+| 800 | 72,000 | 0.0505 | 0.279 | 1.18× |
+
+**Quadrupling the experiment moves the detectable effect by 14%.** Once 1.96·SE falls below the
+SESOI — which it already has at 200 pairs — the SESOI, not precision, is the binding term, and
+extra data buys almost nothing. A2.9.5 costed that branch at roughly one additional week per model;
+it is now costed at one additional week for a 14% improvement, which is not worth spending.
+
+**Consequence, stated before the data:** if the primary lands inconclusive, scaling is **not** the
+remedy. The honest report is an inconclusive primary with the MDE stated. What would actually move
+the answer is reducing σ_item (a tighter item pool shrinks the SESOI in absolute terms) or reducing
+the position bias β, which costs up to 49% of the information on the worst template. Neither is a
+Stage 0 action. Both are recorded here so that the inconclusive branch is not silently converted
+into an open-ended scaling programme.
+
+## A3.3 The equivalence branch is reachable, but only just
+
+§9.2's `fail` cell needs the whole 95% HDI inside [−SESOI, +SESOI], i.e. 1.96·SE < SESOI. On
+gemma's realized design 1.96·SE = 0.199 against a SESOI of 0.236 — reachable, with 16% of margin.
+A model with a larger σ_item gets a proportionally larger SESOI and so more margin; a model with a
+larger β loses information and may lose the branch entirely. `power.analyze` therefore reports
+`equivalence_reachable` per model, and any model where it is false may report a null **only** as
+inconclusive, never as equivalence.
+
+## A3.4 What the power module is, and what it is not
+
+It computes the Fisher information of the exact Pass C design under the exact `spread_model`
+likelihood: I = X′WX with W = diag(p(1−p)), SE = √(c′I⁻¹c). It is a design calculation, checked
+against an actual sampler fit rather than trusted on its algebra. Pair and template effects are
+absorbed as fixed rather than partially pooled, which makes every figure above **conservative**.
+
+The one quantity unknown before Pass C is γ, the post shift. It enters only through p(1−p); across
+γ ∈ [0, 1.5] the SE moves from 0.1629 to 0.1642. The assumption is not load-bearing.
+
+Two structural facts it makes visible, both properties of the design rather than choices:
+
+1. **Difficult pairs sit at p ≈ 0.5, where W is maximal**, so the design concentrates information
+   where the interaction is identified. This is the favourable face of the same geometry that makes
+   the two-stage estimator biased — there, near-0.5 pairs have the largest sampling variance in a
+   per-pair spread; here they carry the most information in the joint likelihood.
+2. **Six of the eight conditions designate the model's own pick**, and on easy pairs that pick is
+   near-deterministic, so `d` aligns with the pair gap and pushes those observations further from
+   0.5. Easy pairs lose information twice. Modelling designation as alternating across conditions —
+   the obvious synthetic shortcut — inflates the SE by about 60% by inventing within-pair contrast
+   the real design does not have.

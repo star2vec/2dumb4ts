@@ -6,7 +6,7 @@ import numpy as np
 import pandas as pd
 import pytest
 
-from src.analysis import mixed, power
+from src.analysis import mixed
 from src.analysis.reliability import (
     collapse_polarity,
     evaluate_gates,
@@ -323,32 +323,10 @@ def test_prepare_design_rejects_a_constant_diff(cfg):
 # power
 
 
-def test_power_increases_with_effect_size(cfg):
-    fast = cfg.model_copy(
-        update={"analysis": cfg.analysis.model_copy(update={"power_n_sims": 30})}
-    )
-    rng = np.random.default_rng(0)
-    result = power.simulate_power(
-        fast,
-        sigma_between=1.2,
-        icc_c1=0.75,
-        diff_analysis=rng.uniform(0.05, 3.0, 40),
-        sesoi=0.18,
-        n_templates=3,
-        grid=np.array([0.0, 0.3, 1.0]),
-    )
-    grid = result.grid.set_index("true_interaction")["power"]
-    assert grid.loc[0.0] < 0.2, "false positive rate should be near alpha"
-    assert grid.loc[1.0] > grid.loc[0.3] > grid.loc[0.0]
-    assert "estimator" in result.assumptions
-
-
-def test_power_refuses_an_impossible_icc(cfg):
-    with pytest.raises(ValueError, match="noise floor is undefined"):
-        power.simulate_power(
-            cfg,
-            sigma_between=1.0,
-            icc_c1=0.0,
-            diff_analysis=np.linspace(0.1, 2.0, 20),
-            sesoi=0.15,
-        )
+# The two rating-scale power tests that lived here were DELETED, not ported. They
+# exercised `power.simulate_power(sigma_between=..., icc_c1=...)`, an API built for the
+# 1-9 rating DV: measurement noise from ICC, effect in rating points, sd_spread = 2*sd_err
+# for a difference of four ratings. Amendment 1 and A2.9.1 removed every one of those
+# quantities. Porting the tests would have meant inventing logit-scale analogues for
+# parameters that no longer exist. The replacement lives in tests/test_power.py and tests
+# the Fisher-information calculation against an actual fit.
