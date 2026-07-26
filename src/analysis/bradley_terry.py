@@ -395,7 +395,7 @@ def predicted_split_half(model_reliability: float, frac_a: float, frac_b: float)
 
 
 def excess_slope_ppc_null(
-    cfg: RunConfig, comparisons: pd.DataFrame, fit: BTFit, *, n_rep: int = 24,
+    cfg: RunConfig, comparisons: pd.DataFrame, fit: BTFit, *, n_rep: int | None = None,
     arm: str = "digits", seed: int = 100,
 ) -> dict:
     """Posterior-predictive null for the excess-consistency slope.
@@ -418,6 +418,7 @@ def excess_slope_ppc_null(
     n_rep defaults to 24: at 8 replicates the null sd carries ~25% relative
     uncertainty and "0 of 8" is only a one-sided bound of ~0.11.
     """
+    n_rep = cfg.analysis.ppc_null_replicates if n_rep is None else n_rep
     block = comparisons[(comparisons["arm"] == arm) & comparisons["readout_valid"]].copy()
     th = dict(zip(fit.theta["item_id"], fit.theta["theta_mean"]))
     al = dict(zip(fit.anchors["anchor_id"], fit.anchors["alpha_mean"]))

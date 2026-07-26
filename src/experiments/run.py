@@ -1,16 +1,31 @@
 """One command runs Stage 0 end-to-end for one model.
 
-    python -m src.experiments.run --config configs/stage0_qwen2.5-0.5b.yaml
+    python -m src.experiments.run --config configs/stage0_gemma-2-2b.yaml
 
-Pass A -> validity gate -> sigma_between / SESOI -> Pass B -> power simulation
--> Pass C -> mixed model, planned contrasts, figures.
+    absolute Pass A   -> instrument-validation record (A1.5). NEVER gates.
+    pairwise Pass A   -> theta, beta, reliability gate (A2.2). HALTS here or nowhere.
+    Pass B            -> pairs, from theta on disjoint template sets (audit T2.2)
+    Pass C            -> the experiment (A2.9)
+    spread model      -> H1
 
-Every stage is skipped when its artifact already exists under the current config
-hash, so the pipeline is re-runnable from cached upstream output. Changing any
-number-affecting parameter changes the hash and therefore the paths, so a
-modified run cannot silently overwrite or be confused with an earlier one.
+Every stage is skipped when its artifact exists under the current stage hash, so the
+pipeline resumes from cached upstream output. Changing a number-affecting parameter
+changes the hash and therefore the path, so a modified run cannot overwrite an earlier
+one or be confused with it.
 
-Exit codes:  0 completed   2 halted by a preregistered exclusion   1 error
+TWO THINGS THIS FILE USED TO GET WRONG, both from the Pass C audit:
+
+  T2.1  It gated on the polarity criterion, which Amendment 2 retired. Every model
+        would have been excluded on a rule that no longer exists. The absolute pass is
+        now run and archived as a validation record and cannot halt anything.
+  T2.2  It fed Pass B polarity-collapsed absolute ratings -- the retired instrument.
+        Pass B now receives Bradley-Terry theta fitted on the disjoint template sets.
+
+The power simulation is NOT run. It was built on rating-scale ICC and is invalid for a
+logit-scale DV; running it would produce a confident number about the wrong quantity.
+Rebuilding it is pending, and A2.9.5 costs the inconclusive branch in the meantime.
+
+Exit codes:  0 completed   2 halted by the reliability gate   1 error
 """
 
 from __future__ import annotations
@@ -20,33 +35,37 @@ import json
 import sys
 from pathlib import Path
 
-import numpy as np
 import pandas as pd
 
-from src.analysis import mixed, plots, power
-from src.analysis.reliability import GateResult, evaluate_gates, item_scores
+from src.analysis import spread_model
+from src.analysis.bradley_terry import (
+    anchor_ordering_check,
+    convergence_summary,
+    excess_consistency_slope,
+    excess_slope_ppc_null,
+    fit_bradley_terry,
+    theta_item_scores,
+)
+from src.analysis.reliability import evaluate_gates
 from src.config import RunConfig, load_config
 from src.experiments import pass_a as stage_a
+from src.experiments import pass_a_pairwise as stage_pw
 from src.experiments import pass_b as stage_b
 from src.experiments import pass_c as stage_c
-from src.provenance import (
-    Provenance,
-    assert_poolable,
-    capture,
-    read_parquet,
-    write_parquet,
-)
-from src.stimuli.build import audit_templates, load_templates
+from src.provenance import Provenance, assert_poolable, capture, read_parquet, write_parquet
+from src.readout import validity
+from src.readout.pairwise import collect_comparisons, load_anchors
+from src.stimuli.build import load_items, load_templates
 
 HALT = 2
+STAGES = ("absolute", "pairwise", "pass_b", "pass_c", "analysis")
 
 
 class Lazy:
     """Load the model only if a stage actually needs a forward pass."""
 
     def __init__(self, cfg: RunConfig):
-        self.cfg = cfg
-        self._runner = None
+        self.cfg, self._runner = cfg, None
 
     def __call__(self):
         if self._runner is None:
@@ -63,293 +82,234 @@ def _echo(title: str) -> None:
     print(f"\n{'=' * 72}\n{title}\n{'=' * 72}", flush=True)
 
 
-def run(
-    cfg: RunConfig,
-    *,
-    robustness: bool = False,
-    make_plots: bool = True,
-    stop_after: str | None = None,
-) -> int:
+def _instrument_validation(cfg: RunConfig, runner_factory, prov: Provenance,
+                           results: dict) -> pd.DataFrame:
+    """A1.5. Run the preregistered absolute instrument once, archive it, report it.
+
+    It is EXPECTED to fail polarity validity. That is the point: the paper reports
+    "we ran the preregistered instrument at full scale and these are the numbers"
+    rather than resting the switch to a pairwise instrument on pilot runs. It gates
+    nothing and is never read by a downstream stage.
+    """
+    _echo("Absolute Pass A -- instrument-validation record (A1.5). Gates nothing.")
+    path = stage_a.artifact_path(cfg)
+    if path.exists():
+        print(f"cached: {path}")
+        frame = read_parquet(path)
+    else:
+        frame = stage_a.run_pass_a(cfg, runner_factory(), prov)
+        print(f"wrote: {path}")
+
+    gate = evaluate_gates(cfg, frame)
+    print(f"  median polarity rho = {gate.median_rho:+.3f}  "
+          f"(retired threshold was {cfg.gates.validity_rho_min})")
+    print(f"  sigma_between: collapsed {gate.sigma_between:.3f}, "
+          f"ascending {gate.sigma_between_ascending:.3f}")
+    print(f"  ICC(C,1) ascending = {gate.icc_all.get('icc_c1', float('nan')):.3f}")
+    print(f"  digit mass: median {frame['digit_mass'].median():.4f}, "
+          f"min {frame['digit_mass'].min():.4f}")
+    if gate.median_rho < cfg.gates.validity_rho_min:
+        print("  -> fails the retired polarity criterion, as expected. Recorded, not acted on.")
+
+    archive = cfg.artifacts_dir / "instrument_validation" / cfg.model.name / cfg.hash("pass_a")
+    archive.mkdir(parents=True, exist_ok=True)
+    write_parquet(frame, archive / f"absolute_{cfg.hash('pass_a')}.parquet", prov)
+    gate.validity.to_csv(archive / f"validity_{cfg.hash('pass_a')}.csv", index=False)
+
+    results["instrument_validation"] = {
+        "median_rho": gate.median_rho,
+        "sigma_between_collapsed": gate.sigma_between,
+        "sigma_between_ascending": gate.sigma_between_ascending,
+        "icc_all": gate.icc_all,
+        "per_template_validity": gate.validity.to_dict("records"),
+        "archive": str(archive),
+        "gates_nothing": True,
+    }
+    return frame
+
+
+def run(cfg: RunConfig, *, stop_after: str | None = None, progressbar: bool = True) -> int:
     prov = capture(cfg)
     runner_factory = Lazy(cfg)
+    out_dir = cfg.artifact_dir("analysis")
+    out_dir.mkdir(parents=True, exist_ok=True)
+    results: dict = {"model": cfg.model.name, "config_hash": cfg.hash(),
+                     "provenance": prov.model_dump(), "smoke": cfg.smoke}
 
     _echo(f"Stage 0  |  {cfg.model.name}  |  config {cfg.hash()}")
     print(f"device={prov.device} ({prov.device_name})  dtype={prov.dtype}")
     print(f"revision={prov.model_revision} pinned={prov.model_revision_pinned}")
-    print(f"torch={prov.torch_version} transformers={prov.transformers_version}")
-    print(f"git={prov.git_sha} dirty={prov.git_dirty}  seed={cfg.seed}")
+    print(f"git={prov.git_sha[:12]} dirty={prov.git_dirty}  seed={cfg.seed}")
     if cfg.smoke:
-        print(
-            "SMOKE MODE: reduced stimuli, not a scientific run. "
-            "assert_reportable() will reject these artifacts."
-        )
+        print("SMOKE MODE: reduced stimuli. assert_reportable() rejects these artifacts.")
 
-    out_dir = cfg.artifact_dir("analysis")
-    out_dir.mkdir(parents=True, exist_ok=True)
-    results: dict = {
-        "model": cfg.model.name,
-        "config_hash": cfg.hash(),
-        "provenance": prov.model_dump(),
-        "smoke": cfg.smoke,
-    }
+    absolute = _instrument_validation(cfg, runner_factory, prov, results)
+    if stop_after == "absolute":
+        return _finish(out_dir, cfg, results, "stopped-after-absolute")
 
-    # ---- stimulus audit ---------------------------------------------------
-    audit = audit_templates(load_templates(cfg))
-    audit.to_csv(out_dir / f"stimulus_audit_{cfg.hash()}.csv", index=False)
-    print("\nstimulus audit (turn/mention balance across conditions):")
-    print(audit.groupby("condition")[["n_turns", "mentions_designated", "mentions_other"]]
-          .agg(["min", "max"]).to_string())
-
-    # ---- Pass A ----------------------------------------------------------
-    _echo("Pass A -- item rating (400 items x 5 templates x 2 polarities)")
-    a_path = stage_a.artifact_path(cfg)
-    if a_path.exists():
-        print(f"cached: {a_path}")
-        pass_a_frame = read_parquet(a_path)
+    # ---- pairwise Pass A: the live instrument ----------------------------
+    _echo("Pairwise Pass A -- anchor comparisons (A1.1)")
+    pw_path = stage_pw.artifact_path(cfg)
+    if pw_path.exists():
+        print(f"cached: {pw_path}")
+        comparisons = read_parquet(pw_path)
     else:
-        pass_a_frame = stage_a.run_pass_a(cfg, runner_factory(), prov)
-        print(f"wrote: {a_path}")
-    print(f"{len(pass_a_frame)} ratings   "
-          f"digit_mass min={pass_a_frame['digit_mass'].min():.4f} "
-          f"median={pass_a_frame['digit_mass'].median():.4f}")
+        comparisons = collect_comparisons(
+            cfg, runner_factory(), load_items(cfg), load_anchors(cfg), load_templates(cfg),
+            arms=("digits",), desc="pairwise",
+            checkpoint=pw_path.parent / f"_checkpoint_{cfg.hash('pass_a')}.parquet",
+        )
+        comparisons = write_parquet(comparisons, pw_path, prov)
+        print(f"wrote: {pw_path}")
 
-    # ---- gates -----------------------------------------------------------
-    _echo("Exclusion criteria (preregistration.md section 5)")
-    gate: GateResult = evaluate_gates(cfg, pass_a_frame)
-    print(gate.summary())
-    print("\nper-template polarity validity:")
-    print(gate.validity.to_string(index=False))
+    per_t = validity.summarize(comparisons, by=["arm", "template"])
+    print("\nreadout mass by template (A1.6) -- where prompt bugs surface first:")
+    print(per_t.to_string(index=False))
+    results["readout_mass_by_template"] = per_t.to_dict("records")
 
-    gate.validity.to_csv(out_dir / f"validity_{cfg.hash()}.csv", index=False)
-    results["gates"] = {
-        "passed": gate.passed,
-        "median_rho": gate.median_rho,
-        "surviving_templates": gate.surviving_templates,
-        "icc_all": gate.icc_all,
-        "icc_selection": gate.icc_selection,
-        "icc_all_collapsed": gate.icc_all_collapsed,
-        "sigma_between": gate.sigma_between,
-        "sigma_between_ascending": gate.sigma_between_ascending,
-        "sesoi_primary": gate.sesoi_primary,
-        "sesoi_secondary": gate.sesoi_secondary,
-        "icc_tripwire_hit": gate.icc_tripwire_hit,
-        "reasons": gate.reasons,
-    }
+    print("\norder invariance -- reported only, retired as a gate (A2.2):")
+    inv = stage_pw.report_order_invariance(comparisons)
+    print(inv.to_string(index=False))
+    results["order_invariance_reported"] = inv.to_dict("records")
 
-    if not gate.passed:
-        results["outcome"] = "halted-by-exclusion-criteria"
-        _write_results(out_dir, cfg, results)
-        _echo("HALTED for this model. Reported, not treated as evidence either way.")
-        return HALT
+    _echo("Bradley-Terry with per-template order term (A2.1)")
+    fit = fit_bradley_terry(cfg, comparisons, arm="digits", progressbar=progressbar)
+    print(fit.summary())
+    print(convergence_summary(cfg, fit.idata))
+    print("\nposition bias by template (beta):")
+    print(fit.beta.round(3).to_string(index=False))
+    print("\nanchor abilities (intended tier is a design annotation, never shown):")
+    print(anchor_ordering_check(fit, load_anchors(cfg)).to_string(index=False))
 
-    sesoi = gate.sesoi_primary
+    ex = excess_consistency_slope(comparisons, fit)
+    null = excess_slope_ppc_null(cfg, comparisons, fit)
+    z = ((ex["slope"] - null["null_mean"]) / null["null_sd"]) if null["null_sd"] > 0 else float("nan")
+    print(f"\nfit quality (A2.1): slope {ex['slope']:+.4f} "
+          f"[{ex['ci_low']:+.4f}, {ex['ci_high']:+.4f}] vs null "
+          f"{null['null_mean']:+.4f} (sd {null['null_sd']:.4f}) -> {z:+.2f} sd")
+    results["beta"] = fit.beta.to_dict("records")
+    results["excess_consistency_slope"] = {**ex, **null, "z_vs_null": z}
 
-    if stop_after == "pass_a":
-        results["outcome"] = "stopped-after-pass-a"
-        _write_results(out_dir, cfg, results)
-        _echo("Stopped after Pass A as requested. Gate passed; Pass B/C not run.")
-        return 0
+    # ---- the only gate ---------------------------------------------------
+    _echo("Reliability gate (A2.2) -- the sole exclusion criterion")
+    gate = stage_pw.evaluate_reliability_gate(cfg, comparisons, load_templates(cfg))
+    print(f"empirical split-half of theta, {gate['split_a']} vs {gate['split_b']}: "
+          f"Spearman {gate['empirical_reliability_spearman']:.3f} "
+          f"(threshold {gate['threshold']})")
+    print(f"model-internal reliability {fit.model_reliability:.3f} -- reported for "
+          "comparison; using it here would admit models whose item rankings do not "
+          "reproduce across paraphrases")
+    print(f"  ->  {'PASS' if gate['passed'] else 'HALT'}")
+    for r in gate["reasons"]:
+        print(f"  - {r}")
+    results["reliability_gate"] = {**gate, "model_reliability": fit.model_reliability}
 
-    # ---- Pass B ----------------------------------------------------------
-    _echo("Pass B -- pair construction from this model's own Pass A ratings")
-    scores = item_scores(cfg, pass_a_frame)
+    if not gate["passed"]:
+        return _finish(out_dir, cfg, results, "halted-reliability", HALT)
+    if stop_after == "pairwise":
+        return _finish(out_dir, cfg, results, "stopped-after-pairwise")
+
+    # ---- Pass B, fed from theta (audit T2.2) -----------------------------
+    _echo("Pass B -- pairs from theta on disjoint template sets")
     b_path = stage_b.artifact_path(cfg)
     if b_path.exists():
         print(f"cached: {b_path}")
         pairs = read_parquet(b_path)
     else:
+        scores = theta_item_scores(cfg, comparisons, arm="digits")
+        print(f"theta scores: selection sd {scores['score_selection'].std(ddof=1):.3f}, "
+              f"analysis sd {scores['score_analysis'].std(ddof=1):.3f}")
         pairs = stage_b.run_pass_b(cfg, scores, prov)
         print(f"wrote: {b_path}")
 
     diag = stage_b.pair_diagnostics(pairs)
     print(diag.to_string(index=False))
     print("matching quality:", {k: round(v, 4) for k, v in diag.attrs.items()})
-    diag.to_csv(out_dir / f"pair_diagnostics_{cfg.hash()}.csv", index=False)
-    results["pairs"] = {
-        "n": int(len(pairs)),
-        "diagnostics": diag.to_dict("records"),
-        "matching": {k: float(v) for k, v in diag.attrs.items()},
-    }
-
+    results["pairs"] = {"n": int(len(pairs)), "diagnostics": diag.to_dict("records")}
     if stop_after == "pass_b":
-        results["outcome"] = "stopped-after-pass-b"
-        _write_results(out_dir, cfg, results)
-        _echo("Stopped after Pass B as requested.")
-        return 0
-
-    # ---- power -----------------------------------------------------------
-    _echo("Power simulation (after Pass A, before Pass C)")
-    pw = power.simulate_power(
-        cfg,
-        sigma_between=gate.sigma_between,
-        icc_c1=gate.icc_all["icc_c1"],
-        diff_analysis=pairs["diff_analysis"].to_numpy(),
-        sesoi=sesoi,
-        n_templates=len(gate.surviving_templates),
-    )
-    print(pw.summary())
-    print(pw.grid.to_string(index=False))
-    pw.grid.to_csv(out_dir / f"power_{cfg.hash()}.csv", index=False)
-    results["power"] = {
-        "power_at_sesoi": pw.power_at_sesoi,
-        "min_detectable": pw.min_detectable,
-        "target": pw.target,
-        "assumptions": pw.assumptions,
-    }
+        return _finish(out_dir, cfg, results, "stopped-after-pass-b")
 
     # ---- Pass C ----------------------------------------------------------
-    _echo("Pass C -- 5 conditions x difficulty")
+    _echo("Pass C -- the experiment (A2.9)")
     c_path = stage_c.artifact_path(cfg)
     if c_path.exists():
         print(f"cached: {c_path}")
-        pass_c_frame = read_parquet(c_path)
+        trials = read_parquet(c_path)
     else:
-        pass_c_frame = stage_c.run_pass_c(cfg, pairs, runner_factory(), prov)
+        trials = stage_c.run_pass_c(cfg, pairs, runner_factory(), prov)
         print(f"wrote: {c_path}")
 
-    # The pooling guard: artifacts from different devices or dtypes are not
-    # comparable and must not be combined.
-    assert_poolable([pass_a_frame, pass_c_frame], context="Pass A + Pass C")
+    assert_poolable([comparisons, trials], context="pairwise Pass A + Pass C")
+    print("\nreadout mass by condition:")
+    print(validity.summarize(trials, by=["condition"]).to_string(index=False))
+    if stop_after == "pass_c":
+        return _finish(out_dir, cfg, results, "stopped-after-pass-c")
 
-    print(f"{len(pass_c_frame)} trials   "
-          f"digit_mass min={pass_c_frame['digit_mass_min'].min():.4f}")
-    print("\nspread by condition x difficulty:")
-    print(
-        pass_c_frame.pivot_table(
-            index="condition", columns="difficulty", values="spread",
-            aggfunc=["mean", "std", "count"],
-        ).to_string()
-    )
+    # ---- H1 --------------------------------------------------------------
+    _echo("Spread model -- H1 (A2.9.1)")
+    design = spread_model.prepare(cfg, trials)
+    print(f"|diff| centring: mean={design.diff_mean:.4f} sd={design.diff_sd:.4f}")
+    idata = spread_model.fit(cfg, design, progressbar=progressbar)
 
-    choice_diag = stage_c.choice_diagnostics(pass_c_frame)
-    print("\nchoice / position-bias diagnostics:")
-    print(choice_diag.to_string(index=False))
-    print(f"overall flip rate across option order: "
-          f"{choice_diag.attrs.get('overall_flip_rate', float('nan')):.3f}")
-    choice_diag.to_csv(out_dir / f"choice_diagnostics_{cfg.hash()}.csv", index=False)
-    results["choice"] = {
-        "overall_flip_rate": float(choice_diag.attrs.get("overall_flip_rate", np.nan)),
-        "per_template": choice_diag.to_dict("records"),
-    }
-
-    # ---- model -----------------------------------------------------------
-    _echo("Mixed-effects model and planned contrasts")
-    design = mixed.prepare_design(cfg, pass_c_frame)
-    print(f"|diff| centring: mean={design.diff_mean:.4f} sd={design.diff_sd:.4f} "
-          "(interaction coefficient is spread points per SD of |diff|)")
-
-    idata = mixed.fit(cfg, design, with_item=False, progressbar=True)
-    conv = mixed.convergence(cfg, idata)
+    conv = spread_model.convergence(cfg, idata)
     bad = conv[~(conv["rhat_ok"] & conv["ess_ok"])]
-    print(f"\nconvergence: {len(bad)} parameter(s) failing "
-          f"R-hat<={cfg.analysis.rhat_max} or ESS>={cfg.analysis.ess_min}")
+    print(f"convergence: {len(bad)} parameter(s) failing")
     if len(bad):
         print(bad.to_string())
 
-    contrasts = mixed.contrast_table(cfg, idata, sesoi)
-    print(f"\nplanned contrasts (SESOI = {sesoi:.4f}):")
+    sesoi = cfg.analysis.sesoi_sigma_fraction * fit.sigma_item
+    print(f"\nSESOI = {cfg.analysis.sesoi_sigma_fraction} x sigma_item "
+          f"({fit.sigma_item:.3f}) = {sesoi:.4f} logits per SD of |diff|")
+    contrasts = spread_model.contrasts(cfg, idata, sesoi)
     print(contrasts.to_string(index=False))
     contrasts.to_parquet(out_dir / f"contrasts_{cfg.hash()}.parquet", index=False)
-    idata.to_netcdf(str(out_dir / f"posterior_{cfg.hash()}.nc"))
+    idata.to_netcdf(str(out_dir / f"spread_posterior_{cfg.hash()}.nc"))
 
-    primary = contrasts[
-        (contrasts["name"] == mixed.PRIMARY) & (contrasts["term"] == "slope")
-    ]
+    primary = contrasts[(contrasts["name"] == spread_model.PRIMARY)
+                        & (contrasts["term"] == "lambda")]
     decision = primary["decision"].iloc[0] if len(primary) else "unavailable"
-    agreement = mixed.artifact_agreement(contrasts)
-
-    results["contrasts"] = contrasts.to_dict("records")
-    results["convergence_failures"] = int(len(bad))
-    results["artifact_agreement"] = agreement
-    results["primary"] = primary.to_dict("records")[0] if len(primary) else {}
-    results["outcome"] = f"primary-{decision}"
-
-    _echo(f"PRIMARY TEST ({mixed.PRIMARY}) x |diff|  ->  {decision.upper()}")
+    _echo(f"PRIMARY TEST ({spread_model.PRIMARY}) x |diff|  ->  {decision.upper()}")
     if len(primary):
         row = primary.iloc[0]
         print(f"  median {row['median']:+.4f}   "
               f"{int(cfg.analysis.hdi_prob * 100)}% HDI "
               f"[{row['hdi_low']:+.4f}, {row['hdi_high']:+.4f}]   "
               f"P(<0) = {row['p_negative']:.3f}")
-        print(f"  SESOI = {sesoi:.4f}  |  exceeds SESOI: {bool(row['exceeds_sesoi'])}  "
-              f"|  inside ROPE: {bool(row['inside_rope'])}")
-    if agreement:
-        print(f"\nartifact cross-check: {agreement['route_a']} = "
-              f"{agreement['estimate_a']:+.4f}, {agreement['route_b']} = "
-              f"{agreement['estimate_b']:+.4f}, discrepancy = "
-              f"{agreement['discrepancy']:+.4f}")
 
-    if robustness:
-        _echo("Robustness model: item random effect via pair->item multi-membership")
-        idata_item = mixed.fit(cfg, design, with_item=True, progressbar=True)
-        c_item = mixed.contrast_table(cfg, idata_item, sesoi)
-        print(c_item.to_string(index=False))
-        c_item.to_parquet(out_dir / f"contrasts_item_{cfg.hash()}.parquet", index=False)
-        idata_item.to_netcdf(str(out_dir / f"posterior_item_{cfg.hash()}.nc"))
-        results["contrasts_item_re"] = c_item.to_dict("records")
+    agree = spread_model.structure_factor_agreement(contrasts)
+    if agree:
+        print(f"\nstructure factor estimated twice: {agree['edge_a']} = "
+              f"{agree['estimate_a']:+.4f}, {agree['edge_b']} = {agree['estimate_b']:+.4f}, "
+              f"discrepancy {agree['discrepancy']:+.4f}")
+        print("  (agreement means a turn-presence effect is identified and subtractable)")
 
-    # ---- figures ---------------------------------------------------------
-    if make_plots:
-        plots.use_paper_defaults()
-        fig_dir = out_dir / "figures"
-        for dark in (False, True):
-            suffix = "dark" if dark else "light"
-            plots.save(
-                plots.interaction_plot(cfg, design, idata, dark=dark),
-                fig_dir / f"interaction_{suffix}_{cfg.hash()}.png",
-            )
-            plots.save(
-                plots.forest_plot(cfg, contrasts, sesoi, term="slope", dark=dark),
-                fig_dir / f"forest_slope_{suffix}_{cfg.hash()}.png",
-            )
-            plots.save(
-                plots.forest_plot(cfg, contrasts, sesoi, term="intercept", dark=dark),
-                fig_dir / f"forest_intercept_{suffix}_{cfg.hash()}.png",
-            )
-        print(f"\nfigures: {fig_dir}")
-
-    r = runner_factory._runner
-    if r is not None:
-        print(f"\nforward passes: {r.n_forward}  (prompt cache hits: {r.n_cache_hits})")
-
-    _write_results(out_dir, cfg, results)
-    return 0
+    results["contrasts"] = contrasts.to_dict("records")
+    results["sesoi"] = sesoi
+    results["structure_factor_agreement"] = agree
+    results["primary"] = primary.to_dict("records")[0] if len(primary) else {}
+    return _finish(out_dir, cfg, results, f"primary-{decision}")
 
 
-def _write_results(out_dir: Path, cfg: RunConfig, results: dict) -> None:
+def _finish(out_dir: Path, cfg: RunConfig, results: dict, outcome: str, code: int = 0) -> int:
+    results["outcome"] = outcome
     path = out_dir / f"results_{cfg.hash()}.json"
-    path.write_text(json.dumps(results, indent=2, default=str))
+    path.write_text(json.dumps(results, indent=2, default=str), encoding="utf-8")
     print(f"\nresults: {path}")
+    if code == HALT:
+        _echo("HALTED. Reported, not treated as evidence about H1 either way.")
+    return code
 
 
 def main(argv: list[str] | None = None) -> int:
     ap = argparse.ArgumentParser(description="Run Stage 0 end-to-end for one model.")
-    ap.add_argument("--config", required=True, help="path to a run YAML")
-    ap.add_argument(
-        "--robustness",
-        action="store_true",
-        help="also fit the preregistered item multi-membership robustness model",
-    )
-    ap.add_argument("--no-plots", action="store_true")
-    ap.add_argument(
-        "--artifacts", default=None, help="override the artifacts root directory"
-    )
-    ap.add_argument(
-        "--stop-after",
-        choices=["pass_a", "pass_b"],
-        default=None,
-        help="stop early; 'pass_a' runs ratings and the gate only",
-    )
+    ap.add_argument("--config", required=True)
+    ap.add_argument("--artifacts", default=None)
+    ap.add_argument("--stop-after", choices=STAGES[:-1], default=None)
+    ap.add_argument("--no-progress", action="store_true")
     args = ap.parse_args(argv)
 
-    overrides = {"artifacts_dir": args.artifacts} if args.artifacts else None
-    cfg = load_config(args.config, overrides)
-    return run(
-        cfg,
-        robustness=args.robustness,
-        make_plots=not args.no_plots,
-        stop_after=args.stop_after,
-    )
+    cfg = load_config(args.config, {"artifacts_dir": args.artifacts} if args.artifacts else None)
+    return run(cfg, stop_after=args.stop_after, progressbar=not args.no_progress)
 
 
 if __name__ == "__main__":

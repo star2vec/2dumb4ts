@@ -228,6 +228,9 @@ class AnalysisConfig(Frozen):
     hdi_prob: float = 0.95
     rhat_max: float = 1.01
     ess_min: int = 400
+    #: Replicates for the excess-slope posterior-predictive null (A2.7). 24 gives a
+    #: usable null sd; each replicate is a full refit, so a wiring check should lower it.
+    ppc_null_replicates: int = 24
     power_target: float = 0.80
     power_n_sims: int = 500
 

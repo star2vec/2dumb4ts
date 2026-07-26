@@ -1,0 +1,99 @@
+WARNING (pytensor.configdefaults): g++ not available, if using conda: `conda install gxx`
+WARNING (pytensor.configdefaults): g++ not detected!  PyTensor will be unable to compile C-implementations and will default to Python. Performance may be severely degraded. To remove this warning, set PyTensor flags cxx to an empty string.
+[pairwise_seq] sampler_cores=1 full_hash=c7d7f50fe84d pass_a_hash=da39da23e7db
+
+========================================================================
+Pairwise Pass A  |  qwen2.5-0.5b-instruct  |  cuda bfloat16
+========================================================================
+400 items x 10 anchors x 5 templates x 2 orders = 40,000 comparisons
+  -> 20 binary outcomes per item per template
+cached: artifacts\pass_a_pairwise\qwen2.5-0.5b-instruct\da39da23e7db\comparisons_da39da23e7db.parquet
+
+readout mass (A1.6):
+   arm     n  n_invalid  frac_invalid  mass_median  mass_min
+digits 40000          0           0.0     0.999283   0.97018
+
+readout mass by template:
+   arm template    n  n_invalid  frac_invalid  mass_median  mass_min
+digits       t0 8000          0           0.0     0.999554  0.978282
+digits       t1 8000          0           0.0     0.994281  0.970180
+digits       t2 8000          0           0.0     0.998893  0.981695
+digits       t3 8000          0           0.0     0.999894  0.997411
+digits       t4 8000          0           0.0     0.999381  0.996943
+
+========================================================================
+Order invariance -- reported only, no longer a gate (A2.2)
+========================================================================
+retired as an exclusion criterion: its null is 2*s*(1-s) with s = sigmoid(beta),
+which moves with a signed, template-varying nuisance parameter.
+
+   arm template  n_pairs  order_invariance  unambiguous_item_win             regime
+digits       t0     4000            0.0000                0.0000 position-dominated
+digits       t1     4000            0.2445                0.1945 position-dominated
+digits       t2     4000            0.0000                0.0000 position-dominated
+digits       t3     4000            0.0000                0.0000 position-dominated
+digits       t4     4000            0.0000                0.0000 position-dominated
+
+========================================================================
+Hierarchical Bradley-Terry with per-template order term (A2.1)
+========================================================================
+Initializing NUTS using jitter+adapt_diag...
+Sequential sampling (4 chains in 1 job)
+NUTS: [sigma_item, theta, alpha, beta]
++-----------------------------------------------------------------------------+
+|         |      |         | Step    | Grad    |         |         |          |
+| Progre… | Draw | Diverg… | size    | evals   | Speed   | Elapsed | Remaini… |
+|---------+------+---------+---------+---------+---------+---------+----------|
+| ------- | 4000 | 0       | 0.314   | 15      | 43.03   | 0:01:32 | 0:00:00  |
+|         |      |         |         |         | draws/s |         |          |
+| ------- | 4000 | 0       | 0.331   | 15      | 21.65   | 0:03:04 | 0:00:00  |
+|         |      |         |         |         | draws/s |         |          |
+| ------- | 4000 | 0       | 0.255   | 15      | 14.42   | 0:04:37 | 0:00:00  |
+|         |      |         |         |         | draws/s |         |          |
+| ------- | 4000 | 0       | 0.273   | 15      | 10.82   | 0:06:09 | 0:00:00  |
+|         |      |         |         |         | draws/s |         |          |
++-----------------------------------------------------------------------------+
+Sampling 4 chains for 2_000 tune and 2_000 draw iterations (8_000 + 8_000 draws total) took 370 seconds.
+Bradley-Terry (+ per-template order term): 400 items from 40000 valid comparisons (0 dropped below the mass floor)
+  theta spread: sd across items = 0.714, range -1.17 to 2.93
+  precision: posterior SD of theta, median 0.542 (min 0.522, max 0.571)
+  sigma_item (between-item scale) = 0.991
+  separation ratio = 1.83
+  model reliability = 0.769 (compare against the EMPIRICAL split-half figure)
+  beta: mean +7.298 (favours slot 1), range +1.978 to +8.633 across 5 templates
+convergence: max R-hat 1.0000 (limit 1.01), min ESS 3586 (limit 400), divergences 0, 0 parameter(s) failing
+
+position bias by template (beta):
+template  beta_mean  beta_sd  beta_hdi_low  beta_hdi_high
+      t0      8.633    0.506         7.683          9.646
+      t1      1.978    0.041         1.901          2.062
+      t2      8.630    0.507         7.642          9.616
+      t3      8.622    0.512         7.652          9.627
+      t4      8.625    0.497         7.646          9.557
+
+fit quality -- excess consistency on gap: slope +0.0340 95% CI [+0.0310, +0.0369] over 20000 cells
+  NOT FLAT: residual compression remains, model still misspecified
+
+========================================================================
+Reliability gate (A2.2)
+========================================================================
+Initializing NUTS using jitter+adapt_diag...
+Sequential sampling (4 chains in 1 job)
+NUTS: [sigma_item, theta, alpha, beta]
+Sampling 4 chains for 2_000 tune and 2_000 draw iterations (8_000 + 8_000 draws total) took 227 seconds.
+Initializing NUTS using jitter+adapt_diag...
+Sequential sampling (4 chains in 1 job)
+NUTS: [sigma_item, theta, alpha, beta]
+Sampling 4 chains for 2_000 tune and 2_000 draw iterations (8_000 + 8_000 draws total) took 240 seconds.
+There were 94 divergences after tuning. Increase `target_accept` or reparameterize.
+The rhat statistic is larger than 1.01 for some parameters. This indicates problems during sampling. See https://arxiv.org/abs/1903.08008 for details
+The effective sample size per chain is smaller than 100 for some parameters.  A higher number is needed for reliable rhat and ess computation. See https://arxiv.org/abs/1903.08008 for details
+empirical split-half reliability of theta across ['t0', 't1', 't2'] vs ['t3', 't4']:
+  Spearman 0.083 (Pearson 0.071), threshold 0.7
+  model-internal reliability 0.769 -- a gap between these two signals misspecification
+  ->  HALT
+  - EXCLUDED: empirical split-half reliability of theta (Spearman 0.083) < 0.7. Items cannot be ranked well enough to select near-equal pairs or to detect movement.
+
+========================================================================
+HALTED on reliability. theta is not reported for this model.
+========================================================================

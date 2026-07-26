@@ -1,0 +1,6 @@
+arm,template,n_pairs,order_invariance,unambiguous_item_win,regime
+digits,t0,4000,0.478,0.39475,position-dominated
+digits,t1,4000,0.14825,0.14725,position-dominated
+digits,t2,4000,0.27775,0.2675,position-dominated
+digits,t3,4000,0.0015,0.001,position-dominated
+digits,t4,4000,0.5955,0.43575,random-dominated

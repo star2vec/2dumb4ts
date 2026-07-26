@@ -1,0 +1,74 @@
+WARNING (pytensor.configdefaults): g++ not available, if using conda: `conda install gxx`
+WARNING (pytensor.configdefaults): g++ not detected!  PyTensor will be unable to compile C-implementations and will default to Python. Performance may be severely degraded. To remove this warning, set PyTensor flags cxx to an empty string.
+
+========================================================================
+Stage 0  |  gemma-2-2b-it  |  config 03e9d20c1a81
+========================================================================
+device=cuda (NVIDIA RTX 2000 Ada Generation Laptop GPU)  dtype=bfloat16
+revision=299a8560bedf22ed1c72a8a11e7dce4a7f9f51f8 pinned=True
+torch=2.8.0+cu126 transformers=5.14.1
+git=62ae47a3c0e3624ceaf442b2a7b655d580f704c8 dirty=False  seed=20261025
+
+stimulus audit (turn/mention balance across conditions):
+          n_turns     mentions_designated     mentions_other    
+              min max                 min max            min max
+condition                                                       
+3p-random       1   1                   3   3              3   3
+3p-yoked        1   1                   3   3              3   3
+chose           3   3                   3   3              3   3
+random          1   1                   3   3              3   3
+yoked           1   1                   3   3              3   3
+
+========================================================================
+Pass A -- item rating (400 items x 5 templates x 2 polarities)
+========================================================================
+loading model ...
+Fetching 2 files:   0%|          | 0/2 [00:00<?, ?it/s]Fetching 2 files:  50%|#####     | 1/2 [01:54<01:54, 114.37s/it]Fetching 2 files: 100%|##########| 2/2 [01:54<00:00, 57.19s/it] 
+Loading weights:   0%|          | 0/288 [00:00<?, ?it/s]Loading weights: 100%|##########| 288/288 [00:00<00:00, 13634.78it/s]
+  device=cuda dtype=torch.bfloat16
+digit map (18 ids):
+  1: ids=[266, 235274] surfaces=["'1'"]
+  2: ids=[267, 235284] surfaces=["'2'"]
+  3: ids=[268, 235304] surfaces=["'3'"]
+  4: ids=[269, 235310] surfaces=["'4'"]
+  5: ids=[270, 235308] surfaces=["'5'"]
+  6: ids=[271, 235318] surfaces=["'6'"]
+  7: ids=[272, 235324] surfaces=["'7'"]
+  8: ids=[273, 235321] surfaces=["'8'"]
+  9: ids=[274, 235315] surfaces=["'9'"]
+label map (4 ids):
+  0: ids=[586, 235280] surfaces=["' A'", "'A'"]
+  1: ids=[599, 235305] surfaces=["' B'", "'B'"]
+pass A:   0%|          | 0/16 [00:00<?, ?chunk/s]pass A:   6%|6         | 1/16 [00:03<00:47,  3.20s/chunk]pass A:  12%|#2        | 2/16 [00:06<00:43,  3.10s/chunk]pass A:  19%|#8        | 3/16 [00:09<00:40,  3.09s/chunk]pass A:  25%|##5       | 4/16 [00:12<00:37,  3.13s/chunk]pass A:  31%|###1      | 5/16 [00:15<00:33,  3.09s/chunk]pass A:  38%|###7      | 6/16 [00:18<00:30,  3.01s/chunk]pass A:  44%|####3     | 7/16 [00:21<00:26,  2.93s/chunk]pass A:  50%|#####     | 8/16 [00:23<00:22,  2.87s/chunk]pass A:  56%|#####6    | 9/16 [00:26<00:19,  2.83s/chunk]pass A:  62%|######2   | 10/16 [00:29<00:16,  2.79s/chunk]pass A:  69%|######8   | 11/16 [00:32<00:13,  2.79s/chunk]pass A:  75%|#######5  | 12/16 [00:34<00:10,  2.74s/chunk]pass A:  81%|########1 | 13/16 [00:37<00:08,  2.73s/chunk]pass A:  88%|########7 | 14/16 [00:40<00:05,  2.71s/chunk]pass A:  94%|#########3| 15/16 [00:42<00:02,  2.71s/chunk]pass A: 100%|##########| 16/16 [00:44<00:00,  2.40s/chunk]                                                            READOUT MASS [pass A rating]: readout mass: median 1.0000, min 0.0042, 9/4000 below floor 0.5 (0.2%)
+wrote: artifacts\pass_a\gemma-2-2b-it\1e92f36cf2b5\ratings_1e92f36cf2b5.parquet
+4000 ratings   digit_mass min=0.0042 median=1.0000
+
+========================================================================
+Exclusion criteria (preregistration.md section 5)
+========================================================================
+[HALT] gemma-2-2b-it
+  validity: median rho = -0.944 (threshold >= gate); surviving templates = []
+  reliability (ascending only): ICC(C,1) over 5 templates = 0.351
+  selection score reliability: ICC(C,3) = 0.726, ICC(A,3) = 0.595
+  same on polarity-collapsed scores: ICC(C,1) = 0.018  (a large gap means the collapse is destroying variance)
+  sigma_between = 0.179 rating points (collapsed, drives the SESOI)  |  ascending only = 0.887
+  SESOI (primary, 0.15*sigma) = 0.027; secondary fixed anchor = 0.250
+  TRIPWIRE: ICC(C,1) below threshold -- investigate for an implementation fault before trusting Pass C
+  - EXCLUDED: median polarity validity rho = -0.944 < 0.6. The model has not demonstrated that it reads the response scale; this is not evidence about the hypotheses in either direction.
+  - EXCLUDED: only 0 template(s) reach rho >= 0.6, need 3.
+  - EXCLUDED: sigma_between = 0.179 < 0.5. With no between-item variance there is no |diff| range, so the difficulty manipulation is undefined rather than null.
+  - TRIPWIRE (not an exclusion): ICC(C,1) = 0.351 < 0.4. Check for an implementation fault; if none, the binding criterion is power on the primary contrast at the SESOI.
+
+per-template polarity validity:
+template  spearman_rho       p_value  n_items  sd_ascending  sd_descending_reversed
+      t0     -0.948207 2.520800e-200      400      1.025372                0.741216
+      t1     -0.950772 1.335356e-204      400      1.784468                1.711667
+      t2     -0.944008 9.018284e-194      400      0.933142                1.124917
+      t3     -0.941846 1.361547e-190      400      1.104077                1.225448
+      t4     -0.906941 1.638130e-151      400      1.230364                1.344823
+
+results: artifacts\analysis\gemma-2-2b-it\03e9d20c1a81\results_03e9d20c1a81.json
+
+========================================================================
+HALTED for this model. Reported, not treated as evidence either way.
+========================================================================
