@@ -1090,6 +1090,154 @@ It is not decisive on its own — a null there is also consistent with the model
 representing revocability — but it is the only behavioural handle this paradigm affords, and it is
 cheap enough that omitting it would be indefensible.
 
+## A2.9 Pass C dependent variable, conditions, and closing figures
+
+**This section closes Amendment 2. Anything discovered after 2026-07-26 goes to Amendment 3, after
+Pass C exists.**
+
+### A2.9.1 The DV: option (c), modelled jointly
+
+The spread DV is measured as the **designated-versus-other comparison itself**, pre and post, on the
+pairwise instrument — not as a difference of four absolute ratings (audit item T1, resolved).
+
+**The outcomes are modelled directly. No per-pair spread is ever computed.**
+
+```
+logit P(designated beats other) =
+      δ_pair  +  β_t · s  +  post · ( γ_c  +  λ_c · diff_z )
+      +  u_pair  +  u_template
+```
+
+`s = ±1` for slot, `post ∈ {0,1}`, `c` indexes condition, `diff_z` is the z-scored `|Δθ|` from the
+disjoint analysis template set (§4.4). **PRIMARY TEST: `λ_chose − λ_yoked`, predicted negative.**
+
+**Two-stage estimation is prohibited.** Estimating a per-pair spread and regressing it on gap
+reintroduces exactly the artifact for which option (c) was originally rejected: with only two binary
+outcomes per timepoint, a per-pair spread is a ratio of noisy quantities whose sampling variance
+depends on where the pair sits on the logit curve — maximal at p ≈ 0.5, which is where difficult
+pairs sit by construction. That manufactures the predicted interaction from noise. The interaction
+must be estimated **inside the same joint likelihood**, where the binary nature of the observations
+is respected and no intermediate quantity is formed.
+
+**Priors on the new scale.** The DV is a logit shift, not rating points:
+
+| parameter | prior |
+|---|---|
+| `γ_c` (post shift per condition) | `Normal(0, 1)` |
+| `λ_c` (difficulty slope per condition) | `Normal(0, 1)` |
+| `β_t` (position, per template) | `Normal(0, 1.5)` |
+| `δ_pair` | `Normal(0, 2)` |
+| random-intercept SDs | `HalfNormal(1)`, zero-sum constrained |
+
+A shift of 1 logit moves a coin-flip to p = 0.73, so `Normal(0,1)` is weakly informative and not
+restrictive.
+
+### A2.9.2 θ-scale re-expression of the deferred quantities
+
+Both were defined in absolute rating points and do not transfer (A1.8). Re-expressed as fractions of
+the measured between-item scale, which is what made them meaningful in the first place:
+
+- **`match_tolerance`**: was 0.15 rating points against `σ_between ≈ 0.58`, i.e. **0.26 σ**. Now
+  `0.26 × σ_item`, computed per model from that model's own fit.
+- **SESOI on the primary interaction**: was `0.15 × σ_between`. Now **`0.15 × σ_item`**, in logit
+  units per SD of `|diff|`, reported with its raw-logit equivalent per model. This preserves the
+  original "a fraction of the between-item scale" logic across the change of instrument.
+- `sesoi_raw_secondary` (0.25 raw rating points) is **retired**; it has no meaning on a logit scale.
+
+### A2.9.3 Conditions: a 2×2 on transcript structure × attribution
+
+The `chose`/`yoked` contrast confounds three things: an extra user turn, an assistant turn with role
+markers, and the antecedent wording. Diffed on rendered prompts, `chose` (144 tokens) against a
+single-turn version with a byte-identical antecedent (118 tokens), the difference is exactly:
+
+```
+-Which one would you choose for yourself? Reply with 1 or 2 only.<|im_end|>
+-<|im_start|>assistant
+-1<|im_end|>
+-<|im_start|>user
+```
+
+**A transformer retains no record of having produced a token.** Model-generated text fed back as
+context is processed identically to experimenter-supplied text. So this contrast isolates
+**role-attribution in the transcript**, not production. The term "authorship" is retired from the
+paper wherever it implies otherwise; the manipulation is transcript-structural.
+
+The four conditions therefore form a **fully crossed 2×2**:
+
+| | antecedent "You chose X over Y" | antecedent "X, rather than Y, assigned" |
+|---|---|---|
+| **assistant turn present** | `chose` (turn content = its choice) | `structure-control` (turn content = neutral) |
+| **assistant turn absent** | `self-recounted` | `yoked` |
+
+`structure-control` carries an assistant turn whose content is choice-irrelevant. **Without it a
+positive probe is uninterpretable**, because "an assistant turn is present" is trivially represented
+and a probe separating `chose` from `self-recounted` would likely read that.
+
+Plus `3p-yoked`, `3p-random`, `random` (unchanged), and **`chose-provisional`** — identical to
+`chose` but with the finality clause replaced. A finality clause is added to **all** conditions so
+receipt-matching is preserved and the reversibility contrast is one word-group. Commitment is a
+boundary condition for dissonance but not for self-perception (A2.8), which is the only behavioural
+leverage this paradigm affords.
+
+**Eight conditions. 20,000 passes per model** (pre 2,000 + choice 2,000 + post 16,000), 100,000
+across five.
+
+### A2.9.4 Deliberation arm
+
+A single-token forced readout confounds a null H1 with the readout itself: a null cannot distinguish
+"no effect" from "an effect requiring deliberation the design forbids." **This is the only
+configuration in which a null H1 is publishable**, so it is preregistered rather than optional.
+
+Hard constraint 1 is unchanged and not weakened: **generation is permitted in context construction,
+never in measurement.** The choice write-back already works this way. The arm generates a reasoning
+span, appends it, and the DV is still read from one forward pass at one token position.
+
+Bounded for cost: `chose` and `yoked` only, difficult pairs only, one template, 64 generated tokens.
+100 pairs × 1 template × 2 orders × 2 conditions = 400 trials ≈ **25,600 generation steps + 800
+readouts** per model. Reported as a secondary arm; a null in the main design is interpreted only in
+light of it.
+
+### A2.9.5 Inconclusive branch, costed
+
+If the primary HDI overlaps both 0 and the SESOI, §8 resolves it by scaling items first. Cost, stated
+now so it is not discovered later: 400 → 800 items **doubles pairwise Pass A** (40,000 → 80,000
+comparisons per model) and doubles Pass B's candidate pool. Measured throughput is **8.1 passes/s**
+for the 0.5B on the development machine, so this is an overnight run per model on the run machine,
+not an afternoon — roughly one additional week including re-authoring 400 items to the same
+no-factual-content standard.
+
+### A2.9.6 Activation cache
+
+Last-token hidden states across all layers are written during Pass C so Stage 1 does not require
+re-running it. Sized against real configs (bf16, layers + 1):
+
+| model | KB/pass | post only (16k) | all (20k) |
+|---|---|---|---|
+| qwen2.5-0.5b | 44 | 0.72 GB | 0.90 GB |
+| qwen2.5-1.5b | 87 | 1.43 | 1.78 |
+| qwen2.5-3b | 148 | 2.42 | 3.03 |
+| gemma-2-2b | 122 | 1.99 | 2.49 |
+| llama-3.2-3b | 174 | 2.85 | 3.56 |
+| **total** | | **9.41 GB** | **11.76 GB** |
+
+Tensors are written as safetensors per §12, with a **row-aligned sidecar parquet carrying the
+provenance columns** — without it activation artifacts sit outside `assert_poolable` entirely. Cache
+scope is decided by the run machine's storage, not the reverse; activations are write-once and can
+be moved off the box after collection.
+
+### A2.9.7 Stage 1 checkpoint criteria, both directions
+
+Fixed before any activations exist.
+
+**Publish Stage 0 alone if** a linear probe is at chance on all layers in every model that cleared
+the reliability gate, **and** a positive-control probe on the same activations succeeds — the
+designated item's identity, which must be represented. Without that control a null probe is
+indistinguishable from a broken pipeline.
+
+**A positive probe result counts only if it** (a) survives the `structure-control` condition, i.e.
+separates `chose` from `structure-control` and not merely turn-present from turn-absent;
+(b) generalises to held-out items; and (c) generalises across templates. All three, specified now.
+
 ## A2.5 Unchanged
 
 Everything in A1.8 stands, minus the retired A1.4 gate. In particular: the spread DV structure, the
