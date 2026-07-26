@@ -150,6 +150,34 @@ def fit_bradley_terry(
     )
 
 
+def convergence(cfg: RunConfig, idata: az.InferenceData) -> pd.DataFrame:
+    """R-hat and ESS for the BT parameters.
+
+    Divergences and posterior SD alone are not enough: a fit can report zero
+    divergences and a tidy posterior while chains disagree. Reported for every fit,
+    and failures are reported rather than silently re-tuned.
+    """
+    summ = az.summary(idata, var_names=["theta", "alpha", "sigma_item"])
+    summ["rhat_ok"] = summ["r_hat"] <= cfg.analysis.rhat_max
+    summ["ess_ok"] = summ["ess_bulk"] >= cfg.analysis.ess_min
+    return summ
+
+
+def convergence_summary(cfg: RunConfig, idata: az.InferenceData) -> str:
+    conv = convergence(cfg, idata)
+    bad = conv[~(conv["rhat_ok"] & conv["ess_ok"])]
+    n_div = int(idata.sample_stats["diverging"].sum()) if "diverging" in idata.sample_stats else -1
+    line = (
+        f"convergence: max R-hat {conv['r_hat'].max():.4f} (limit {cfg.analysis.rhat_max}), "
+        f"min ESS {conv['ess_bulk'].min():.0f} (limit {cfg.analysis.ess_min}), "
+        f"divergences {n_div}, {len(bad)} parameter(s) failing"
+    )
+    if len(bad):
+        worst = bad.sort_values("r_hat", ascending=False).head(5)
+        line += "\n" + worst[["r_hat", "ess_bulk"]].to_string()
+    return line
+
+
 def test_retest(
     cfg: RunConfig,
     comparisons: pd.DataFrame,

@@ -20,7 +20,9 @@ from pathlib import Path
 import numpy as np
 import pandas as pd
 
-from src.analysis.bradley_terry import anchor_ordering_check, fit_bradley_terry, test_retest
+from src.analysis.bradley_terry import (
+    anchor_ordering_check, convergence_summary, fit_bradley_terry, test_retest,
+)
 from src.config import RunConfig, load_config
 from src.provenance import Provenance, capture, read_parquet, write_parquet
 from src.readout import validity
@@ -195,7 +197,13 @@ def run(cfg: RunConfig, *, progressbar: bool = True) -> int:
     mass = validity.summarize(comparisons, by=["arm"])
     print("\nreadout mass (A1.6):")
     print(mass.to_string(index=False))
+    # Per template as well: a prompt bug shows up here long before it reaches a
+    # posterior, and it is invisible in the pooled figure.
+    per_t = validity.summarize(comparisons, by=["arm", "template"])
+    print("\nreadout mass by template:")
+    print(per_t.to_string(index=False))
     results["readout_mass"] = mass.to_dict("records")
+    results["readout_mass_by_template"] = per_t.to_dict("records")
 
     # ---- gate BEFORE fitting -------------------------------------------
     _echo("Order-invariance gate (A1.4)")
@@ -227,6 +235,7 @@ def run(cfg: RunConfig, *, progressbar: bool = True) -> int:
     _echo("Hierarchical Bradley-Terry (A1.1)")
     fit = fit_bradley_terry(cfg, comparisons, arm="digits", progressbar=progressbar)
     print(fit.summary())
+    print(convergence_summary(cfg, fit.idata))
 
     fit.theta.to_parquet(out_dir / f"theta_{cfg.hash('pass_a')}.parquet", index=False)
     results["theta"] = {
