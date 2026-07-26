@@ -173,36 +173,23 @@ def run(cfg: RunConfig, *, stop_after: str | None = None, progressbar: bool = Tr
     results["order_invariance_reported"] = inv.to_dict("records")
 
     _echo("Bradley-Terry with per-template order term (A2.1)")
-    fit = fit_bradley_terry(cfg, comparisons, arm="digits", progressbar=progressbar)
-    print(fit.summary())
-    print(convergence_summary(cfg, fit.idata))
-    print("\nposition bias by template (beta):")
-    print(fit.beta.round(3).to_string(index=False))
-    print("\nanchor abilities (intended tier is a design annotation, never shown):")
-    print(anchor_ordering_check(fit, load_anchors(cfg)).to_string(index=False))
-
-    ex = excess_consistency_slope(comparisons, fit)
-    null = excess_slope_ppc_null(cfg, comparisons, fit)
-    z = ((ex["slope"] - null["null_mean"]) / null["null_sd"]) if null["null_sd"] > 0 else float("nan")
-    print(f"\nfit quality (A2.1): slope {ex['slope']:+.4f} "
-          f"[{ex['ci_low']:+.4f}, {ex['ci_high']:+.4f}] vs null "
-          f"{null['null_mean']:+.4f} (sd {null['null_sd']:.4f}) -> {z:+.2f} sd")
-    results["beta"] = fit.beta.to_dict("records")
-    results["excess_consistency_slope"] = {**ex, **null, "z_vs_null": z}
+    instrument = _instrument_fit(cfg, comparisons, progressbar=progressbar)
+    results["beta"] = instrument["beta"]
+    results["excess_consistency_slope"] = instrument["excess_consistency_slope"]
 
     # ---- the only gate ---------------------------------------------------
     _echo("Reliability gate (A2.2) -- the sole exclusion criterion")
-    gate = stage_pw.evaluate_reliability_gate(cfg, comparisons, load_templates(cfg))
+    gate = instrument["reliability_gate"]
     print(f"empirical split-half of theta, {gate['split_a']} vs {gate['split_b']}: "
           f"Spearman {gate['empirical_reliability_spearman']:.3f} "
           f"(threshold {gate['threshold']})")
-    print(f"model-internal reliability {fit.model_reliability:.3f} -- reported for "
+    print(f"model-internal reliability {gate['model_reliability']:.3f} -- reported for "
           "comparison; using it here would admit models whose item rankings do not "
           "reproduce across paraphrases")
     print(f"  ->  {'PASS' if gate['passed'] else 'HALT'}")
     for r in gate["reasons"]:
         print(f"  - {r}")
-    results["reliability_gate"] = {**gate, "model_reliability": fit.model_reliability}
+    results["reliability_gate"] = gate
 
     if not gate["passed"]:
         return _finish(out_dir, cfg, results, "halted-reliability", HALT)
@@ -288,6 +275,76 @@ def run(cfg: RunConfig, *, stop_after: str | None = None, progressbar: bool = Tr
     results["structure_factor_agreement"] = agree
     results["primary"] = primary.to_dict("records")[0] if len(primary) else {}
     return _finish(out_dir, cfg, results, f"primary-{decision}")
+
+
+#: Modules whose source determines the instrument numbers. Their contents are digested
+#: into the cache key, because the config hash covers PARAMETERS and these fits depend on
+#: the model SPECIFICATION too. Editing the likelihood must invalidate the cache; a config
+#: hash alone would happily serve a fit from a prior version of the model.
+_INSTRUMENT_SOURCES = ("src/analysis/bradley_terry.py", "src/experiments/pass_a_pairwise.py")
+
+
+def _instrument_fit(cfg: RunConfig, comparisons: pd.DataFrame, *, progressbar: bool) -> dict:
+    """Fit the instrument and evaluate the gate, cached.
+
+    This block is 27 Bayesian fits at production sampling -- one Bradley-Terry fit, the
+    24 replicates of its posterior-predictive null, and the two reliability halves. On
+    400 items that is 1.5-3 hours on ANY machine, because it is CPU-bound MCMC and not
+    GPU work. It is also a pure function of the cached comparisons plus the pass_a
+    parameters, so re-running it on every invocation was pure waste: a Pass C run would
+    pay three hours to re-derive numbers it had already written down.
+
+    Caching a FIT is more dangerous than caching forward passes, which are deterministic
+    given model and prompt. So the key carries a digest of the fitting code as well.
+    """
+    import hashlib
+
+    root = Path(__file__).resolve().parents[2]
+    src_digest = hashlib.sha256()
+    for rel in _INSTRUMENT_SOURCES:
+        src_digest.update((root / rel).read_bytes())
+    key = f"{cfg.hash('pass_a')}-{src_digest.hexdigest()[:8]}"
+    path = cfg.artifacts_dir / "instrument_fit" / cfg.model.name / key / f"fit_{key}.json"
+
+    if path.exists():
+        rec = json.loads(path.read_text(encoding="utf-8"))
+        print(f"cached: {path}")
+        print(rec["printed"])
+        return rec
+
+    fit = fit_bradley_terry(cfg, comparisons, arm="digits", progressbar=progressbar)
+    ex = excess_consistency_slope(comparisons, fit)
+    null = excess_slope_ppc_null(cfg, comparisons, fit)
+    z = ((ex["slope"] - null["null_mean"]) / null["null_sd"]) if null["null_sd"] > 0 else float("nan")
+    gate = stage_pw.evaluate_reliability_gate(cfg, comparisons, load_templates(cfg))
+
+    printed = "\n".join([
+        fit.summary(),
+        str(convergence_summary(cfg, fit.idata)),
+        "\nposition bias by template (beta):",
+        fit.beta.round(3).to_string(index=False),
+        "\nanchor abilities (intended tier is a design annotation, never shown):",
+        anchor_ordering_check(fit, load_anchors(cfg)).to_string(index=False),
+        f"\nfit quality (A2.1): slope {ex['slope']:+.4f} "
+        f"[{ex['ci_low']:+.4f}, {ex['ci_high']:+.4f}] vs null "
+        f"{null['null_mean']:+.4f} (sd {null['null_sd']:.4f}) -> {z:+.2f} sd",
+    ])
+    print(printed)
+
+    rec = {
+        "beta": fit.beta.to_dict("records"),
+        "excess_consistency_slope": {**ex, **null, "z_vs_null": z},
+        "reliability_gate": {**gate, "model_reliability": fit.model_reliability},
+        "printed": printed,
+        "cache_key": key,
+        "ppc_null_replicates": cfg.analysis.ppc_null_replicates,
+        "sampling": {"chains": cfg.analysis.chains, "tune": cfg.analysis.tune,
+                     "draws": cfg.analysis.draws},
+    }
+    path.parent.mkdir(parents=True, exist_ok=True)
+    path.write_text(json.dumps(rec, indent=2, default=str), encoding="utf-8")
+    print(f"\nwrote: {path}")
+    return rec
 
 
 def _finish(out_dir: Path, cfg: RunConfig, results: dict, outcome: str, code: int = 0) -> int:
