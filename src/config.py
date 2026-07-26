@@ -196,6 +196,13 @@ class AnalysisConfig(Frozen):
     chains: int = 4
     tune: int = 2000
     draws: int = 2000
+    #: Sampler processes. None = PyMC's default (one per chain). Set to 1 on
+    #: Windows, where PyMC's multiprocess path spawns fresh interpreters that
+    #: re-import scipy and can deadlock. Sequential sampling sidesteps it; the
+    #: numba backend makes sequential fast enough that this costs little.
+    #: Chains are seeded independently of process layout, so this does not change
+    #: the posterior -- verified in tests/test_sampler_backend.py.
+    sampler_cores: int | None = None
     hdi_prob: float = 0.95
     rhat_max: float = 1.01
     ess_min: int = 400

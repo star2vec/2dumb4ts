@@ -163,7 +163,7 @@ def fit(
 ) -> az.InferenceData:
     model = _build_model(cfg, design, with_item=with_item)
     with model:
-        idata = pm.sample(
+        kwargs = dict(
             draws=cfg.analysis.draws,
             tune=cfg.analysis.tune,
             chains=cfg.analysis.chains,
@@ -171,6 +171,9 @@ def fit(
             target_accept=0.9,
             progressbar=progressbar,
         )
+        if cfg.analysis.sampler_cores is not None:
+            kwargs["cores"] = cfg.analysis.sampler_cores
+        idata = pm.sample(**kwargs)
     return idata
 
 

@@ -109,7 +109,7 @@ def fit_bradley_terry(
             observed=wins,
         )
 
-        idata = pm.sample(
+        kwargs = dict(
             draws=cfg.analysis.draws,
             tune=cfg.analysis.tune,
             chains=cfg.analysis.chains,
@@ -117,6 +117,9 @@ def fit_bradley_terry(
             target_accept=0.9,
             progressbar=progressbar,
         )
+        if cfg.analysis.sampler_cores is not None:
+            kwargs["cores"] = cfg.analysis.sampler_cores
+        idata = pm.sample(**kwargs)
 
     post = idata.posterior
     th = post["theta"].stack(sample=("chain", "draw"))

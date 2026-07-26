@@ -49,6 +49,12 @@ class Provenance(BaseModel):
     attn_implementation: str
     torch_version: str
     transformers_version: str
+    #: Analysis stack. The PyTensor backend changes how the sampler is compiled,
+    #: which changes the draws (not the posterior), so it must not be an untracked
+    #: variable in a project that records everything else.
+    pymc_version: str
+    pytensor_version: str
+    pytensor_mode: str
     model_name: str
     model_hf_id: str
     model_revision: str
@@ -152,6 +158,34 @@ def git_state() -> tuple[str, bool]:
 # capture
 
 
+def _analysis_stack() -> dict:
+    """PyMC/PyTensor versions and the active compilation backend.
+
+    `pytensor_mode` reflects PYTENSOR_FLAGS, which is set at the environment level
+    rather than in code -- the exact kind of variable that goes unrecorded and then
+    cannot be reconstructed when someone asks how a posterior was produced.
+    """
+    import os
+
+    out = {"pymc_version": "absent", "pytensor_version": "absent"}
+    try:
+        import pymc
+
+        out["pymc_version"] = pymc.__version__
+    except Exception:  # noqa: BLE001
+        pass
+    try:
+        import pytensor
+
+        out["pytensor_version"] = pytensor.__version__
+        mode = pytensor.config.mode
+    except Exception:  # noqa: BLE001
+        mode = "unknown"
+    flags = os.environ.get("PYTENSOR_FLAGS", "")
+    out["pytensor_mode"] = f"{mode}|PYTENSOR_FLAGS={flags}" if flags else str(mode)
+    return out
+
+
 def capture(cfg: RunConfig, device: str | None = None) -> Provenance:
     import transformers
 
@@ -166,6 +200,7 @@ def capture(cfg: RunConfig, device: str | None = None) -> Provenance:
         attn_implementation=cfg.model.attn_implementation,
         torch_version=torch.__version__,
         transformers_version=transformers.__version__,
+        **_analysis_stack(),
         model_name=cfg.model.name,
         model_hf_id=cfg.model.hf_id,
         model_revision=revision,
