@@ -248,3 +248,67 @@ def test_primary_contrast_conditions_are_required():
 def test_resolve_revision_passes_through_a_sha():
     sha = "a" * 40
     assert resolve_revision("some/model", sha) == (sha, True)
+
+
+def test_pass_c_wording_edits_do_not_invalidate_pass_a(tmp_path):
+    """A Pass C template edit must not orphan Pass A's forward passes.
+
+    The first stimulus digest hashed templates.yaml whole, so adding the Pass C fields
+    Amendment 2 requires moved the pass_a hash and orphaned 40,000 cached comparisons per
+    model against Pass A prompts that were byte-for-byte unchanged. Caught by the run
+    machine before it burned the passes.
+
+    Hashes are captured BEFORE the edit: `hash()` re-reads the stimulus files on every
+    call, so comparing a live config against itself after an edit compares the new value
+    to the new value and passes vacuously.
+    """
+    import yaml
+
+    from src.config import load_config
+
+    cfg = load_config("configs/stage0_qwen2.5-0.5b.yaml")
+    before = {s: cfg.hash(s) for s in ("pass_a", "pass_b", "pass_c")}
+    tp = cfg.resolve(cfg.stimuli.templates_path)
+    original = tp.read_bytes()
+
+    def rehash(mutate):
+        loaded = yaml.safe_load(tp.read_text())
+        rows = loaded["templates"] if isinstance(loaded, dict) else loaded
+        mutate(rows)
+        tp.write_text(yaml.safe_dump(loaded if isinstance(loaded, dict) else rows))
+        c = load_config("configs/stage0_qwen2.5-0.5b.yaml")
+        return {s: c.hash(s) for s in ("pass_a", "pass_b", "pass_c")}
+
+    try:
+        after = rehash(lambda r: r[0].update(receipt="DIFFERENT", provisional="ALSO DIFFERENT"))
+        assert after["pass_a"] == before["pass_a"], "Pass C edit moved the pass_a hash"
+        assert after["pass_b"] == before["pass_b"], "Pass C edit moved the pass_b hash"
+        assert after["pass_c"] != before["pass_c"], "Pass C edit must move the pass_c hash"
+
+        # ...and the R1 guard still fires for Pass A wording, which is the whole point of
+        # having a stimulus digest at all.
+        tp.write_bytes(original)
+        after = rehash(lambda r: r[0]["rating"].update(ascending="DIFFERENT PROMPT"))
+        assert after["pass_a"] != before["pass_a"], "R1 guard broken: Pass A edit ignored"
+        assert after["pass_c"] != before["pass_c"], "a Pass A edit must reach Pass C too"
+    finally:
+        tp.write_bytes(original)
+
+
+def test_stimulus_digest_ignores_formatting_but_not_content():
+    """Comments and whitespace never reach the model, so they must not invalidate a cache.
+
+    The scoped digest canonicalises the projected fields as JSON instead of hashing raw
+    bytes, which is what makes this true for Pass A. Pass C still hashes whole bytes.
+    """
+    from src.config import load_config
+
+    cfg = load_config("configs/stage0_qwen2.5-0.5b.yaml")
+    tp = cfg.resolve(cfg.stimuli.templates_path)
+    original = tp.read_bytes()
+    before = cfg.hash("pass_a")
+    try:
+        tp.write_bytes(b"# a new comment that no model will ever see\n" + original)
+        assert load_config("configs/stage0_qwen2.5-0.5b.yaml").hash("pass_a") == before
+    finally:
+        tp.write_bytes(original)

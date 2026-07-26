@@ -363,9 +363,18 @@ def main(argv: list[str] | None = None) -> int:
     ap.add_argument("--artifacts", default=None)
     ap.add_argument("--stop-after", choices=STAGES[:-1], default=None)
     ap.add_argument("--no-progress", action="store_true")
+    # The run machine has to force cores=1 or PyMC's multiprocessing deadlocks on the
+    # Windows spawn start method. It was doing that by wrapping run.py in a launcher,
+    # because there was no hook -- and patching code in place on the run machine is
+    # forbidden (it dirties the tree, which assert_reportable rejects). So: a flag.
+    ap.add_argument("--sampler-cores", type=int, default=None,
+                    help="force PyMC cores (use 1 on Windows to avoid a spawn deadlock)")
     args = ap.parse_args(argv)
 
     cfg = load_config(args.config, {"artifacts_dir": args.artifacts} if args.artifacts else None)
+    if args.sampler_cores is not None:
+        cfg = cfg.model_copy(update={"analysis": cfg.analysis.model_copy(
+            update={"sampler_cores": args.sampler_cores})})
     return run(cfg, stop_after=args.stop_after, progressbar=not args.no_progress)
 
 

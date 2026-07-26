@@ -53,6 +53,17 @@ POLARITIES: tuple[str, ...] = ("ascending", "descending")
 # exactly these, so tuning a gate threshold or a prior re-runs the analysis without
 # invalidating tens of thousands of cached forward passes. `analysis` is absent,
 # which means the full config -- everything reaches it.
+#: Which template fields each stage's prompts are built from. Pass A uses `rating`
+#: (absolute) and `pair_prefix` (pairwise); everything else -- choice, antecedent,
+#: receipt, prefer, confirm, finality, provisional -- is Pass C wording. `None` means
+#: every field, which is what Pass C gets. Pass B derives its pairs from theta and runs
+#: no prompts of its own, so it inherits Pass A's scope.
+_STAGE_TEMPLATE_FIELDS: dict[str, tuple[str, ...] | None] = {
+    "pass_a": ("id", "rating", "pair_prefix"),
+    "pass_b": ("id", "rating", "pair_prefix"),
+    "pass_c": None,
+}
+
 _PASS_A_FIELDS = (
     "model",
     "readout",
@@ -276,24 +287,52 @@ class RunConfig(Frozen):
     def n_easy(self) -> int:
         return self.smoke_pairs_per_level if self.smoke else self.pass_b.n_easy
 
-    def stimuli_digest(self) -> str:
-        """Digest of the actual stimulus FILE CONTENTS, not just their paths.
+    def stimuli_digest(self, stage: str | None = None) -> str:
+        """Digest of the actual stimulus FILE CONTENTS, scoped to a stage.
 
         Without this, editing items.yaml, templates.yaml or anchors.yaml leaves
         every hash unchanged, so cached artifacts are silently reused against
         different prompts. That is the worst class of reproducibility bug: it
         produces no error and no warning, just numbers attributed to stimuli that
         did not generate them. Discovered after a template wording fix changed no
-        hash at all.
+        hash at all (retraction R1).
+
+        SCOPED PER STAGE, for the same reason the config hash is. The first version
+        hashed templates.yaml whole, so adding the Pass C fields that Amendment 2
+        requires -- `prefer`, `confirm`, `finality`, `provisional` -- moved the
+        pass_a hash and orphaned 40,000 cached comparisons per model against Pass A
+        prompts that were byte-for-byte unchanged. Found by the run machine before it
+        burned the passes, not after.
+
+        This does not weaken the R1 guard, it sharpens it: editing a Pass A prompt
+        still invalidates Pass A, and editing a Pass C prompt still invalidates
+        Pass C. What stops happening is a Pass C edit invalidating Pass A.
+
+        Templates are projected onto the stage's fields and canonicalised as JSON
+        rather than hashed as raw bytes, so reformatting and comment edits -- which
+        never reach the model -- no longer invalidate anything either.
         """
-        parts = []
-        for rel in (
-            self.stimuli.items_path,
-            self.stimuli.templates_path,
-            Path("src/stimuli/anchors.yaml"),
-        ):
-            p = self.resolve(rel)
-            parts.append(p.read_bytes() if p.exists() else b"")
+        fields = _STAGE_TEMPLATE_FIELDS.get(stage) if stage else None
+        parts: list[bytes] = []
+
+        items = self.resolve(self.stimuli.items_path)
+        parts.append(items.read_bytes() if items.exists() else b"")
+
+        tmpl = self.resolve(self.stimuli.templates_path)
+        if not tmpl.exists():
+            parts.append(b"")
+        elif fields is None:
+            parts.append(tmpl.read_bytes())
+        else:
+            loaded = yaml.safe_load(tmpl.read_text()) or []
+            rows = loaded["templates"] if isinstance(loaded, dict) else loaded
+            projected = [{k: t.get(k) for k in fields} for t in rows]
+            parts.append(json.dumps(projected, sort_keys=True,
+                                    separators=(",", ":")).encode())
+
+        anchors = self.resolve(Path("src/stimuli/anchors.yaml"))
+        parts.append(anchors.read_bytes() if anchors.exists() else b"")
+
         return hashlib.sha256(b"\x00".join(parts)).hexdigest()[:12]
 
     def hash(self, stage: str | None = None) -> str:
@@ -312,8 +351,10 @@ class RunConfig(Frozen):
         fields = STAGE_HASH_FIELDS.get(stage) if stage else None
         if fields:
             payload = {k: payload[k] for k in fields}
-        # Stimulus content reaches every stage that runs a forward pass.
-        payload["_stimuli_digest"] = self.stimuli_digest()
+        # Stimulus content reaches every stage that runs a forward pass, scoped the
+        # same way the parameters are: a Pass C wording change must not invalidate
+        # Pass A's forward passes.
+        payload["_stimuli_digest"] = self.stimuli_digest(stage)
         canonical = json.dumps(payload, sort_keys=True, separators=(",", ":"))
         return hashlib.sha256(canonical.encode()).hexdigest()[:12]
 
