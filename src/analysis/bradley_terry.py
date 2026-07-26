@@ -332,7 +332,7 @@ def excess_consistency_slope(
 
 
 def excess_slope_ppc_null(
-    cfg: RunConfig, comparisons: pd.DataFrame, fit: BTFit, *, n_rep: int = 8,
+    cfg: RunConfig, comparisons: pd.DataFrame, fit: BTFit, *, n_rep: int = 24,
     arm: str = "digits", seed: int = 100,
 ) -> dict:
     """Posterior-predictive null for the excess-consistency slope.
@@ -342,8 +342,18 @@ def excess_slope_ppc_null(
     Whatever bias the plug-in prediction induces is then present in the null too, so
     the comparison isolates genuine misspecification.
 
-    Using a generic simulated design instead gives the wrong null: a 48x10 design with
-    no missingness reads +0.0109, while Gemma's actual design reads +0.0044.
+    WHY THE NULL MUST BE SIMULATED RATHER THAN DERIVED. The observed statistic and the
+    null both route through the same path -- posterior means plugged into a nonlinear
+    consistency function -- so the Jensen bias that inflates the statistic is
+    COMMON-MODE and cancels in the comparison. That is the property that makes this
+    null valid, and it is why the plug-in bias must NOT be "fixed" in
+    excess_consistency_slope: correcting the observed statistic while comparing it
+    against a null that still carries the bias would break the cancellation and
+    manufacture a discrepancy. The bias is deliberate here. If it is ever removed,
+    every stored null must be regenerated in the same change.
+
+    n_rep defaults to 24: at 8 replicates the null sd carries ~25% relative
+    uncertainty and "0 of 8" is only a one-sided bound of ~0.11.
     """
     block = comparisons[(comparisons["arm"] == arm) & comparisons["readout_valid"]].copy()
     th = dict(zip(fit.theta["item_id"], fit.theta["theta_mean"]))

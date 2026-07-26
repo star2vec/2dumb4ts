@@ -915,8 +915,23 @@ nonlinear quantity biases the statistic even under correct specification (Gemma'
 gives a null of +0.0044, sd 0.0025). Comparing against zero, as an earlier draft of A2.1
 did, would report a correctly specified model as broken.
 
-**Current value.** Observed **+0.0202**, null **+0.0044 (sd 0.0025)**, i.e. **+6.2 sd**,
-with 0 of 8 replicates at or above observed. Misspecification is real.
+**Why the null is simulated rather than derived.** The observed statistic and the null both plug
+posterior means into a nonlinear consistency function, so the Jensen bias is **common-mode and
+cancels**. That is precisely what makes the comparison valid — and it is why the plug-in bias must
+not be "corrected" in the statistic while the null still carries it. If that bias is ever removed,
+every stored null must be regenerated in the same change.
+
+**Current value.** Observed **+0.0202** [+0.0111, +0.0285]; null **+0.0038 (sd 0.0036)** over
+**24** replicates, 95% range [−0.0017, +0.0103]; 0 of 24 at or above observed. That is **+4.5 sd**.
+Misspecification is real.
+
+**The two nulls reconciled.** An earlier control reported +0.0109 [+0.0019, +0.0199] and appeared to
+disagree with the posterior-predictive null by 2.5×. It did not: that figure was a **single
+simulated replicate** whose bootstrap interval describes resampling within that one dataset, not the
+replicate-to-replicate distribution of the statistic. Rebuilt properly, the harnesses agree —
+generic parameters with a complete design give +0.0039 (sd 0.0023), fitted parameters with a
+complete design +0.0061 (sd 0.0039), and the real cells with real missingness +0.0038 (sd 0.0036).
+The null is ~+0.004 regardless of design detail, so the verdict holds under either harness.
 
 **Candidates already eliminated, by evidence rather than by preference:**
 
@@ -931,15 +946,24 @@ with 0 of 8 replicates at or above observed. Misspecification is real.
 1. If the t3 re-collection brings the slope within **2 sd of its posterior-predictive
    null**, the residual is attributed to t3 contamination, no parameter is added, and the
    matter is closed.
-2. If a slope beyond 2 sd survives clean t3, the next candidate is **prior-induced
-   shrinkage of the θ and α scales**, not λ. The residual's sign — over-prediction at
-   narrow gaps, under-prediction at wide — is what a psychometric curve that is too
-   shallow produces, and the fitted α range (−3.28 to +4.98) is wide against its
-   `ZeroSumNormal(2)` prior. That is tested by loosening the α prior and re-running the
-   same statistic.
-3. **λ is not revisited** unless a slope beyond 2 sd survives both clean t3 *and* the
-   loosened prior. If it is ever fitted, it enters as a **declared robustness model
-   compared by LOO**, never as primary.
+2. ~~If a slope beyond 2 sd survives clean t3, the next candidate is prior-induced shrinkage of the
+   θ and α scales.~~ **TESTED AND ELIMINATED, 2026-07-26.** The fitted α spread (2.649) exceeds the
+   `ZeroSumNormal(2)` prior sd, which looked like active shrinkage — but that inference was wrong,
+   and the direct test says so. Loosening the α prior on the real data moves nothing: at σ = 2, 5
+   and 10 the α spread is 2.649 / 2.690 / 2.696, `σ_item` is 1.625 / 1.644 / 1.650, and the slope is
+   +0.0202 / +0.0190 / +0.0187. A mechanism screen agrees: data generated with a true α spread of
+   2.79 and fitted under the tight prior recovers 2.703 and yields a slope of +0.0064
+   [−0.0032, +0.0167], inside the null. A prior can only bind if the likelihood is weak, and at this
+   data volume it is not. **Spread exceeding the prior sd is not evidence that the prior binds.**
+3. **λ is not revisited.** It was eliminated on a sign argument before either of the above, and
+   nothing since has revived it. If it were ever fitted it would enter as a **declared robustness
+   model compared by LOO**, never as primary.
+
+   **Status after both checks: every named candidate is eliminated except t3 contamination**, which
+   remains untested because it requires the re-collection. λ, a cell-level random effect, and prior
+   shrinkage are all ruled out on evidence. If clean t3 does not bring the slope within its null,
+   the residual is **documented as a limitation and not pursued further** — the time-box applies,
+   and nothing downstream consumes θ's absolute scale.
 4. If any step brings the slope within its null, remaining candidates are **dropped, not
    revisited**. No further parameters are added to chase a statistic that no longer fires.
 
