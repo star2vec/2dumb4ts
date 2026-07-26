@@ -934,8 +934,28 @@ not be "corrected" in the statistic while the null still carries it. If that bia
 every stored null must be regenerated in the same change.
 
 **Current value.** Observed **+0.0202** [+0.0111, +0.0285]; null **+0.0038 (sd 0.0036)** over
-**24** replicates, 95% range [−0.0017, +0.0103]; 0 of 24 at or above observed. That is **+4.5 sd**.
-Misspecification is real.
+**24** replicates, 95% range [−0.0017, +0.0103].
+
+**Corrected: +2.9 sd, not +4.5.** The earlier figure divided by the null sd alone, treating the
+observed statistic as fixed. The observed CI width of 0.0174 implies its own sd of 0.00444; combined
+with the null's 0.00360 that is 0.00572, so `(0.0202 − 0.0038)/0.00572 = 2.87`. Consistent with the
+intervals nearly touching (+0.0111 against +0.0103). Real and modest, not overwhelming. This is the
+same error family as the retractions in RETRACTIONS.md — a variance component left out of a
+comparison.
+
+**A statistical trigger was the wrong instrument here.** At n = 2002 the 2-sd trigger fires at a
+slope of ~0.0072, which corresponds to a consistency swing of about 0.03 across the whole gap range.
+At this sample size detecting *some* misspecification is close to guaranteed, so the trigger measures
+sample size as much as it measures model adequacy. It is replaced by a **decision-relevance**
+threshold: the smallest residual that would change a reported quantity.
+
+**Decision relevance of the observed residual.** A discrimination multiplier of g ≈ 1.6 is required
+to reproduce a slope of +0.0202. Under a *uniform* scale distortion, Pass B's difficult-decile
+membership is exactly **invariant** (overlap 1.000) because selection is quantile-based on `|Δθ|` and
+a monotone rescaling preserves the ordering. Under a *non-uniform* distortion of comparable
+magnitude, decile membership changes by **≤ 4%** (overlap 0.958 at b = 1.0 and b = 1.5). So the
+residual is statistically detectable and decision-irrelevant at the magnitude observed. **That is the
+basis for stopping**, and it is a stronger basis than a significance threshold.
 
 **The two nulls reconciled.** An earlier control reported +0.0109 [+0.0019, +0.0199] and appeared to
 disagree with the posterior-predictive null by 2.5×. It did not: that figure was a **single
@@ -970,6 +990,22 @@ The null is ~+0.004 regardless of design detail, so the verdict holds under eith
 3. **λ is not revisited.** It was eliminated on a sign argument before either of the above, and
    nothing since has revived it. If it were ever fitted it would enter as a **declared robustness
    model compared by LOO**, never as primary.
+
+3b. **Discrimination/scale mismatch — TESTED AND ELIMINATED.** Fitting a free discrimination
+   multiplier on the same comparisons with `θ` and `α` held fixed gives **g = 1.040, 95%
+   [0.981, 1.104]** — including 1.0. The residual is not a scale mismatch, which closes the last
+   structural explanation.
+
+3c. **A transfer-error explanation does not apply to this statistic.** It was proposed that the
+   residual arises because `θ` and `β` are fitted on item-vs-anchor comparisons while the window
+   predicts item-vs-item consistency — different tasks. Verified against the code: both
+   `excess_consistency_slope` and the in-pipeline `operating_window` pivot on
+   `["item_id", "anchor_id", "template"]`, i.e. they are computed on **item-vs-anchor comparisons
+   using anchor-fitted parameters**. There is no transfer, so transfer error cannot explain the
+   +0.0202. The concern *is* live for the separate stratified module in
+   `src/experiments/operating_window.py`, which does use anchor-fitted `θ` to predict genuine
+   item-vs-item comparisons; that is recorded as a caveat on that module and is testable whenever
+   fresh item-vs-item data exists.
 
    **RESOLVED for gemma-2-2b, 2026-07-26.** With t3 and t4 repaired and all five templates at zero
    invalid readouts, the full-scale (400-item) refit gives an excess slope of **−0.0009 — flat**,
