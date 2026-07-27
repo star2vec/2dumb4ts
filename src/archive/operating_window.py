@@ -1,3 +1,9 @@
+"""RETIRED. Not imported, not invoked, not tested. See src/archive/README.md.
+
+This module is kept only so the numbers it produced remain traceable to the code that
+produced them. Do not import it, do not run it, and do not quote its output.
+"""
+
 """Operating-window diagnostic, stratified on theta. preregistration.md A1.7.
 
     python -m src.experiments.operating_window --config configs/stage0_qwen2.5-3b.yaml

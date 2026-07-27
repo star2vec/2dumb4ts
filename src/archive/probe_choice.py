@@ -1,3 +1,9 @@
+"""RETIRED. Not imported, not invoked, not tested. See src/archive/README.md.
+
+This module is kept only so the numbers it produced remain traceable to the code that
+produced them. Do not import it, do not run it, and do not quote its output.
+"""
+
 """DIAGNOSTIC PROBE -- does the model's choice track content, or only position?
 
 Not part of the preregistered pipeline. It writes to its own artifact tree, reads

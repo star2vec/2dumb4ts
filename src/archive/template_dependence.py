@@ -1,3 +1,9 @@
+"""RETIRED. Not imported, not invoked, not tested. See src/archive/README.md.
+
+This module is kept only so the numbers it produced remain traceable to the code that
+produced them. Do not import it, do not run it, and do not quote its output.
+"""
+
 """Are template responses independent? preregistration.md A1.1 open question.
 
     python -m src.analysis.template_dependence --config configs/stage0_gemma-2-2b.yaml
