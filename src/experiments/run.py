@@ -45,6 +45,7 @@ from src.analysis.bradley_terry import (
     excess_consistency_slope,
     excess_slope_ppc_null,
     fit_bradley_terry,
+    predicted_split_half,
     theta_item_scores,
 )
 from src.analysis.reliability import evaluate_gates
@@ -184,9 +185,21 @@ def run(cfg: RunConfig, *, stop_after: str | None = None, progressbar: bool = Tr
     print(f"empirical split-half of theta, {gate['split_a']} vs {gate['split_b']}: "
           f"Spearman {gate['empirical_reliability_spearman']:.3f} "
           f"(threshold {gate['threshold']})")
-    print(f"model-internal reliability {gate['model_reliability']:.3f} -- reported for "
-          "comparison; using it here would admit models whose item rankings do not "
-          "reproduce across paraphrases")
+    # The full-data figure is NOT the comparator. It comes from a fit using all five
+    # templates; the empirical figure is between two SHORTER fits, each noisier, so the
+    # two differ even under perfect specification. `pass_a_pairwise.main()` printed the
+    # length-matched prediction and this path did not, so the run the numbers come from
+    # showed the misleading comparison. A2.4's recorded gap was computed this way.
+    na, nb = len(gate["split_a"]), len(gate["split_b"])
+    pred = predicted_split_half(gate["model_reliability"], na / (na + nb), nb / (na + nb))
+    print(f"model-internal reliability {gate['model_reliability']:.3f} (all templates) "
+          f"-- NOT the comparator; using it as the gate would admit models whose item "
+          "rankings do not reproduce across paraphrases")
+    print(f"length-matched prediction for a {na}/{nb} split = {pred:.3f}")
+    print(f"  shortfall vs THAT: "
+          f"{gate['empirical_reliability_spearman'] - pred:+.3f}  (A2.4's open discrepancy "
+          "is this number, not the shortfall against the full-data figure)")
+    gate["length_matched_prediction"] = pred
     print(f"  ->  {'PASS' if gate['passed'] else 'HALT'}")
     for r in gate["reasons"]:
         print(f"  - {r}")

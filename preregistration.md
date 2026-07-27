@@ -1660,6 +1660,49 @@ The ledger corrects one of our own counts. Withdrawals were being tallied as thr
 the original specification is not computed anywhere, and the module that replaced it exposes no
 function returning one. Calling that an amendment understates it.
 
+### A3.11 A2.4's discrepancy is measured against the wrong comparator
+
+A2.4 records the reliability discrepancy as **"empirical split-half 0.770 against a
+model-implied reliability of 0.957"**. Those two figures are not comparable, and
+`bradley_terry.predicted_split_half` exists to say so — its docstring states that comparing
+them directly "guarantees an apparent gap and would report every model as misspecified."
+
+Model reliability is fitted on **all five** templates. The empirical figure is the
+correlation between **two shorter fits**, on 3 and 2 templates, each carrying more error
+variance. With `r_full = σ²/(σ²+v)` and `k = 1/r_full − 1`, a half holding fraction `f` of
+the data has error variance `v/f`, so the length-matched prediction is
+
+```
+r_split = 1 / sqrt((1 + k/f_a) · (1 + k/f_b))
+```
+
+At `r_full = 0.957` on the 3/2 split this gives **0.9145**, not 0.957.
+
+| | comparator | shortfall |
+|---|---|---|
+| as recorded in A2.4 | 0.957 | **−0.187** |
+| length-matched (correct) | 0.9145 | **−0.145** |
+
+**A2.4 remains open.** The correction removes about 23% of the recorded gap and does not
+close it: 0.770 is still well below 0.9145. What changes is the magnitude, and it changes
+in the direction that had the instrument looking worse than it is. A2.4's leading candidate
+— t3's ~48% invalid readouts contaminating one half — is unaffected and still discriminated
+by the t3 re-collection.
+
+**Why it survived.** `pass_a_pairwise.main()` computed and printed the length-matched
+prediction, with the line "compare against THIS, not against the full-data figure".
+`run.py` — the path the reported numbers actually come from — did not. Two report paths for
+one quantity, and the amendment was written from the one that omitted the correction. Both
+now print it, and a test asserts both do.
+
+This is the R3/R4 class a third time: a statistic computed correctly and compared against
+the wrong null. It is recorded here rather than edited into A2.4, which is frozen.
+
+**Also fixed, same sweep.** `excess_slope_ppc_null` returned `NaN` for the whole null if any
+single replicate fell under the 20-cell floor, and `run.py` guards on `null_sd > 0`, which
+is `False` for `NaN` — so the misspecification diagnostic reported nothing at all, silently.
+Failed replicates are now dropped and counted, and losing more than half is an error.
+
 ### The standing rule this creates
 
 **An amendment that changes a number gets a test that reads the rule and asserts the config

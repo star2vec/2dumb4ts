@@ -438,9 +438,24 @@ def excess_slope_ppc_null(
         f2 = fit_bradley_terry(cfg, rep, arm=arm)
         slopes.append(excess_consistency_slope(rep, f2, arm=arm)["slope"])
     s = np.array(slopes, dtype=float)
-    return {"null_mean": float(s.mean()), "null_sd": float(s.std(ddof=1)),
-            "null_min": float(s.min()), "null_max": float(s.max()),
-            "n_replicates": int(n_rep), "slopes": s.tolist()}
+    # A replicate whose regenerated design falls under the 20-cell floor returns NaN, and
+    # one NaN turns mean and sd into NaN. run.py then guards on `null_sd > 0`, which is
+    # False for NaN, so the whole misspecification diagnostic silently reports nothing --
+    # the exact shape of failure this project keeps finding. Failures are dropped and
+    # COUNTED instead, and too many is an error rather than a quiet NaN.
+    ok = np.isfinite(s)
+    n_failed = int((~ok).sum())
+    if ok.sum() < max(2, n_rep // 2):
+        raise ValueError(
+            f"posterior-predictive null failed on {n_failed} of {n_rep} replicates; "
+            f"only {int(ok.sum())} produced a finite slope. The null is not estimable "
+            "on this design -- do not fall back to a NaN that reads as 'no signal'."
+        )
+    good = s[ok]
+    return {"null_mean": float(good.mean()), "null_sd": float(good.std(ddof=1)),
+            "null_min": float(good.min()), "null_max": float(good.max()),
+            "n_replicates": int(n_rep), "n_failed": n_failed,
+            "slopes": s.tolist()}
 
 
 def _sigmoid(z: np.ndarray) -> np.ndarray:
