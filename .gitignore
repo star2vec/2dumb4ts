@@ -11,3 +11,5 @@ dist/
 # Generated status and tracked result summaries are committed; artifacts are not.
 !results/
 !STATUS.md
+.coverage
+htmlcov/
