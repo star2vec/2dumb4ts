@@ -429,3 +429,39 @@ def test_smoke_flag_reaches_the_provenance_record():
     assert "smoke" in Provenance.model_fields
     src = (Path(__file__).resolve().parents[1] / "src" / "provenance.py").read_text()
     assert "smoke=cfg.smoke" in src, "capture() does not record the flag it checks"
+
+
+def test_the_analysis_stack_is_guarded_not_merely_recorded():
+    """`Provenance` records pymc/pytensor/python BECAUSE they change the numbers.
+
+    Its own docstring: the PyTensor backend "changes how the sampler is compiled, which
+    changes the draws (not the posterior), so it must not be an untracked variable in a
+    project that records everything else." It was recorded and then guarded by nothing.
+
+    `pytensor_mode` is the live case -- the run machine sets PYTENSOR_FLAGS=mode=NUMBA and
+    the development machine does not, so the two already differ. `python_version` is the
+    other: requires-python is ">=3.11" with no .python-version, so the machines run
+    different patch releases.
+    """
+    from src.provenance import POOL_ADVISORY_FIELDS, POOL_CRITICAL_FIELDS
+
+    guarded = set(POOL_CRITICAL_FIELDS) | set(POOL_ADVISORY_FIELDS)
+    for field in ("pymc_version", "pytensor_version", "pytensor_mode", "python_version"):
+        assert field in guarded, f"{field} is recorded but nothing checks it"
+
+
+@pytest.mark.parametrize("field", ["pymc_version", "pytensor_mode", "python_version"])
+def test_an_analysis_stack_difference_warns(field):
+    """Advisory, not fatal: the posterior is unchanged, the draws are not. A warning lets
+    the difference be recorded and proceeded with knowingly; silence does not."""
+    other = {"pymc_version": "5.29.0", "pytensor_mode": "NUMBA",
+             "python_version": "3.11.15"}[field]
+    with pytest.warns(UserWarning, match=field):
+        assert_poolable([_frame(_prov()), _frame(_prov(**{field: other}))])
+
+    # NEGATIVE CONTROL: identical stacks must NOT warn, or the check is noise.
+    import warnings
+
+    with warnings.catch_warnings():
+        warnings.simplefilter("error")
+        assert_poolable([_frame(_prov()), _frame(_prov())])

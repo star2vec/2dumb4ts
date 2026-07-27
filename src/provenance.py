@@ -33,7 +33,23 @@ PROV_PREFIX = "prov_"
 # Guarding on these is the whole point; a mismatch is an error, not a warning.
 POOL_CRITICAL_FIELDS = ("device", "dtype", "attn_implementation")
 # A mismatch here changes kernels and numerics but not the experiment; warn.
-POOL_ADVISORY_FIELDS = ("torch_version", "transformers_version", "model_revision")
+POOL_ADVISORY_FIELDS = (
+    "torch_version",
+    "transformers_version",
+    "model_revision",
+    # The analysis stack was RECORDED because it changes the numbers -- the Provenance
+    # docstring says the PyTensor backend "changes how the sampler is compiled, which
+    # changes the draws ... so it must not be an untracked variable in a project that
+    # records everything else" -- and then no guard looked at it. Tracked but unguarded.
+    # `pytensor_mode` is the live one: the run machine sets PYTENSOR_FLAGS=mode=NUMBA and
+    # the development machine does not, so the two already differ.
+    "pymc_version",
+    "pytensor_version",
+    "pytensor_mode",
+    # requires-python is ">=3.11" and no .python-version pins the interpreter, so the two
+    # machines run different patch releases (3.11.14 here, 3.11.15 there).
+    "python_version",
+)
 
 
 class ProvenanceError(RuntimeError):
