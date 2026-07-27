@@ -21,6 +21,7 @@ Selection is deterministic given the config: candidates are ordered by
 
 from __future__ import annotations
 
+import hashlib
 from dataclasses import dataclass
 from itertools import combinations
 from pathlib import Path
@@ -32,8 +33,37 @@ from src.config import RunConfig
 from src.provenance import Provenance, read_parquet, write_parquet
 
 
+#: Modules whose source determines Pass B's OUTPUT, digested into its artifact name.
+#:
+#: The config hash covers PARAMETERS. It does not cover the code that shapes the output, and
+#: Pass B was cached on the config hash alone -- so when 6c705fc added signed
+#: `theta_item1`/`theta_item2` columns, the pass_b hash did not move and a rebuild would
+#: have hit the stale artifact, silently reused it, and omitted the new columns. Worse, a
+#: forced rebuild would have written DIFFERENT content under the SAME hash, so one hash
+#: would name two artifacts -- the R1 silent-reuse hazard. Found by the run machine.
+#:
+#: This digests the whole file, so adding a pure diagnostic (as 97dee4b did) also
+#: invalidates. That over-invalidation is deliberate here: Pass B costs seconds and runs no
+#: forward passes, so a spurious rebuild is free, while missing a real output change is not.
+#: The instrument fit has the same coarseness at ~3.25 h/model on the run machine, which is
+#: why narrowing THAT key is an Amendment 4 item rather than a free win.
+_PASS_B_SOURCES = ("src/experiments/pass_b.py",)
+
+#: Columns Pass B must carry for the downstream analysis to be computable at all.
+_REQUIRED_COLUMNS = ("theta_item1", "theta_item2", "match_tolerance_realized", "sigma_item")
+
+
+def source_digest() -> str:
+    root = Path(__file__).resolve().parents[2]
+    h = hashlib.sha256()
+    for rel in _PASS_B_SOURCES:
+        h.update((root / rel).read_bytes())
+    return h.hexdigest()[:8]
+
+
 def artifact_path(cfg: RunConfig) -> Path:
-    return cfg.artifact_dir("pass_b") / f"pairs_{cfg.hash('pass_b')}.parquet"
+    return (cfg.artifact_dir("pass_b")
+            / f"pairs_{cfg.hash('pass_b')}-{source_digest()}.parquet")
 
 
 @dataclass(frozen=True)
@@ -312,9 +342,39 @@ def pair_diagnostics(pairs: pd.DataFrame) -> pd.DataFrame:
 
 
 def run_pass_b(cfg: RunConfig, scores: pd.DataFrame, prov: Provenance,
-               sigma_item: float) -> pd.DataFrame:
+               sigma_item: float, instrument_key: str | None = None) -> pd.DataFrame:
     pairs = build_pairs(cfg, scores, sigma_item)
+    # Pass B is a function of theta, which comes from the instrument fit -- keyed on the
+    # ESTIMATOR's source digest, which no pass_b input can see. Recorded so a Pass B
+    # derived from different theta cannot be reused under an unchanged pass_b identity.
+    pairs["instrument_cache_key"] = instrument_key or "unrecorded"
     return write_parquet(pairs, artifact_path(cfg), prov)
+
+
+def assert_reusable(cfg: RunConfig, pairs: pd.DataFrame, sigma_item: float,
+                    instrument_key: str | None = None) -> None:
+    """Every reason a cached Pass B might not be the one this run needs.
+
+    The source digest in the filename catches code changes. This catches the two things a
+    filename cannot: theta having moved underneath an unchanged pass_b.py, and an artifact
+    written before a required column existed.
+    """
+    assert_tolerance_matches(cfg, pairs, sigma_item)
+
+    missing = [c for c in _REQUIRED_COLUMNS if c not in pairs.columns]
+    if missing:
+        raise ValueError(
+            f"cached Pass B at {artifact_path(cfg)} lacks {missing}. It predates the "
+            "columns the analysis needs; delete it and rebuild."
+        )
+    if instrument_key is not None:
+        got = str(pairs["instrument_cache_key"].iloc[0])
+        if got != instrument_key:
+            raise ValueError(
+                f"cached Pass B was derived from instrument fit {got!r} but this run has "
+                f"{instrument_key!r}. Theta moved, so the pairs are not the ones this run "
+                f"would build. Delete {artifact_path(cfg)} and rebuild."
+            )
 
 
 def assert_tolerance_matches(cfg: RunConfig, pairs: pd.DataFrame, sigma_item: float) -> None:

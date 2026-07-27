@@ -465,3 +465,61 @@ def test_an_analysis_stack_difference_warns(field):
     with warnings.catch_warnings():
         warnings.simplefilter("error")
         assert_poolable([_frame(_prov()), _frame(_prov())])
+
+
+def test_the_pass_b_artifact_key_covers_the_code_that_shapes_its_output():
+    """One hash must not name two artifacts.
+
+    Pass B was cached on `cfg.hash("pass_b")` alone, with no source digest. When 6c705fc
+    added signed theta columns the config hash did not move, so a rebuild would have reused
+    the stale artifact and silently omitted them -- and a forced rebuild would have written
+    different content under the same hash. Found by the run machine, not by any test here.
+    """
+    from src.experiments import pass_b
+
+    cfg = load_config(CONFIGS[0])
+    path = pass_b.artifact_path(cfg)
+    digest = pass_b.source_digest()
+
+    assert digest in path.name, "the artifact name does not carry the source digest"
+    assert cfg.hash("pass_b") in path.name, "the config hash must still be in the key"
+    assert len(digest) == 8
+
+    # NEGATIVE CONTROL: the digest must actually track the file, not be a constant.
+    src = Path(__file__).resolve().parents[1] / "src" / "experiments" / "pass_b.py"
+    original = src.read_bytes()
+    try:
+        src.write_bytes(original + b"\n# a change that shapes nothing, but must be seen\n")
+        import importlib
+
+        importlib.reload(pass_b)
+        assert pass_b.source_digest() != digest, "the digest ignores the source"
+    finally:
+        src.write_bytes(original)
+        importlib.reload(pass_b)
+    assert pass_b.source_digest() == digest, "the digest did not restore"
+
+
+def test_a_pass_b_derived_from_different_theta_is_refused():
+    """The filename cannot see theta moving under an unchanged pass_b.py.
+
+    Pass B is a function of theta, which comes from the instrument fit -- keyed on the
+    ESTIMATOR's source digest, invisible to every pass_b input. So the derivation is
+    recorded in the artifact and checked on reuse.
+    """
+    from src.experiments import pass_b
+
+    cfg = load_config(CONFIGS[0])
+    good = pd.DataFrame({
+        "match_tolerance_realized": [cfg.pass_b.match_tolerance(1.573)] * 2,
+        "sigma_item": [1.573] * 2, "theta_item1": [0.4, -0.2],
+        "theta_item2": [0.1, 0.3], "instrument_cache_key": ["abc-12345678"] * 2,
+    })
+    pass_b.assert_reusable(cfg, good, 1.573, instrument_key="abc-12345678")
+
+    with pytest.raises(ValueError, match="Theta moved"):
+        pass_b.assert_reusable(cfg, good, 1.573, instrument_key="abc-99999999")
+
+    # ...and an artifact predating a required column must be refused, not reused.
+    with pytest.raises(ValueError, match="lacks"):
+        pass_b.assert_reusable(cfg, good.drop(columns=["theta_item1"]), 1.573)
