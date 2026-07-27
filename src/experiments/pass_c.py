@@ -249,8 +249,29 @@ def _validate(cfg: RunConfig, frame: pd.DataFrame) -> None:
                 "the primary contrast would not be designation-matched"
             )
 
+    # The random family must share one designation, or 3p-random - random is not an
+    # endorsement contrast. balanced_designation returns a single per-pair assignment
+    # serving both, so this asserts a property of the code rather than hoping for it.
+    rnd = frame[frame["condition"].isin({"random", "3p-random"} & set(cfg.pass_c.conditions))]
+    if rnd["condition"].nunique() > 1:
+        g = rnd.groupby(["pair_id", "template", "option_order"], observed=True)[
+            "designated_item_id"].nunique()
+        if (g != 1).any():
+            problems.append(
+                "random and 3p-random disagree on the designated item within a cell; "
+                "3p-random - random would confound endorsement with designation"
+            )
+
     if frame["designated_item_id"].isna().any():
         problems.append("null designated_item_id")
+    post = frame[frame["timepoint"] == "post"]
+    stray = post[~(
+        (post["designated_item_id"] == post["item1_id"])
+        | (post["designated_item_id"] == post["item2_id"])
+    )]
+    if len(stray):
+        problems.append(
+            f"{len(stray)} post row(s) designate an item that is not in the pair")
 
     if problems:
         raise RuntimeError("Pass C validation failures:\n  - " + "\n  - ".join(problems))

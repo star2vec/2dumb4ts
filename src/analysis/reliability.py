@@ -81,7 +81,13 @@ def validity_table(pass_a: pd.DataFrame, reversal_constant: int) -> pd.DataFrame
         ok = np.isfinite(asc) & np.isfinite(desc)
         # A constant vector makes Spearman undefined; that is a degenerate
         # instrument, reported as rho = 0 rather than NaN so the gate can act.
-        if ok.sum() < 3 or np.std(asc[ok]) == 0 or np.std(desc[ok]) == 0:
+        # Scale-relative, matching power.py and spread_model.prepare. A near-constant
+        # vector has sd of order 1e-22 rather than exactly 0, so `== 0` lets it through
+        # and Spearman returns NaN, which then propagates into median_rho. This path is
+        # inert (A1.5 gates nothing), so this is consistency rather than a fix.
+        a_sd, d_sd = float(np.std(asc[ok])), float(np.std(desc[ok]))
+        tiny = 1e-9 * max(1.0, abs(float(np.mean(asc[ok]))))
+        if ok.sum() < 3 or a_sd <= tiny or d_sd <= tiny:
             rho, p = 0.0, 1.0
         else:
             rho, p = stats.spearmanr(asc[ok], desc[ok])
