@@ -37,7 +37,6 @@ from src.stimuli.build import load_items, load_templates
 # test of |beta| rather than of content signal. Replaced by empirical split-half
 # reliability of theta, which is beta-free once beta is modelled and is the quantity
 # Pass B actually depends on.
-RELIABILITY_MIN = 0.70
 
 # Retained for reporting only -- never an exclusion criterion.
 ORDER_INVARIANCE_REPORTED_ONLY = True
@@ -81,19 +80,20 @@ def evaluate_reliability_gate(
     tr = test_retest(cfg, comparisons, split_a, split_b, arm="digits")
     empirical = tr["spearman"]
 
-    passed = empirical >= RELIABILITY_MIN
+    threshold = cfg.gates.reliability_min
+    passed = empirical >= threshold
     reasons: list[str] = []
     if not passed:
         reasons.append(
             f"EXCLUDED: empirical split-half reliability of theta "
-            f"(Spearman {empirical:.3f}) < {RELIABILITY_MIN}. Items cannot be ranked "
+            f"(Spearman {empirical:.3f}) < {threshold}. Items cannot be ranked "
             "well enough to select near-equal pairs or to detect movement."
         )
     return {
         "passed": passed,
         "empirical_reliability_spearman": empirical,
         "empirical_reliability_pearson": tr["pearson"],
-        "threshold": RELIABILITY_MIN,
+        "threshold": threshold,
         "split_a": split_a,
         "split_b": split_b,
         "reasons": reasons,

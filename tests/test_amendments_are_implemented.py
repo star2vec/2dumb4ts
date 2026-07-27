@@ -234,3 +234,29 @@ def test_the_ledger_covers_every_top_level_preregistered_section():
     frozen = {h for h in _headers() if re.fullmatch(r"\d+", h)}
     assert frozen, "no top-level frozen sections found -- the header parse is broken"
     assert not (frozen - cited), f"ledger omits frozen sections: {sorted(frozen - cited)}"
+
+
+@pytest.mark.parametrize("config", CONFIGS)
+def test_a2_2_reliability_threshold_lives_in_config_and_is_0_70(config):
+    """A2.2: the sole exclusion is empirical split-half Spearman of theta >= 0.70.
+
+    It was `RELIABILITY_MIN = 0.70`, a module constant in pass_a_pairwise.py -- so the one
+    threshold deciding which models enter the study sat outside the config, outside the
+    config hash, and outside this audit, which exists to catch exactly that.
+    """
+    cfg = load_config(config)
+    assert cfg.gates.reliability_min == 0.70
+
+    # It must be READ from config, not re-hardcoded next to it.
+    gate_src = (SRC / "experiments" / "pass_a_pairwise.py").read_text(encoding="utf-8")
+    assert "cfg.gates.reliability_min" in gate_src
+    assert "RELIABILITY_MIN" not in gate_src, "the module constant is back"
+
+    # NEGATIVE CONTROL: the threshold must be live, not decorative.
+    strict = cfg.model_copy(update={"gates": cfg.gates.model_copy(
+        update={"reliability_min": 0.99})})
+    assert strict.gates.reliability_min != cfg.gates.reliability_min
+    # ...and it must not touch any cached forward pass.
+    for stage in ("pass_a", "pass_b", "pass_c"):
+        assert strict.hash(stage) == cfg.hash(stage)
+    assert strict.hash() != cfg.hash(), "the run identity must record the gate threshold"

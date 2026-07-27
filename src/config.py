@@ -200,6 +200,15 @@ class GateConfig(Frozen):
     sigma_between_min: float = 0.5
     # Reliability: a tripwire for implementation faults, NOT a scientific halt.
     icc_tripwire: float = 0.4
+    #: A2.2's reliability gate -- **the sole exclusion criterion** for this design.
+    #: Empirical split-half Spearman of theta across the disjoint template sets of 4.4.
+    #:
+    #: It lived as `RELIABILITY_MIN = 0.70`, a module constant in pass_a_pairwise.py, so
+    #: the one threshold that decides which models enter the study sat outside the config,
+    #: outside the config hash, and outside the A3.9 amendment audit that exists to catch
+    #: exactly that. The value is unchanged; only its home is. `gates` is in no
+    #: forward-pass stage hash, so moving it orphans nothing.
+    reliability_min: float = 0.70
 
 
 class PassBConfig(Frozen):
