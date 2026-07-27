@@ -1,0 +1,217 @@
+WARNING (pytensor.configdefaults): g++ not available, if using conda: `conda install gxx`
+WARNING (pytensor.configdefaults): g++ not detected!  PyTensor will be unable to compile C-implementations and will default to Python. Performance may be severely degraded. To remove this warning, set PyTensor flags cxx to an empty string.
+
+========================================================================
+Stage 0  |  llama-3.2-3b-instruct  |  config d2ad0b4d4745
+========================================================================
+device=cuda (NVIDIA RTX 2000 Ada Generation Laptop GPU)  dtype=bfloat16
+revision=0cb88a4f764b7a12671c53f0838cd831a0843b95 pinned=True
+git=4ab08c06f0cb dirty=False  seed=20261025
+
+========================================================================
+Absolute Pass A -- instrument-validation record (A1.5). Gates nothing.
+========================================================================
+loading model ...
+Fetching 2 files:   0%|          | 0/2 [00:00<?, ?it/s]Fetching 2 files:  50%|#####     | 1/2 [02:24<02:24, 144.68s/it]Fetching 2 files: 100%|##########| 2/2 [02:24<00:00, 72.34s/it] 
+Loading weights:   0%|          | 0/254 [00:00<?, ?it/s]Loading weights: 100%|##########| 254/254 [00:00<00:00, 13753.41it/s]
+  device=cuda dtype=torch.bfloat16
+digit map (9 ids):
+  1: ids=[16] surfaces=["'1'"]
+  2: ids=[17] surfaces=["'2'"]
+  3: ids=[18] surfaces=["'3'"]
+  4: ids=[19] surfaces=["'4'"]
+  5: ids=[20] surfaces=["'5'"]
+  6: ids=[21] surfaces=["'6'"]
+  7: ids=[22] surfaces=["'7'"]
+  8: ids=[23] surfaces=["'8'"]
+  9: ids=[24] surfaces=["'9'"]
+label map (4 ids):
+  0: ids=[32, 362] surfaces=["' A'", "'A'"]
+  1: ids=[33, 426] surfaces=["' B'", "'B'"]
+pass A:   0%|          | 0/32 [00:00<?, ?chunk/s]pass A:   3%|3         | 1/32 [00:02<01:24,  2.71s/chunk]pass A:   6%|6         | 2/32 [00:05<01:15,  2.53s/chunk]pass A:   9%|9         | 3/32 [00:07<01:11,  2.45s/chunk]pass A:  12%|#2        | 4/32 [00:09<01:08,  2.45s/chunk]pass A:  16%|#5        | 5/32 [00:12<01:06,  2.45s/chunk]pass A:  19%|#8        | 6/32 [00:14<01:03,  2.44s/chunk]pass A:  22%|##1       | 7/32 [00:17<01:01,  2.45s/chunk]pass A:  25%|##5       | 8/32 [00:19<00:58,  2.44s/chunk]pass A:  28%|##8       | 9/32 [00:22<00:55,  2.41s/chunk]pass A:  31%|###1      | 10/32 [00:24<00:52,  2.39s/chunk]pass A:  34%|###4      | 11/32 [00:26<00:49,  2.37s/chunk]pass A:  38%|###7      | 12/32 [00:29<00:47,  2.38s/chunk]pass A:  41%|####      | 13/32 [00:31<00:45,  2.38s/chunk]pass A:  44%|####3     | 14/32 [00:33<00:42,  2.37s/chunk]pass A:  47%|####6     | 15/32 [00:36<00:40,  2.35s/chunk]pass A:  50%|#####     | 16/32 [00:38<00:37,  2.36s/chunk]pass A:  53%|#####3    | 17/32 [00:40<00:35,  2.35s/chunk]pass A:  56%|#####6    | 18/32 [00:43<00:32,  2.34s/chunk]pass A:  59%|#####9    | 19/32 [00:45<00:30,  2.33s/chunk]pass A:  62%|######2   | 20/32 [00:47<00:27,  2.33s/chunk]pass A:  66%|######5   | 21/32 [00:50<00:25,  2.34s/chunk]pass A:  69%|######8   | 22/32 [00:52<00:23,  2.35s/chunk]pass A:  72%|#######1  | 23/32 [00:54<00:21,  2.34s/chunk]pass A:  75%|#######5  | 24/32 [00:57<00:18,  2.34s/chunk]pass A:  78%|#######8  | 25/32 [00:59<00:16,  2.34s/chunk]pass A:  81%|########1 | 26/32 [01:01<00:13,  2.33s/chunk]pass A:  84%|########4 | 27/32 [01:04<00:11,  2.33s/chunk]pass A:  88%|########7 | 28/32 [01:06<00:09,  2.35s/chunk]pass A:  91%|######### | 29/32 [01:08<00:07,  2.34s/chunk]pass A:  94%|#########3| 30/32 [01:11<00:04,  2.34s/chunk]pass A:  97%|#########6| 31/32 [01:13<00:02,  2.34s/chunk]pass A: 100%|##########| 32/32 [01:14<00:00,  1.81s/chunk]                                                            READOUT MASS [pass A rating]: readout mass: median 0.9996, min 0.0737, 10/4000 below floor 0.5 (0.2%)
+wrote: artifacts\pass_a\llama-3.2-3b-instruct\d9cdda8294a2\ratings_d9cdda8294a2.parquet
+  median polarity rho = -0.922  (retired threshold was 0.6)
+  sigma_between: collapsed 0.163, ascending 0.630
+  ICC(C,1) ascending = 0.464
+  digit mass: median 0.9996, min 0.0737
+  -> fails the retired polarity criterion, as expected. Recorded, not acted on.
+
+========================================================================
+Pairwise Pass A -- anchor comparisons (A1.1)
+========================================================================
+pairwise:   0%|          | 0/313 [00:00<?, ?chunk/s]pairwise:   0%|          | 1/313 [00:02<11:17,  2.17s/chunk]pairwise:   1%|          | 2/313 [00:04<11:04,  2.14s/chunk]pairwise:   1%|          | 3/313 [00:06<11:11,  2.17s/chunk]pairwise:   1%|1         | 4/313 [00:08<11:04,  2.15s/chunk]pairwise:   2%|1         | 5/313 [00:10<10:56,  2.13s/chunk]pairwise:   2%|1         | 6/313 [00:12<10:51,  2.12s/chunk]pairwise:   2%|2         | 7/313 [00:14<10:44,  2.10s/chunk]pairwise:   3%|2         | 8/313 [00:16<10:39,  2.10s/chunk]pairwise:   3%|2         | 9/313 [00:19<10:34,  2.09s/chunk]pairwise:   3%|3         | 10/313 [00:21<10:33,  2.09s/chunk]pairwise:   4%|3         | 11/313 [00:23<10:34,  2.10s/chunk]pairwise:   4%|3         | 12/313 [00:25<10:29,  2.09s/chunk]pairwise:   4%|4         | 13/313 [00:27<10:26,  2.09s/chunk]pairwise:   4%|4         | 14/313 [00:29<10:23,  2.08s/chunk]pairwise:   5%|4         | 15/313 [00:31<10:21,  2.09s/chunk]pairwise:   5%|5         | 16/313 [00:33<10:20,  2.09s/chunk]pairwise:   5%|5         | 17/313 [00:35<10:20,  2.10s/chunk]pairwise:   6%|5         | 18/313 [00:37<10:20,  2.10s/chunk]pairwise:   6%|6         | 19/313 [00:39<10:15,  2.09s/chunk]pairwise:   6%|6         | 20/313 [00:42<10:13,  2.10s/chunk]pairwise:   7%|6         | 21/313 [00:44<10:12,  2.10s/chunk]pairwise:   7%|7         | 22/313 [00:46<10:06,  2.08s/chunk]pairwise:   7%|7         | 23/313 [00:48<10:06,  2.09s/chunk]pairwise:   8%|7         | 24/313 [00:50<10:04,  2.09s/chunk]pairwise:   8%|7         | 25/313 [00:52<09:58,  2.08s/chunk]pairwise:   8%|8         | 26/313 [00:54<09:58,  2.08s/chunk]pairwise:   9%|8         | 27/313 [00:56<09:54,  2.08s/chunk]pairwise:   9%|8         | 28/313 [00:58<09:51,  2.08s/chunk]pairwise:   9%|9         | 29/313 [01:00<09:48,  2.07s/chunk]pairwise:  10%|9         | 30/313 [01:02<09:48,  2.08s/chunk]pairwise:  10%|9         | 31/313 [01:04<09:47,  2.08s/chunk]pairwise:  10%|#         | 32/313 [01:07<09:45,  2.08s/chunk]pairwise:  11%|#         | 33/313 [01:09<09:45,  2.09s/chunk]pairwise:  11%|#         | 34/313 [01:11<09:43,  2.09s/chunk]pairwise:  11%|#1        | 35/313 [01:13<09:43,  2.10s/chunk]pairwise:  12%|#1        | 36/313 [01:15<09:42,  2.10s/chunk]pairwise:  12%|#1        | 37/313 [01:17<09:40,  2.11s/chunk]pairwise:  12%|#2        | 38/313 [01:19<09:39,  2.11s/chunk]pairwise:  12%|#2        | 39/313 [01:21<09:36,  2.10s/chunk]pairwise:  13%|#2        | 40/313 [01:23<09:35,  2.11s/chunk]pairwise:  13%|#3        | 41/313 [01:26<09:33,  2.11s/chunk]pairwise:  13%|#3        | 42/313 [01:28<09:29,  2.10s/chunk]pairwise:  14%|#3        | 43/313 [01:30<09:28,  2.10s/chunk]pairwise:  14%|#4        | 44/313 [01:32<09:25,  2.10s/chunk]pairwise:  14%|#4        | 45/313 [01:34<09:24,  2.11s/chunk]pairwise:  15%|#4        | 46/313 [01:36<09:22,  2.11s/chunk]pairwise:  15%|#5        | 47/313 [01:38<09:19,  2.10s/chunk]pairwise:  15%|#5        | 48/313 [01:40<09:18,  2.11s/chunk]pairwise:  16%|#5        | 49/313 [01:42<09:17,  2.11s/chunk]pairwise:  16%|#5        | 50/313 [01:44<09:13,  2.10s/chunk]pairwise:  16%|#6        | 51/313 [01:47<09:13,  2.11s/chunk]pairwise:  17%|#6        | 52/313 [01:49<09:07,  2.10s/chunk]pairwise:  17%|#6        | 53/313 [01:51<09:04,  2.09s/chunk]pairwise:  17%|#7        | 54/313 [01:53<09:00,  2.09s/chunk]pairwise:  18%|#7        | 55/313 [01:55<08:59,  2.09s/chunk]pairwise:  18%|#7        | 56/313 [01:57<08:56,  2.09s/chunk]pairwise:  18%|#8        | 57/313 [01:59<08:52,  2.08s/chunk]pairwise:  19%|#8        | 58/313 [02:01<08:53,  2.09s/chunk]pairwise:  19%|#8        | 59/313 [02:03<08:51,  2.09s/chunk]pairwise:  19%|#9        | 60/313 [02:05<08:50,  2.10s/chunk]pairwise:  19%|#9        | 61/313 [02:08<09:01,  2.15s/chunk]pairwise:  20%|#9        | 62/313 [02:10<09:01,  2.16s/chunk]pairwise:  20%|##        | 63/313 [02:12<08:57,  2.15s/chunk]pairwise:  20%|##        | 64/313 [02:14<08:52,  2.14s/chunk]pairwise:  21%|##        | 65/313 [02:16<08:47,  2.13s/chunk]pairwise:  21%|##1       | 66/313 [02:18<08:45,  2.13s/chunk]pairwise:  21%|##1       | 67/313 [02:20<08:42,  2.12s/chunk]pairwise:  22%|##1       | 68/313 [02:22<08:37,  2.11s/chunk]pairwise:  22%|##2       | 69/313 [02:25<08:36,  2.12s/chunk]pairwise:  22%|##2       | 70/313 [02:27<08:33,  2.11s/chunk]pairwise:  23%|##2       | 71/313 [02:29<08:30,  2.11s/chunk]pairwise:  23%|##3       | 72/313 [02:31<08:28,  2.11s/chunk]pairwise:  23%|##3       | 73/313 [02:33<08:25,  2.10s/chunk]pairwise:  24%|##3       | 74/313 [02:35<08:23,  2.11s/chunk]pairwise:  24%|##3       | 75/313 [02:37<08:20,  2.10s/chunk]pairwise:  24%|##4       | 76/313 [02:39<08:18,  2.10s/chunk]pairwise:  25%|##4       | 77/313 [02:41<08:17,  2.11s/chunk]pairwise:  25%|##4       | 78/313 [02:44<08:15,  2.11s/chunk]pairwise:  25%|##5       | 79/313 [02:46<08:14,  2.11s/chunk]pairwise:  26%|##5       | 80/313 [02:48<08:15,  2.13s/chunk]pairwise:  26%|##5       | 81/313 [02:50<08:12,  2.12s/chunk]pairwise:  26%|##6       | 82/313 [02:52<08:09,  2.12s/chunk]pairwise:  27%|##6       | 83/313 [02:54<08:08,  2.12s/chunk]pairwise:  27%|##6       | 84/313 [02:56<08:06,  2.12s/chunk]pairwise:  27%|##7       | 85/313 [02:58<08:04,  2.13s/chunk]pairwise:  27%|##7       | 86/313 [03:01<08:02,  2.13s/chunk]pairwise:  28%|##7       | 87/313 [03:03<08:00,  2.13s/chunk]pairwise:  28%|##8       | 88/313 [03:05<07:58,  2.13s/chunk]pairwise:  28%|##8       | 89/313 [03:07<07:56,  2.13s/chunk]pairwise:  29%|##8       | 90/313 [03:09<07:53,  2.12s/chunk]pairwise:  29%|##9       | 91/313 [03:11<07:51,  2.12s/chunk]pairwise:  29%|##9       | 92/313 [03:13<07:49,  2.13s/chunk]pairwise:  30%|##9       | 93/313 [03:15<07:46,  2.12s/chunk]pairwise:  30%|###       | 94/313 [03:18<07:45,  2.12s/chunk]pairwise:  30%|###       | 95/313 [03:20<07:44,  2.13s/chunk]pairwise:  31%|###       | 96/313 [03:22<07:41,  2.13s/chunk]pairwise:  31%|###       | 97/313 [03:24<07:39,  2.13s/chunk]pairwise:  31%|###1      | 98/313 [03:26<07:37,  2.13s/chunk]pairwise:  32%|###1      | 99/313 [03:28<07:35,  2.13s/chunk]pairwise:  32%|###1      | 100/313 [03:30<07:34,  2.14s/chunk]pairwise:  32%|###2      | 101/313 [03:33<07:32,  2.13s/chunk]pairwise:  33%|###2      | 102/313 [03:35<07:29,  2.13s/chunk]pairwise:  33%|###2      | 103/313 [03:37<07:27,  2.13s/chunk]pairwise:  33%|###3      | 104/313 [03:39<07:25,  2.13s/chunk]pairwise:  34%|###3      | 105/313 [03:41<07:23,  2.13s/chunk]pairwise:  34%|###3      | 106/313 [03:43<07:21,  2.13s/chunk]pairwise:  34%|###4      | 107/313 [03:45<07:19,  2.14s/chunk]pairwise:  35%|###4      | 108/313 [03:47<07:17,  2.13s/chunk]pairwise:  35%|###4      | 109/313 [03:50<07:14,  2.13s/chunk]pairwise:  35%|###5      | 110/313 [03:52<07:12,  2.13s/chunk]pairwise:  35%|###5      | 111/313 [03:54<07:10,  2.13s/chunk]pairwise:  36%|###5      | 112/313 [03:56<07:08,  2.13s/chunk]pairwise:  36%|###6      | 113/313 [03:58<07:06,  2.13s/chunk]pairwise:  36%|###6      | 114/313 [04:00<07:04,  2.14s/chunk]pairwise:  37%|###6      | 115/313 [04:02<07:03,  2.14s/chunk]pairwise:  37%|###7      | 116/313 [04:05<07:00,  2.14s/chunk]pairwise:  37%|###7      | 117/313 [04:07<06:59,  2.14s/chunk]pairwise:  38%|###7      | 118/313 [04:09<06:56,  2.14s/chunk]pairwise:  38%|###8      | 119/313 [04:11<06:54,  2.13s/chunk]pairwise:  38%|###8      | 120/313 [04:13<06:52,  2.14s/chunk]pairwise:  39%|###8      | 121/313 [04:15<06:50,  2.14s/chunk]pairwise:  39%|###8      | 122/313 [04:17<06:47,  2.14s/chunk]pairwise:  39%|###9      | 123/313 [04:19<06:45,  2.14s/chunk]pairwise:  40%|###9      | 124/313 [04:22<06:43,  2.14s/chunk]pairwise:  40%|###9      | 125/313 [04:24<06:41,  2.13s/chunk]pairwise:  40%|####      | 126/313 [04:26<06:39,  2.14s/chunk]pairwise:  41%|####      | 127/313 [04:28<06:39,  2.15s/chunk]pairwise:  41%|####      | 128/313 [04:30<06:37,  2.15s/chunk]pairwise:  41%|####1     | 129/313 [04:32<06:33,  2.14s/chunk]pairwise:  42%|####1     | 130/313 [04:34<06:31,  2.14s/chunk]pairwise:  42%|####1     | 131/313 [04:37<06:29,  2.14s/chunk]pairwise:  42%|####2     | 132/313 [04:39<06:26,  2.14s/chunk]pairwise:  42%|####2     | 133/313 [04:41<06:25,  2.14s/chunk]pairwise:  43%|####2     | 134/313 [04:43<06:23,  2.14s/chunk]pairwise:  43%|####3     | 135/313 [04:45<06:20,  2.14s/chunk]pairwise:  43%|####3     | 136/313 [04:47<06:17,  2.13s/chunk]pairwise:  44%|####3     | 137/313 [04:49<06:15,  2.13s/chunk]pairwise:  44%|####4     | 138/313 [04:52<06:13,  2.13s/chunk]pairwise:  44%|####4     | 139/313 [04:54<06:10,  2.13s/chunk]pairwise:  45%|####4     | 140/313 [04:56<06:09,  2.14s/chunk]pairwise:  45%|####5     | 141/313 [04:58<06:07,  2.14s/chunk]pairwise:  45%|####5     | 142/313 [05:00<06:05,  2.14s/chunk]pairwise:  46%|####5     | 143/313 [05:02<06:02,  2.13s/chunk]pairwise:  46%|####6     | 144/313 [05:04<06:00,  2.13s/chunk]pairwise:  46%|####6     | 145/313 [05:06<05:57,  2.13s/chunk]pairwise:  47%|####6     | 146/313 [05:09<05:55,  2.13s/chunk]pairwise:  47%|####6     | 147/313 [05:11<05:53,  2.13s/chunk]pairwise:  47%|####7     | 148/313 [05:13<05:51,  2.13s/chunk]pairwise:  48%|####7     | 149/313 [05:15<05:49,  2.13s/chunk]pairwise:  48%|####7     | 150/313 [05:17<05:47,  2.13s/chunk]pairwise:  48%|####8     | 151/313 [05:19<05:46,  2.14s/chunk]pairwise:  49%|####8     | 152/313 [05:21<05:45,  2.15s/chunk]pairwise:  49%|####8     | 153/313 [05:24<05:42,  2.14s/chunk]pairwise:  49%|####9     | 154/313 [05:26<05:39,  2.14s/chunk]pairwise:  50%|####9     | 155/313 [05:28<05:37,  2.14s/chunk]pairwise:  50%|####9     | 156/313 [05:30<05:35,  2.13s/chunk]pairwise:  50%|#####     | 157/313 [05:32<05:31,  2.12s/chunk]pairwise:  50%|#####     | 158/313 [05:34<05:28,  2.12s/chunk]pairwise:  51%|#####     | 159/313 [05:36<05:25,  2.11s/chunk]pairwise:  51%|#####1    | 160/313 [05:38<05:23,  2.11s/chunk]pairwise:  51%|#####1    | 161/313 [05:40<05:20,  2.11s/chunk]pairwise:  52%|#####1    | 162/313 [05:43<05:17,  2.10s/chunk]pairwise:  52%|#####2    | 163/313 [05:45<05:15,  2.10s/chunk]pairwise:  52%|#####2    | 164/313 [05:47<05:13,  2.11s/chunk]pairwise:  53%|#####2    | 165/313 [05:49<05:12,  2.11s/chunk]pairwise:  53%|#####3    | 166/313 [05:51<05:10,  2.11s/chunk]pairwise:  53%|#####3    | 167/313 [05:53<05:08,  2.12s/chunk]pairwise:  54%|#####3    | 168/313 [05:55<05:07,  2.12s/chunk]pairwise:  54%|#####3    | 169/313 [05:57<05:04,  2.12s/chunk]pairwise:  54%|#####4    | 170/313 [06:00<05:02,  2.12s/chunk]pairwise:  55%|#####4    | 171/313 [06:02<05:01,  2.12s/chunk]pairwise:  55%|#####4    | 172/313 [06:04<04:59,  2.12s/chunk]pairwise:  55%|#####5    | 173/313 [06:06<04:57,  2.12s/chunk]pairwise:  56%|#####5    | 174/313 [06:08<04:55,  2.13s/chunk]pairwise:  56%|#####5    | 175/313 [06:10<04:52,  2.12s/chunk]pairwise:  56%|#####6    | 176/313 [06:12<04:50,  2.12s/chunk]pairwise:  57%|#####6    | 177/313 [06:14<04:48,  2.12s/chunk]pairwise:  57%|#####6    | 178/313 [06:17<04:46,  2.12s/chunk]pairwise:  57%|#####7    | 179/313 [06:19<04:43,  2.12s/chunk]pairwise:  58%|#####7    | 180/313 [06:21<04:42,  2.13s/chunk]pairwise:  58%|#####7    | 181/313 [06:23<04:40,  2.13s/chunk]pairwise:  58%|#####8    | 182/313 [06:25<04:38,  2.13s/chunk]pairwise:  58%|#####8    | 183/313 [06:27<04:36,  2.13s/chunk]pairwise:  59%|#####8    | 184/313 [06:29<04:34,  2.13s/chunk]pairwise:  59%|#####9    | 185/313 [06:31<04:32,  2.13s/chunk]pairwise:  59%|#####9    | 186/313 [06:34<04:29,  2.12s/chunk]pairwise:  60%|#####9    | 187/313 [06:36<04:27,  2.12s/chunk]pairwise:  60%|######    | 188/313 [06:38<04:24,  2.12s/chunk]pairwise:  60%|######    | 189/313 [06:40<04:22,  2.12s/chunk]pairwise:  61%|######    | 190/313 [06:42<04:20,  2.12s/chunk]pairwise:  61%|######1   | 191/313 [06:44<04:18,  2.12s/chunk]pairwise:  61%|######1   | 192/313 [06:46<04:17,  2.12s/chunk]pairwise:  62%|######1   | 193/313 [06:48<04:14,  2.12s/chunk]pairwise:  62%|######1   | 194/313 [06:50<04:12,  2.12s/chunk]pairwise:  62%|######2   | 195/313 [06:53<04:10,  2.12s/chunk]pairwise:  63%|######2   | 196/313 [06:55<04:08,  2.12s/chunk]pairwise:  63%|######2   | 197/313 [06:57<04:05,  2.12s/chunk]pairwise:  63%|######3   | 198/313 [06:59<04:03,  2.12s/chunk]pairwise:  64%|######3   | 199/313 [07:01<04:01,  2.12s/chunk]pairwise:  64%|######3   | 200/313 [07:03<03:59,  2.12s/chunk]pairwise:  64%|######4   | 201/313 [07:05<03:56,  2.11s/chunk]pairwise:  65%|######4   | 202/313 [07:07<03:55,  2.12s/chunk]pairwise:  65%|######4   | 203/313 [07:10<03:53,  2.12s/chunk]pairwise:  65%|######5   | 204/313 [07:12<03:51,  2.12s/chunk]pairwise:  65%|######5   | 205/313 [07:14<03:50,  2.14s/chunk]pairwise:  66%|######5   | 206/313 [07:16<03:50,  2.15s/chunk]pairwise:  66%|######6   | 207/313 [07:18<03:47,  2.15s/chunk]pairwise:  66%|######6   | 208/313 [07:20<03:44,  2.14s/chunk]pairwise:  67%|######6   | 209/313 [07:22<03:42,  2.14s/chunk]pairwise:  67%|######7   | 210/313 [07:25<03:39,  2.13s/chunk]pairwise:  67%|######7   | 211/313 [07:27<03:36,  2.13s/chunk]pairwise:  68%|######7   | 212/313 [07:29<03:35,  2.13s/chunk]pairwise:  68%|######8   | 213/313 [07:31<03:32,  2.13s/chunk]pairwise:  68%|######8   | 214/313 [07:33<03:29,  2.12s/chunk]pairwise:  69%|######8   | 215/313 [07:35<03:28,  2.12s/chunk]pairwise:  69%|######9   | 216/313 [07:37<03:26,  2.12s/chunk]pairwise:  69%|######9   | 217/313 [07:39<03:23,  2.12s/chunk]pairwise:  70%|######9   | 218/313 [07:42<03:21,  2.12s/chunk]pairwise:  70%|######9   | 219/313 [07:44<03:19,  2.12s/chunk]pairwise:  70%|#######   | 220/313 [07:46<03:17,  2.12s/chunk]pairwise:  71%|#######   | 221/313 [07:48<03:15,  2.12s/chunk]pairwise:  71%|#######   | 222/313 [07:50<03:12,  2.12s/chunk]pairwise:  71%|#######1  | 223/313 [07:52<03:10,  2.11s/chunk]pairwise:  72%|#######1  | 224/313 [07:54<03:08,  2.12s/chunk]pairwise:  72%|#######1  | 225/313 [07:56<03:05,  2.11s/chunk]pairwise:  72%|#######2  | 226/313 [07:58<03:03,  2.11s/chunk]pairwise:  73%|#######2  | 227/313 [08:01<03:01,  2.11s/chunk]pairwise:  73%|#######2  | 228/313 [08:03<02:59,  2.11s/chunk]pairwise:  73%|#######3  | 229/313 [08:05<02:57,  2.11s/chunk]pairwise:  73%|#######3  | 230/313 [08:07<02:55,  2.12s/chunk]pairwise:  74%|#######3  | 231/313 [08:09<02:53,  2.12s/chunk]pairwise:  74%|#######4  | 232/313 [08:11<02:51,  2.12s/chunk]pairwise:  74%|#######4  | 233/313 [08:13<02:49,  2.12s/chunk]pairwise:  75%|#######4  | 234/313 [08:15<02:47,  2.12s/chunk]pairwise:  75%|#######5  | 235/313 [08:17<02:44,  2.11s/chunk]pairwise:  75%|#######5  | 236/313 [08:20<02:42,  2.11s/chunk]pairwise:  76%|#######5  | 237/313 [08:22<02:40,  2.11s/chunk]pairwise:  76%|#######6  | 238/313 [08:24<02:38,  2.11s/chunk]pairwise:  76%|#######6  | 239/313 [08:26<02:36,  2.11s/chunk]pairwise:  77%|#######6  | 240/313 [08:28<02:33,  2.11s/chunk]pairwise:  77%|#######6  | 241/313 [08:30<02:31,  2.10s/chunk]pairwise:  77%|#######7  | 242/313 [08:32<02:29,  2.10s/chunk]pairwise:  78%|#######7  | 243/313 [08:34<02:26,  2.10s/chunk]pairwise:  78%|#######7  | 244/313 [08:36<02:24,  2.10s/chunk]pairwise:  78%|#######8  | 245/313 [08:38<02:22,  2.10s/chunk]pairwise:  79%|#######8  | 246/313 [08:41<02:21,  2.11s/chunk]pairwise:  79%|#######8  | 247/313 [08:43<02:18,  2.10s/chunk]pairwise:  79%|#######9  | 248/313 [08:45<02:16,  2.11s/chunk]pairwise:  80%|#######9  | 249/313 [08:47<02:14,  2.10s/chunk]pairwise:  80%|#######9  | 250/313 [08:49<02:12,  2.10s/chunk]pairwise:  80%|########  | 251/313 [08:51<02:10,  2.10s/chunk]pairwise:  81%|########  | 252/313 [08:53<02:08,  2.11s/chunk]pairwise:  81%|########  | 253/313 [08:55<02:06,  2.11s/chunk]pairwise:  81%|########1 | 254/313 [08:57<02:04,  2.11s/chunk]pairwise:  81%|########1 | 255/313 [09:00<02:02,  2.10s/chunk]pairwise:  82%|########1 | 256/313 [09:02<01:59,  2.10s/chunk]pairwise:  82%|########2 | 257/313 [09:04<01:58,  2.11s/chunk]pairwise:  82%|########2 | 258/313 [09:06<01:56,  2.12s/chunk]pairwise:  83%|########2 | 259/313 [09:08<01:54,  2.12s/chunk]pairwise:  83%|########3 | 260/313 [09:10<01:52,  2.12s/chunk]pairwise:  83%|########3 | 261/313 [09:12<01:49,  2.11s/chunk]pairwise:  84%|########3 | 262/313 [09:14<01:47,  2.11s/chunk]pairwise:  84%|########4 | 263/313 [09:16<01:45,  2.11s/chunk]pairwise:  84%|########4 | 264/313 [09:19<01:42,  2.10s/chunk]pairwise:  85%|########4 | 265/313 [09:21<01:40,  2.09s/chunk]pairwise:  85%|########4 | 266/313 [09:23<01:38,  2.09s/chunk]pairwise:  85%|########5 | 267/313 [09:25<01:36,  2.09s/chunk]pairwise:  86%|########5 | 268/313 [09:27<01:34,  2.10s/chunk]pairwise:  86%|########5 | 269/313 [09:29<01:32,  2.11s/chunk]pairwise:  86%|########6 | 270/313 [09:31<01:30,  2.11s/chunk]pairwise:  87%|########6 | 271/313 [09:33<01:28,  2.10s/chunk]pairwise:  87%|########6 | 272/313 [09:35<01:26,  2.11s/chunk]pairwise:  87%|########7 | 273/313 [09:37<01:24,  2.11s/chunk]pairwise:  88%|########7 | 274/313 [09:40<01:22,  2.11s/chunk]pairwise:  88%|########7 | 275/313 [09:42<01:20,  2.11s/chunk]pairwise:  88%|########8 | 276/313 [09:44<01:18,  2.11s/chunk]pairwise:  88%|########8 | 277/313 [09:46<01:15,  2.11s/chunk]pairwise:  89%|########8 | 278/313 [09:48<01:14,  2.12s/chunk]pairwise:  89%|########9 | 279/313 [09:50<01:11,  2.11s/chunk]pairwise:  89%|########9 | 280/313 [09:52<01:10,  2.13s/chunk]pairwise:  90%|########9 | 281/313 [09:54<01:08,  2.13s/chunk]pairwise:  90%|######### | 282/313 [09:57<01:06,  2.13s/chunk]pairwise:  90%|######### | 283/313 [09:59<01:03,  2.13s/chunk]pairwise:  91%|######### | 284/313 [10:01<01:01,  2.13s/chunk]pairwise:  91%|#########1| 285/313 [10:03<00:59,  2.12s/chunk]pairwise:  91%|#########1| 286/313 [10:05<00:57,  2.12s/chunk]pairwise:  92%|#########1| 287/313 [10:07<00:54,  2.11s/chunk]pairwise:  92%|#########2| 288/313 [10:09<00:52,  2.11s/chunk]pairwise:  92%|#########2| 289/313 [10:11<00:50,  2.11s/chunk]pairwise:  93%|#########2| 290/313 [10:13<00:48,  2.11s/chunk]pairwise:  93%|#########2| 291/313 [10:16<00:46,  2.11s/chunk]pairwise:  93%|#########3| 292/313 [10:18<00:44,  2.11s/chunk]pairwise:  94%|#########3| 293/313 [10:20<00:42,  2.12s/chunk]pairwise:  94%|#########3| 294/313 [10:22<00:40,  2.12s/chunk]pairwise:  94%|#########4| 295/313 [10:24<00:38,  2.11s/chunk]pairwise:  95%|#########4| 296/313 [10:26<00:35,  2.12s/chunk]pairwise:  95%|#########4| 297/313 [10:28<00:33,  2.11s/chunk]pairwise:  95%|#########5| 298/313 [10:30<00:31,  2.11s/chunk]pairwise:  96%|#########5| 299/313 [10:32<00:29,  2.12s/chunk]pairwise:  96%|#########5| 300/313 [10:35<00:27,  2.13s/chunk]pairwise:  96%|#########6| 301/313 [10:37<00:25,  2.13s/chunk]pairwise:  96%|#########6| 302/313 [10:39<00:23,  2.12s/chunk]pairwise:  97%|#########6| 303/313 [10:41<00:21,  2.12s/chunk]pairwise:  97%|#########7| 304/313 [10:43<00:18,  2.11s/chunk]pairwise:  97%|#########7| 305/313 [10:45<00:16,  2.11s/chunk]pairwise:  98%|#########7| 306/313 [10:47<00:14,  2.11s/chunk]pairwise:  98%|#########8| 307/313 [10:49<00:12,  2.11s/chunk]pairwise:  98%|#########8| 308/313 [10:52<00:10,  2.11s/chunk]pairwise:  99%|#########8| 309/313 [10:54<00:08,  2.11s/chunk]pairwise:  99%|#########9| 310/313 [10:56<00:06,  2.12s/chunk]pairwise:  99%|#########9| 311/313 [10:58<00:04,  2.12s/chunk]pairwise: 100%|#########9| 312/313 [11:00<00:02,  2.12s/chunk]pairwise: 100%|##########| 313/313 [11:01<00:00,  1.80s/chunk]                                                              wrote: artifacts\pass_a_pairwise\llama-3.2-3b-instruct\d9cdda8294a2\comparisons_d9cdda8294a2.parquet
+
+readout mass by template (A1.6) -- where prompt bugs surface first:
+   arm template    n  n_invalid  frac_invalid  mass_median  mass_min
+digits       t0 8000          0           0.0     0.998578  0.900053
+digits       t1 8000          0           0.0     0.999746  0.966743
+digits       t2 8000          0           0.0     0.999604  0.989920
+digits       t3 8000          0           0.0     0.999486  0.937908
+digits       t4 8000          0           0.0     0.999803  0.994247
+
+order invariance -- reported only, retired as a gate (A2.2):
+   arm template  n_pairs  order_invariance  unambiguous_item_win             regime
+digits       t0     4000           0.62600               0.42275     content-driven
+digits       t1     4000           0.70125               0.46325     content-driven
+digits       t2     4000           0.40675               0.17025 position-dominated
+digits       t3     4000           0.50325               0.39500   random-dominated
+digits       t4     4000           0.16000               0.13975 position-dominated
+
+========================================================================
+Bradley-Terry with per-template order term (A2.1)
+========================================================================
+Initializing NUTS using jitter+adapt_diag...
+Sequential sampling (4 chains in 1 job)
+NUTS: [sigma_item, theta, alpha, beta]
+Sampling 4 chains for 2_000 tune and 2_000 draw iterations (8_000 + 8_000 draws total) took 415 seconds.
+Initializing NUTS using jitter+adapt_diag...
+Sequential sampling (4 chains in 1 job)
+NUTS: [sigma_item, theta, alpha, beta]
+Sampling 4 chains for 2_000 tune and 2_000 draw iterations (8_000 + 8_000 draws total) took 414 seconds.
+Initializing NUTS using jitter+adapt_diag...
+Sequential sampling (4 chains in 1 job)
+NUTS: [sigma_item, theta, alpha, beta]
+Sampling 4 chains for 2_000 tune and 2_000 draw iterations (8_000 + 8_000 draws total) took 419 seconds.
+Initializing NUTS using jitter+adapt_diag...
+Sequential sampling (4 chains in 1 job)
+NUTS: [sigma_item, theta, alpha, beta]
+Sampling 4 chains for 2_000 tune and 2_000 draw iterations (8_000 + 8_000 draws total) took 414 seconds.
+Initializing NUTS using jitter+adapt_diag...
+Sequential sampling (4 chains in 1 job)
+NUTS: [sigma_item, theta, alpha, beta]
+Sampling 4 chains for 2_000 tune and 2_000 draw iterations (8_000 + 8_000 draws total) took 404 seconds.
+Initializing NUTS using jitter+adapt_diag...
+Sequential sampling (4 chains in 1 job)
+NUTS: [sigma_item, theta, alpha, beta]
+Sampling 4 chains for 2_000 tune and 2_000 draw iterations (8_000 + 8_000 draws total) took 415 seconds.
+Initializing NUTS using jitter+adapt_diag...
+Sequential sampling (4 chains in 1 job)
+NUTS: [sigma_item, theta, alpha, beta]
+Sampling 4 chains for 2_000 tune and 2_000 draw iterations (8_000 + 8_000 draws total) took 419 seconds.
+Initializing NUTS using jitter+adapt_diag...
+Sequential sampling (4 chains in 1 job)
+NUTS: [sigma_item, theta, alpha, beta]
+Sampling 4 chains for 2_000 tune and 2_000 draw iterations (8_000 + 8_000 draws total) took 404 seconds.
+Initializing NUTS using jitter+adapt_diag...
+Sequential sampling (4 chains in 1 job)
+NUTS: [sigma_item, theta, alpha, beta]
+Sampling 4 chains for 2_000 tune and 2_000 draw iterations (8_000 + 8_000 draws total) took 405 seconds.
+Initializing NUTS using jitter+adapt_diag...
+Sequential sampling (4 chains in 1 job)
+NUTS: [sigma_item, theta, alpha, beta]
+Sampling 4 chains for 2_000 tune and 2_000 draw iterations (8_000 + 8_000 draws total) took 406 seconds.
+Initializing NUTS using jitter+adapt_diag...
+Sequential sampling (4 chains in 1 job)
+NUTS: [sigma_item, theta, alpha, beta]
+Sampling 4 chains for 2_000 tune and 2_000 draw iterations (8_000 + 8_000 draws total) took 406 seconds.
+Initializing NUTS using jitter+adapt_diag...
+Sequential sampling (4 chains in 1 job)
+NUTS: [sigma_item, theta, alpha, beta]
+Sampling 4 chains for 2_000 tune and 2_000 draw iterations (8_000 + 8_000 draws total) took 408 seconds.
+Initializing NUTS using jitter+adapt_diag...
+Sequential sampling (4 chains in 1 job)
+NUTS: [sigma_item, theta, alpha, beta]
+Sampling 4 chains for 2_000 tune and 2_000 draw iterations (8_000 + 8_000 draws total) took 415 seconds.
+Initializing NUTS using jitter+adapt_diag...
+Sequential sampling (4 chains in 1 job)
+NUTS: [sigma_item, theta, alpha, beta]
+Sampling 4 chains for 2_000 tune and 2_000 draw iterations (8_000 + 8_000 draws total) took 411 seconds.
+Initializing NUTS using jitter+adapt_diag...
+Sequential sampling (4 chains in 1 job)
+NUTS: [sigma_item, theta, alpha, beta]
+Sampling 4 chains for 2_000 tune and 2_000 draw iterations (8_000 + 8_000 draws total) took 409 seconds.
+Initializing NUTS using jitter+adapt_diag...
+Sequential sampling (4 chains in 1 job)
+NUTS: [sigma_item, theta, alpha, beta]
+Sampling 4 chains for 2_000 tune and 2_000 draw iterations (8_000 + 8_000 draws total) took 409 seconds.
+Initializing NUTS using jitter+adapt_diag...
+Sequential sampling (4 chains in 1 job)
+NUTS: [sigma_item, theta, alpha, beta]
+Sampling 4 chains for 2_000 tune and 2_000 draw iterations (8_000 + 8_000 draws total) took 407 seconds.
+Initializing NUTS using jitter+adapt_diag...
+Sequential sampling (4 chains in 1 job)
+NUTS: [sigma_item, theta, alpha, beta]
+Sampling 4 chains for 2_000 tune and 2_000 draw iterations (8_000 + 8_000 draws total) took 406 seconds.
+Initializing NUTS using jitter+adapt_diag...
+Sequential sampling (4 chains in 1 job)
+NUTS: [sigma_item, theta, alpha, beta]
+Sampling 4 chains for 2_000 tune and 2_000 draw iterations (8_000 + 8_000 draws total) took 405 seconds.
+Initializing NUTS using jitter+adapt_diag...
+Sequential sampling (4 chains in 1 job)
+NUTS: [sigma_item, theta, alpha, beta]
+Sampling 4 chains for 2_000 tune and 2_000 draw iterations (8_000 + 8_000 draws total) took 404 seconds.
+Initializing NUTS using jitter+adapt_diag...
+Sequential sampling (4 chains in 1 job)
+NUTS: [sigma_item, theta, alpha, beta]
+Sampling 4 chains for 2_000 tune and 2_000 draw iterations (8_000 + 8_000 draws total) took 401 seconds.
+Initializing NUTS using jitter+adapt_diag...
+Sequential sampling (4 chains in 1 job)
+NUTS: [sigma_item, theta, alpha, beta]
+Sampling 4 chains for 2_000 tune and 2_000 draw iterations (8_000 + 8_000 draws total) took 403 seconds.
+Initializing NUTS using jitter+adapt_diag...
+Sequential sampling (4 chains in 1 job)
+NUTS: [sigma_item, theta, alpha, beta]
+Sampling 4 chains for 2_000 tune and 2_000 draw iterations (8_000 + 8_000 draws total) took 400 seconds.
+Initializing NUTS using jitter+adapt_diag...
+Sequential sampling (4 chains in 1 job)
+NUTS: [sigma_item, theta, alpha, beta]
+Sampling 4 chains for 2_000 tune and 2_000 draw iterations (8_000 + 8_000 draws total) took 398 seconds.
+Initializing NUTS using jitter+adapt_diag...
+Sequential sampling (4 chains in 1 job)
+NUTS: [sigma_item, theta, alpha, beta]
+Sampling 4 chains for 2_000 tune and 2_000 draw iterations (8_000 + 8_000 draws total) took 403 seconds.
+Initializing NUTS using jitter+adapt_diag...
+Sequential sampling (4 chains in 1 job)
+NUTS: [sigma_item, theta, alpha, beta]
+Sampling 4 chains for 2_000 tune and 2_000 draw iterations (8_000 + 8_000 draws total) took 234 seconds.
+Initializing NUTS using jitter+adapt_diag...
+Sequential sampling (4 chains in 1 job)
+NUTS: [sigma_item, theta, alpha, beta]
+Sampling 4 chains for 2_000 tune and 2_000 draw iterations (8_000 + 8_000 draws total) took 173 seconds.
+Bradley-Terry (+ per-template order term): 400 items from 40000 valid comparisons (0 dropped below the mass floor)
+  theta spread: sd across items = 0.868, range -1.58 to 3.93
+  precision: posterior SD of theta, median 0.279 (min 0.266, max 0.385)
+  sigma_item (between-item scale) = 1.110
+  separation ratio = 3.97
+  model reliability = 0.939 (compare against the EMPIRICAL split-half figure)
+  beta: mean +1.655 (favours slot 1), range +0.442 to +3.742 across 5 templates
+convergence: max R-hat 1.0000 (limit 1.01), min ESS 9855 (limit 400), divergences 0, 0 parameter(s) failing
+
+position bias by template (beta):
+template  beta_mean  beta_sd  beta_hdi_low  beta_hdi_high
+      t0      0.442    0.029         0.384          0.501
+      t1      0.661    0.030         0.600          0.719
+      t2      1.972    0.036         1.901          2.040
+      t3      1.455    0.033         1.387          1.516
+      t4      3.742    0.053         3.636          3.843
+
+anchor abilities (intended tier is a design annotation, never shown):
+            anchor_id  alpha_mean  alpha_sd      tier  tier_rank  alpha_rank
+anchor/favourite-meal    2.877597  0.051375      high          0           0
+ anchor/tidy-a-drawer    1.935558  0.044438       mid          2           1
+anchor/free-afternoon    1.315243  0.041736      high          0           2
+  anchor/blocked-sink    0.619261  0.040709       low          4           3
+      anchor/old-film    0.028301  0.039830       mid          2           4
+     anchor/lost-keys   -0.018356  0.041484       low          4           5
+  anchor/waiting-room   -0.535922  0.042421 lower-mid          3           6
+     anchor/long-walk   -1.390427  0.046539 upper-mid          1           7
+ anchor/queue-in-rain   -1.960080  0.051329       low          4           8
+     anchor/tax-forms   -2.871175  0.060630       low          4           9
+
+fit quality (A2.1): slope +0.0318 [+0.0276, +0.0358] vs null +0.0062 (sd 0.0017) -> +15.46 sd
+
+wrote: artifacts\instrument_fit\llama-3.2-3b-instruct\d9cdda8294a2-a476c0f1\fit_d9cdda8294a2-a476c0f1.json
+
+========================================================================
+Reliability gate (A2.2) -- the sole exclusion criterion
+========================================================================
+empirical split-half of theta, ['t0', 't1', 't2'] vs ['t3', 't4']: Spearman 0.733 (threshold 0.7)
+model-internal reliability 0.939 -- reported for comparison; using it here would admit models whose item rankings do not reproduce across paraphrases
+  ->  PASS
+
+========================================================================
+Pass B -- pairs from theta on disjoint template sets
+========================================================================
+Initializing NUTS using jitter+adapt_diag...
+Sequential sampling (4 chains in 1 job)
+NUTS: [sigma_item, theta, alpha, beta]

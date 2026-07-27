@@ -1,0 +1,77 @@
+{
+  "model": "qwen2.5-1.5b-instruct",
+  "config_hash": "8039aa22cb07",
+  "provenance": {
+    "device": "cuda",
+    "device_name": "NVIDIA RTX 2000 Ada Generation Laptop GPU",
+    "dtype": "bfloat16",
+    "attn_implementation": "sdpa",
+    "torch_version": "2.8.0+cu126",
+    "transformers_version": "5.14.1",
+    "pymc_version": "5.28.5",
+    "pytensor_version": "2.38.3",
+    "pytensor_mode": "NUMBA|PYTENSOR_FLAGS=mode=NUMBA",
+    "model_name": "qwen2.5-1.5b-instruct",
+    "model_hf_id": "Qwen/Qwen2.5-1.5B-Instruct",
+    "model_revision": "989aa7980e4cf806f80c7fef2b1adb7bc71aa306",
+    "model_revision_pinned": true,
+    "seed": 20261025,
+    "config_hash": "8039aa22cb07",
+    "git_sha": "62ae47a3c0e3624ceaf442b2a7b655d580f704c8",
+    "git_dirty": false,
+    "platform": "Windows-10-10.0.26200-SP0",
+    "python_version": "3.11.15",
+    "created_utc": "2026-07-26T11:18:24+00:00"
+  },
+  "smoke": false,
+  "gates": {
+    "passed": false,
+    "median_rho": -0.9155586597416232,
+    "surviving_templates": [],
+    "icc_all": {
+      "n_items": 400.0,
+      "k_raters": 5.0,
+      "icc_c1": 0.34302424440802604,
+      "icc_ck": 0.723040094150035,
+      "icc_a1": 0.050683073925651176,
+      "icc_ak": 0.21069972971850504,
+      "ms_rows": 0.6832807145786388,
+      "ms_cols": 664.7791595059907,
+      "ms_error": 0.18924136237879657
+    },
+    "icc_selection": {
+      "n_items": 400.0,
+      "k_raters": 3.0,
+      "icc_c1": 0.15868220155720547,
+      "icc_ck": 0.3613628875550181,
+      "icc_a1": 0.01457278741588015,
+      "icc_ak": 0.042480250915704815,
+      "ms_rows": 0.3436523471084648,
+      "ms_cols": 1032.084998851391,
+      "ms_error": 0.2194691426422906
+    },
+    "icc_all_collapsed": {
+      "n_items": 400.0,
+      "k_raters": 5.0,
+      "icc_c1": 0.08993249116575414,
+      "icc_ck": 0.33069982093114425,
+      "icc_a1": 0.028975145179797816,
+      "icc_ak": 0.12982852451391103,
+      "ms_rows": 0.024119016375421107,
+      "ms_cols": 14.942964547055478,
+      "ms_error": 0.01614286197903401
+    },
+    "sigma_between": 0.09762112850268229,
+    "sigma_between_ascending": 0.5018964624517099,
+    "sesoi_primary": 0.014643169275402343,
+    "sesoi_secondary": 0.25,
+    "icc_tripwire_hit": true,
+    "reasons": [
+      "EXCLUDED: median polarity validity rho = -0.916 < 0.6. The model has not demonstrated that it reads the response scale; this is not evidence about the hypotheses in either direction.",
+      "EXCLUDED: only 0 template(s) reach rho >= 0.6, need 3.",
+      "EXCLUDED: sigma_between = 0.098 < 0.5. With no between-item variance there is no |diff| range, so the difficulty manipulation is undefined rather than null.",
+      "TRIPWIRE (not an exclusion): ICC(C,1) = 0.343 < 0.4. Check for an implementation fault; if none, the binding criterion is power on the primary contrast at the SESOI."
+    ]
+  },
+  "outcome": "halted-by-exclusion-criteria"
+}

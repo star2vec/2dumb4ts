@@ -1,0 +1,21 @@
+WARNING (pytensor.configdefaults): g++ not available, if using conda: `conda install gxx`
+WARNING (pytensor.configdefaults): g++ not detected!  PyTensor will be unable to compile C-implementations and will default to Python. Performance may be severely degraded. To remove this warning, set PyTensor flags cxx to an empty string.
+Traceback (most recent call last):
+  File "<frozen runpy>", line 198, in _run_module_as_main
+  File "<frozen runpy>", line 88, in _run_code
+  File "C:\Users\alin\Desktop\2dumb4ts\src\experiments\run.py", line 431, in <module>
+    return run(cfg, stop_after=args.stop_after, progressbar=not args.no_progress)
+             ^^^^^^
+  File "C:\Users\alin\Desktop\2dumb4ts\src\experiments\run.py", line 423, in main
+    ap.add_argument("--sampler-cores", type=int, default=None,
+          ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\alin\Desktop\2dumb4ts\src\config.py", line 412, in load_config
+    return p if p.is_absolute() else REPO_ROOT / p
+       ^^^^^^^^^^^^^^^^
+  File "C:\Users\alin\Desktop\2dumb4ts\.venv\Lib\site-packages\pydantic\main.py", line 263, in __init__
+    validated_self = self.__pydantic_validator__.validate_python(data, self_instance=self)
+                     ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+pydantic_core._pydantic_core.ValidationError: 1 validation error for RunConfig
+pass_b.match_tolerance_sigma_fraction
+  Extra inputs are not permitted [type=extra_forbidden, input_value=0.26, input_type=float]
+    For further information visit https://errors.pydantic.dev/2.13/v/extra_forbidden

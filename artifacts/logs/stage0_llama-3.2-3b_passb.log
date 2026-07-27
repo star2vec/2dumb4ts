@@ -1,0 +1,52 @@
+WARNING (pytensor.configdefaults): g++ not available, if using conda: `conda install gxx`
+WARNING (pytensor.configdefaults): g++ not detected!  PyTensor will be unable to compile C-implementations and will default to Python. Performance may be severely degraded. To remove this warning, set PyTensor flags cxx to an empty string.
+
+========================================================================
+Stage 0  |  llama-3.2-3b-instruct  |  config d2ad0b4d4745
+========================================================================
+device=cuda (NVIDIA RTX 2000 Ada Generation Laptop GPU)  dtype=bfloat16
+revision=0cb88a4f764b7a12671c53f0838cd831a0843b95 pinned=True
+git=4ab08c06f0cb dirty=False  seed=20261025
+
+========================================================================
+Absolute Pass A -- instrument-validation record (A1.5). Gates nothing.
+========================================================================
+cached: artifacts\pass_a\llama-3.2-3b-instruct\d9cdda8294a2\ratings_d9cdda8294a2.parquet
+  median polarity rho = -0.922  (retired threshold was 0.6)
+  sigma_between: collapsed 0.163, ascending 0.630
+  ICC(C,1) ascending = 0.464
+  digit mass: median 0.9996, min 0.0737
+  -> fails the retired polarity criterion, as expected. Recorded, not acted on.
+
+========================================================================
+Pairwise Pass A -- anchor comparisons (A1.1)
+========================================================================
+loading model ...
+Traceback (most recent call last):
+  File "<frozen runpy>", line 198, in _run_module_as_main
+  File "<frozen runpy>", line 88, in _run_code
+  File "C:\Users\alin\Desktop\2dumb4ts\src\experiments\run.py", line 435, in <module>
+    sys.exit(main())
+             ^^^^^^
+  File "C:\Users\alin\Desktop\2dumb4ts\src\experiments\run.py", line 431, in main
+    return run(cfg, stop_after=args.stop_after, progressbar=not args.no_progress)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\alin\Desktop\2dumb4ts\src\experiments\run.py", line 159, in run
+    cfg, runner_factory(), load_items(cfg), load_anchors(cfg), load_templates(cfg),
+         ^^^^^^^^^^^^^^^^
+  File "C:\Users\alin\Desktop\2dumb4ts\src\experiments\run.py", line 76, in __call__
+    self._runner = load_runner(self.cfg)
+                   ^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\alin\Desktop\2dumb4ts\src\models\runner.py", line 172, in load_runner
+    model = AutoModelForCausalLM.from_pretrained(
+            ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\alin\Desktop\2dumb4ts\.venv\Lib\site-packages\transformers\models\auto\auto_factory.py", line 402, in from_pretrained
+    return model_class.from_pretrained(
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\alin\Desktop\2dumb4ts\.venv\Lib\site-packages\transformers\modeling_utils.py", line 4456, in from_pretrained
+    loading_info, disk_offload_index = cls._load_pretrained_model(model, state_dict, checkpoint_files, load_config)
+                                       ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\alin\Desktop\2dumb4ts\.venv\Lib\site-packages\transformers\modeling_utils.py", line 4578, in _load_pretrained_model
+    file_pointer = safe_open(file, framework="pt", device=device, backend=backend)
+                   ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+OSError: The paging file is too small for this operation to complete. (os error 1455)
