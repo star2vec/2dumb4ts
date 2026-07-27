@@ -458,3 +458,45 @@ def test_pass_c_builds_the_choice_prompt_from_the_shared_builder(cfg, templates)
     assert fa not in broken and fb not in broken, (
         "the old reconstruction no longer loses the options -- this control is stale "
         "and the test above needs rewriting rather than trusting")
+
+
+def test_the_match_gap_exclusion_is_vacuous_on_the_selection_score(cfg, pairs):
+    """A3.13. The tolerance is a hard filter at construction, so "exclude pairs that
+    exceeded it" can never exclude anything on the score it was applied to.
+
+    Reporting that zero as a clean result would be true and misleading, so the diagnostic
+    labels it as enforced upstream.
+    """
+    from src.experiments.pass_b import match_gap_exclusions
+
+    out = match_gap_exclusions(cfg, pairs, SIGMA_ITEM)
+    assert out["n_over_on_selection"] == 0
+    assert out["selection_is_bounded_by_construction"] is True
+    assert out["tolerance"] == pytest.approx(cfg.pass_b.match_tolerance(SIGMA_ITEM))
+
+    # NEGATIVE CONTROL: the zero must come from the filter, not from a broken comparison.
+    # Realized gaps sit just under the bound -- the signature of a hard filter.
+    wide = pairs.pivot_table(index="matched_set", columns="difficulty",
+                             values="mean_selection")
+    gap = (wide["difficult"] - wide["easy"]).abs()
+    assert gap.max() <= out["tolerance"] + 1e-9
+    assert gap.max() > 0.5 * out["tolerance"], (
+        "gaps nowhere near the bound would mean the filter is not what produced the zero")
+
+
+def test_the_analysis_scale_gap_is_not_bounded_by_matching(cfg, pairs):
+    """A3.13's substantive half: matching binds T1-T3, the primary model uses T4-T5.
+
+    Section 4.4's disjoint split makes this unavoidable -- the price of an uncontaminated
+    regressor is that matching cannot bind it -- so it is measured rather than assumed away.
+    """
+    from src.experiments.pass_b import match_gap_exclusions
+
+    out = match_gap_exclusions(cfg, pairs, SIGMA_ITEM)
+    assert out["gap_analysis_max"] > out["tolerance"], (
+        "if the analysis gap were also bounded, this diagnostic would be vacuous too "
+        "and A3.13's substantive half would not exist")
+    assert out["n_over_on_analysis"] > 0
+    assert 0.0 < out["frac_over_on_analysis"] <= 1.0
+    assert len(out["excluded_matched_sets"]) == out["n_over_on_analysis"]
+    assert out["n_matched_sets"] == pairs["matched_set"].nunique()

@@ -1753,6 +1753,46 @@ Reported per model, interpreted as follows, and **committed to now**:
 `diff_analysis = |θ₁ − θ₂|`, which cannot say *which* item the instrument prefers, so the
 check was not computable from the artifact at all.
 
+### A3.13 The match-gap exclusion is vacuous as posed, and the non-vacuous version is elsewhere
+
+Review item 9 asks for pairs exceeding their own matching tolerance to be excluded, with N
+reported and the primary reported both ways. **As posed it can never exclude anything.**
+
+`_match_domain` applies the tolerance as a **hard filter at construction** —
+`if gap > tol: continue` — and raises rather than accept fewer matched sets. So every
+committed set satisfies `gap ≤ tol` on the selection score by construction, and N is
+identically 0 at any tolerance. The run machine's realized maxima confirm it empirically:
+**0.406 against a tolerance of 0.409** (gemma) and **0.418 against 0.418** (qwen-1.5b) —
+pressed flush against the bound, which is the signature of a hard filter rather than of
+comfortable matching.
+
+Reporting "0 pairs excluded" would therefore be true and misleading. It is reported as
+`selection_is_bounded_by_construction`, so the zero reads as *enforced upstream* rather
+than *checked and found clean*.
+
+**What is not bounded, and is the real exposure.** Matching is enforced on `mean_selection`,
+from templates T1–T3. The analysis measurement `mean_analysis`, from the **disjoint** T4–T5
+(§4.4), is a separate estimate of the same quantity and **nothing constrains it**. Residual
+imbalance on the analysis scale can and does exceed the tolerance — the run machine reports
+analysis-gap maxima of **1.52** and **1.98**, i.e. 3.7× and 4.7× their tolerances.
+
+That is exactly the leakage the concern points at: difficulty confounded with extremity
+*through the measurement the primary model actually uses*, which is the confound
+design-level matching existed to remove (§13 item 8). §4.4's disjoint split makes it
+unavoidable — the price of an uncontaminated regressor is that matching cannot bind it.
+
+**Pre-specified now, blind.** `pass_b.match_gap_exclusions` flags matched sets whose
+**analysis-scale** gap exceeds the **same preregistered `0.26 × σ_item`**. No new number is
+introduced; the threshold is A2.9.2's, applied to the quantity matching does not bound.
+
+- Reported per model: N and fraction of matched sets over tolerance, and the analysis-gap
+  mean and max.
+- The primary is reported **both ways** — all matched sets, and restricted to those within
+  tolerance on the analysis scale — as review item 9 asked.
+- **Neither is the primary.** The full-sample estimate remains the preregistered primary;
+  the restricted one is a sensitivity analysis. Promoting whichever is larger after seeing
+  both is the move A3.6 declined.
+
 ### The standing rule this creates
 
 **An amendment that changes a number gets a test that reads the rule and asserts the config

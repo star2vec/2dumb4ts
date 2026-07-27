@@ -354,3 +354,50 @@ def load_or_run(cfg: RunConfig, scores: pd.DataFrame, prov: Provenance,
         assert_tolerance_matches(cfg, pairs, sigma_item)
         return pairs
     return run_pass_b(cfg, scores, prov, sigma_item)
+
+
+def match_gap_exclusions(cfg: RunConfig, pairs: pd.DataFrame, sigma_item: float) -> dict:
+    """Matched sets whose residual imbalance exceeds the preregistered tolerance (A3.13).
+
+    WHY THE OBVIOUS VERSION IS VACUOUS. "Exclude pairs that exceeded their own tolerance"
+    can never exclude anything on the SELECTION score: `_match_domain` applies
+    `if gap > tol: continue` as a hard filter at construction and raises rather than accept
+    fewer sets, so every committed set satisfies `gap <= tol` by construction. The realized
+    maxima press right against the bound -- 0.406 against a tolerance of 0.409 for gemma --
+    which is the signature of a hard filter, not of comfortable matching.
+
+    WHAT IS NOT BOUNDED. Matching is enforced on `mean_selection`, from templates T1-T3.
+    The analysis measurement `mean_analysis`, from the disjoint T4-T5, is a SEPARATE
+    estimate of the same quantity and nothing constrains it. So residual imbalance on the
+    analysis scale can exceed the tolerance, and that is the leakage the concern actually
+    points at: difficulty confounded with extremity through the measurement the primary
+    model uses, which is what design-level matching existed to remove.
+
+    The threshold is the preregistered `0.26 * sigma_item` (A2.9.2), applied to the
+    analysis gap. No new number is introduced.
+    """
+    tol = cfg.pass_b.match_tolerance(sigma_item)
+    wide = pairs.pivot_table(
+        index="matched_set", columns="difficulty",
+        values=["mean_selection", "mean_analysis"],
+    )
+    if not {"difficult", "easy"} <= set(wide["mean_analysis"].columns):
+        raise ValueError("pairs do not contain both difficulty levels")
+
+    gap_sel = (wide["mean_selection"]["difficult"] - wide["mean_selection"]["easy"]).abs()
+    gap_ana = (wide["mean_analysis"]["difficult"] - wide["mean_analysis"]["easy"]).abs()
+    over = gap_ana[gap_ana > tol]
+
+    return {
+        "tolerance": float(tol),
+        "n_matched_sets": int(len(gap_ana)),
+        # Selection-scale exclusions are structurally impossible; reported so the zero is
+        # read as "enforced upstream" rather than "checked and found clean".
+        "n_over_on_selection": int((gap_sel > tol + 1e-9).sum()),
+        "selection_is_bounded_by_construction": True,
+        "n_over_on_analysis": int(len(over)),
+        "frac_over_on_analysis": float(len(over) / len(gap_ana)) if len(gap_ana) else 0.0,
+        "gap_analysis_max": float(gap_ana.max()),
+        "gap_analysis_mean": float(gap_ana.mean()),
+        "excluded_matched_sets": sorted(over.index.tolist()),
+    }
