@@ -63,6 +63,15 @@ class Provenance(BaseModel):
     config_hash: str
     git_sha: str
     git_dirty: bool
+    #: Reduced stimuli (10 items/domain, 5 pairs/level). `run.py` told the operator that
+    #: "assert_reportable() rejects these artifacts" while nothing in the guard could see
+    #: this flag -- a smoke run on the run machine with a clean tree passed every check.
+    #:
+    #: Defaulted to False ONLY so artifacts predating this field still load. Such an
+    #: artifact cannot be distinguished here; the backstop is that `smoke` is inside the
+    #: stage hash, so smoke output lands in its own directory and is never picked up by a
+    #: full run. New artifacts always carry the real value.
+    smoke: bool = False
     platform: str
     python_version: str
     created_utc: str
@@ -209,6 +218,7 @@ def capture(cfg: RunConfig, device: str | None = None) -> Provenance:
         config_hash=cfg.hash(),
         git_sha=sha,
         git_dirty=dirty,
+        smoke=cfg.smoke,
         platform=platform.platform(),
         python_version=platform.python_version(),
         created_utc=datetime.now(timezone.utc).isoformat(timespec="seconds"),
@@ -234,6 +244,11 @@ def assert_reportable(prov: Provenance) -> None:
         problems.append("working tree is dirty")
     if prov.git_sha == "no-commit":
         problems.append("no git commit to attribute the run to")
+    if prov.smoke:
+        problems.append(
+            "smoke mode: reduced stimuli (a fraction of the items and pairs), so the "
+            "artifact is a wiring check and not a measurement"
+        )
     if problems:
         raise ProvenanceError(
             "artifact is not reportable:\n  - " + "\n  - ".join(problems)

@@ -126,9 +126,13 @@ def test_unreportable_artifacts_are_rejected(override, expected):
         assert_reportable(_prov(**override))
 
 
-def test_smoke_artifacts_are_never_reportable():
-    """Dev-machine smoke output must not be able to reach the paper."""
-    with pytest.raises(ProvenanceError):
+def test_dev_machine_artifacts_are_never_reportable():
+    """Renamed. It was called `test_smoke_artifacts_are_never_reportable` and set
+    device='mps' AND git_dirty=True -- so it passed on the device and the dirty tree and
+    never exercised smoke at all. `Provenance` had no smoke field to exercise. A test
+    named for a property it does not test is worse than no test: it is why the gap
+    survived. The real one is `test_smoke_artifacts_are_not_reportable` below."""
+    with pytest.raises(ProvenanceError, match="require 'cuda'"):
         assert_reportable(_prov(device="mps", git_dirty=True))
 
 
@@ -385,3 +389,43 @@ def test_paths_serialise_posix_style_even_when_the_path_is_windows_flavoured():
     windows = PureWindowsPath("src") / "stimuli" / "items.yaml"
     assert "\\" in str(windows), "precondition: PureWindowsPath must use backslashes"
     assert StimuliConfig()._as_posix(windows) == "src/stimuli/items.yaml"
+
+
+def test_smoke_artifacts_are_not_reportable():
+    """`run.py` printed that assert_reportable rejects smoke artifacts. It did not.
+
+    `Provenance` carried no `smoke` field, so a wiring-check run on the RUN MACHINE --
+    cuda, bf16, pinned revision, clean tree -- passed every reportability check while
+    using 10 items per domain instead of 100 and 5 pairs per level instead of 100. The
+    notebook would have printed "REPORTABLE: safe to put in the paper" over it.
+
+    Smoke is in the stage hash, so such artifacts land in their own directory and a full
+    run never picks them up. That is a segregation guarantee, not a reportability one, and
+    the operator was told the wrong thing about which he had.
+    """
+    from src.provenance import Provenance, ProvenanceError, assert_reportable
+
+    clean = dict(
+        device="cuda", device_name="RTX 2000 Ada", dtype="bfloat16",
+        attn_implementation="eager", torch_version="2.8.0",
+        transformers_version="4.44.0", pymc_version="5", pytensor_version="2",
+        pytensor_mode="NUMBA", model_name="m", model_hf_id="o/m",
+        model_revision="a" * 40, model_revision_pinned=True, seed=1,
+        config_hash="deadbeef", git_sha="c" * 40, git_dirty=False,
+        platform="Windows", python_version="3.11.9", created_utc="2026-07-27T00:00:00+00:00",
+    )
+    # PRECONDITION: everything except smoke must already be reportable, or this test
+    # would pass for the wrong reason.
+    assert_reportable(Provenance(**clean, smoke=False))
+
+    with pytest.raises(ProvenanceError, match="smoke mode"):
+        assert_reportable(Provenance(**clean, smoke=True))
+
+
+def test_smoke_flag_reaches_the_provenance_record():
+    """The guard is only as good as the capture; assert the value is actually carried."""
+    from src.provenance import Provenance
+
+    assert "smoke" in Provenance.model_fields
+    src = (Path(__file__).resolve().parents[1] / "src" / "provenance.py").read_text()
+    assert "smoke=cfg.smoke" in src, "capture() does not record the flag it checks"

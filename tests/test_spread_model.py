@@ -182,3 +182,36 @@ def test_two_stage_manufactures_the_interaction():
         f"two-stage contrast {contrast:+.4f} is more than 6 SE from zero on null data; "
         "the demonstration should show noise, not a deterministic artifact"
     )
+
+
+def test_the_degenerate_gap_guard_is_scale_relative_not_absolute():
+    """A constant |diff| column has sd ~1e-22, not 0, and `sd <= 0` lets it through.
+
+    power.py was corrected for this and its comment named `prepare` as carrying the same
+    hole -- the stricter guard sat on the diagnostic while the weaker one stayed on the
+    model that actually produces the reported estimate.
+    """
+    cfg = load_config(CONFIG)
+    trials, _ = _synth(-0.4, n_pairs=12, n_tmpl=2, seed=2)
+
+    # PRECONDITION: the honest frame must pass, or this proves nothing.
+    sm.prepare(cfg, trials)
+
+    for constant in (1e-6, 3.2, 0.0):
+        degenerate = trials.assign(diff_analysis=constant)
+        sd = float(degenerate["diff_analysis"].std(ddof=1))
+        with pytest.raises(ValueError, match="no usable variance"):
+            sm.prepare(cfg, degenerate)
+        if constant:
+            # NEGATIVE CONTROL: this is the value an absolute `sd <= 0` test would admit.
+            assert 0 < sd < 1e-15, f"sd {sd:g} would not have exposed the old guard"
+
+
+def test_a_frame_with_no_recognised_condition_raises_before_fitting():
+    """Every row being the pre sentinel left `conditions` empty, and the error path that
+    was supposed to explain it indexed `conditions[0]` and raised IndexError instead."""
+    cfg = load_config(CONFIG)
+    trials, _ = _synth(-0.4, n_pairs=8, n_tmpl=2, seed=4)
+    only_pre = trials.assign(condition=sm.PRE_SENTINEL, timepoint="pre")
+    with pytest.raises(ValueError, match="nothing to estimate lambda from"):
+        sm.prepare(cfg, only_pre)

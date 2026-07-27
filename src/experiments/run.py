@@ -266,14 +266,26 @@ def run(cfg: RunConfig, *, stop_after: str | None = None, progressbar: bool = Tr
 
     primary = contrasts[(contrasts["name"] == spread_model.PRIMARY)
                         & (contrasts["term"] == "lambda")]
-    decision = primary["decision"].iloc[0] if len(primary) else "unavailable"
+    if not len(primary):
+        # A selection that matches nothing must not read as a completed run. This exited 0
+        # with outcome "primary-unavailable", so a rename of PRIMARY or of the `lambda`
+        # term would have produced a successful-looking run carrying no primary test at
+        # all -- the same silent-empty class as the notebook's `term == "slope"` filter.
+        results["contrasts"] = contrasts.to_dict("records")
+        results["sesoi"] = sesoi
+        available = sorted(set(contrasts["name"])) if len(contrasts) else []
+        _echo(f"PRIMARY TEST ({spread_model.PRIMARY}) x |diff|  ->  NOT COMPUTED")
+        print(f"  no contrast named {spread_model.PRIMARY!r} with term 'lambda'.")
+        print(f"  contrasts present: {available}")
+        return _finish(out_dir, cfg, results, "primary-unavailable", HALT)
+
+    decision = primary["decision"].iloc[0]
     _echo(f"PRIMARY TEST ({spread_model.PRIMARY}) x |diff|  ->  {decision.upper()}")
-    if len(primary):
-        row = primary.iloc[0]
-        print(f"  median {row['median']:+.4f}   "
-              f"{int(cfg.analysis.hdi_prob * 100)}% HDI "
-              f"[{row['hdi_low']:+.4f}, {row['hdi_high']:+.4f}]   "
-              f"P(<0) = {row['p_negative']:.3f}")
+    row = primary.iloc[0]
+    print(f"  median {row['median']:+.4f}   "
+          f"{int(cfg.analysis.hdi_prob * 100)}% HDI "
+          f"[{row['hdi_low']:+.4f}, {row['hdi_high']:+.4f}]   "
+          f"P(<0) = {row['p_negative']:.3f}")
 
     agree = spread_model.structure_factor_agreement(contrasts)
     if agree:

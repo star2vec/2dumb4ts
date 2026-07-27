@@ -101,8 +101,15 @@ def prepare(cfg: RunConfig, trials: pd.DataFrame) -> SpreadDesign:
 
     diff = f["diff_analysis"].to_numpy(dtype=float)
     mu, sd = float(diff.mean()), float(diff.std(ddof=1))
-    if sd <= 0:
-        raise ValueError("|diff| has zero variance; the difficulty regressor is undefined")
+    # Scale-RELATIVE, not `sd <= 0`. A constant column of 1e-6 has sd of order 1e-22, which
+    # sails past an absolute test while making diff_z garbage of order 1e6. `power.py` was
+    # corrected for this and its comment named this function as carrying the same hole;
+    # the weaker guard was left on the LIVE model and the stricter one on the diagnostic.
+    if sd <= 1e-9 * max(1.0, abs(mu)):
+        raise ValueError(
+            f"|diff| has no usable variance (sd {sd:.3g} against mean {mu:.3g}); "
+            "the difficulty regressor is undefined."
+        )
     f["diff_z"] = (diff - mu) / sd
 
     # Fixed pair axis. s and d are both +/-1 relative to item1, so the baseline is a
@@ -129,6 +136,12 @@ def prepare(cfg: RunConfig, trials: pd.DataFrame) -> SpreadDesign:
     # `chose` -- which mixed conditions together and attenuated every lambda toward
     # their average while leaving gamma looking correct. That is exactly the failure
     # the recovery test caught, and it was invisible because the fallback was silent.
+    if not conditions:
+        raise ValueError(
+            "no configured Pass C condition is present in the trials. Every row is either "
+            f"the {PRE_SENTINEL!r} baseline or an unrecognised condition, so there is "
+            "nothing to estimate lambda from."
+        )
     unknown = sorted(set(f.loc[~pre_rows, "condition"]) - set(conditions))
     if unknown:
         raise ValueError(

@@ -323,6 +323,8 @@ def assert_tolerance_matches(cfg: RunConfig, pairs: pd.DataFrame, sigma_item: fl
             "match tolerance, so it was built with the fixed 0.15-logit constant. Delete it "
             "and rebuild -- it cannot be verified and must not be reused."
         )
+    if pairs.empty:
+        raise ValueError(f"cached Pass B at {artifact_path(cfg)} is empty")
     want = cfg.pass_b.match_tolerance(sigma_item)
     got = float(pairs["match_tolerance_realized"].iloc[0])
     if abs(got - want) > 1e-9:
