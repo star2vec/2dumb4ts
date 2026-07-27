@@ -271,9 +271,14 @@ def run(cfg: RunConfig, *, stop_after: str | None = None, progressbar: bool = Tr
     if len(bad):
         print(bad.to_string())
 
-    sesoi = cfg.analysis.sesoi_sigma_fraction * fit.sigma_item
+    # `instrument`, not `fit`. `fit` is a local inside `_instrument_fit` and has never been
+    # in scope here: this was a NameError sitting in the one stage the pipeline had never
+    # reached, because every test run so far stopped at or before Pass B. It would have
+    # fired AFTER Pass C's 20,000 forward passes per model.
+    sigma_item = float(instrument["sigma_item"])
+    sesoi = cfg.analysis.sesoi_sigma_fraction * sigma_item
     print(f"\nSESOI = {cfg.analysis.sesoi_sigma_fraction} x sigma_item "
-          f"({fit.sigma_item:.3f}) = {sesoi:.4f} logits per SD of |diff|")
+          f"({sigma_item:.3f}) = {sesoi:.4f} logits per SD of |diff|")
     contrasts = spread_model.contrasts(cfg, idata, sesoi)
     print(contrasts.to_string(index=False))
     contrasts.to_parquet(out_dir / f"contrasts_{cfg.hash()}.parquet", index=False)
