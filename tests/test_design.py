@@ -187,8 +187,15 @@ def test_pre_context_never_contains_a_rating_or_the_manipulation(cfg, templates)
     msgs = pre_messages(t, "a trip to X", "a trip to Y", "a trip to X", cfg)
     assert len(msgs) == 1
     body = msgs[0]["content"]
-    for leak in ("you chose", "assigned", "another person", "receive"):
+    # NEGATIVE CONTROL: an empty or stub body would satisfy every check below.
+    assert len(body) > 40 and "X" in body and "Y" in body, body
+
+    leaks = ("you chose", "assigned", "another person", "receive")
+    for leak in leaks:
         assert leak.lower() not in body.lower()
+    # ...and the same predicate must actually detect a leak when one is present.
+    contaminated = body + " Another person chose X for you; you receive X."
+    assert any(k in contaminated.lower() for k in leaks)
 
 
 def test_pre_context_is_identical_across_conditions_by_construction(cfg, templates):
@@ -335,14 +342,62 @@ def test_pair_construction_fails_loudly_rather_than_returning_fewer_pairs(cfg):
 # the no-generation constraint
 
 
+BANNED_GENERATION = (".generate(", "GenerationConfig", "pipeline(")
+
+
+def _generation_offenders(files) -> list[str]:
+    """Banned generation constructs, checked PER LINE.
+
+    The earlier version tested `pattern in text and "prompt_pipeline" not in text`, so the
+    exemption was evaluated over the WHOLE FILE: any module mentioning `prompt_pipeline`
+    anywhere became exempt from all three patterns, including `.generate(`. The exemption
+    now applies only to the line that earns it.
+    """
+    offenders = []
+    for path in files:
+        for lineno, line in enumerate(path.read_text(encoding="utf-8").splitlines(), 1):
+            if "prompt_pipeline" in line:
+                continue
+            for pattern in BANNED_GENERATION:
+                if pattern in line:
+                    offenders.append(f"{path.name}:{lineno}: {pattern}")
+    return offenders
+
+
 def test_no_generate_call_anywhere_in_src():
     """Hard constraint 1: every DV is read from one forward pass at one token
-    position. No open-ended generation in the measurement path, ever."""
+    position. No open-ended generation in the measurement path, ever.
+
+    This is the single most load-bearing constraint in the project, and it was enforced by
+    a scan that passes when the scan finds nothing -- a renamed directory or a bad path
+    would have retired the constraint silently. Both halves are now proved: that the walk
+    reached real files, and that the detector fires on a planted violation.
+    """
     root = Path(__file__).resolve().parent.parent / "src"
-    offenders = []
-    for path in root.rglob("*.py"):
-        text = path.read_text()
-        for pattern in (".generate(", "GenerationConfig", "pipeline("):
-            if pattern in text and "prompt_pipeline" not in text:
-                offenders.append(f"{path.relative_to(root)}: {pattern}")
-    assert not offenders, f"generation reached the measurement path: {offenders}"
+    files = sorted(root.rglob("*.py"))
+
+    # NEGATIVE CONTROL 1: the walk must actually reach the source tree.
+    assert len(files) >= 15, f"the scan found only {len(files)} files under {root}"
+    assert any(f.name == "run.py" for f in files), "the walk missed the experiment runner"
+
+    assert not _generation_offenders(files), (
+        f"generation reached the measurement path: {_generation_offenders(files)}")
+
+
+def test_the_generation_scan_actually_detects_generation(tmp_path):
+    """NEGATIVE CONTROL 2, and it covers the over-broad exemption as well.
+
+    A file containing a legitimate `prompt_pipeline` used to be exempted from the whole
+    check, so a real `.generate(` alongside it passed.
+    """
+    planted = tmp_path / "sneaky.py"
+    planted.write_text(
+        "from x import prompt_pipeline\n"
+        "out = model.generate(ids, max_new_tokens=8)\n", encoding="utf-8")
+    found = _generation_offenders([planted])
+    assert found, "the detector missed a .generate( call sitting beside prompt_pipeline"
+    assert ".generate(" in found[0]
+
+    clean = tmp_path / "fine.py"
+    clean.write_text("logits = model(ids).logits  # one forward pass\n", encoding="utf-8")
+    assert not _generation_offenders([clean])

@@ -90,10 +90,21 @@ def test_design_orients_on_a_fixed_pair_axis():
     assert (f.loc[f["timepoint"] == "pre", "post"] == 0.0).all()
 
 
-def test_module_exposes_no_per_pair_spread():
-    """The two-stage route must not be available, not merely discouraged."""
-    banned = [n for n in dir(sm) if "spread" in n.lower() and n != "SpreadDesign"]
-    assert not banned, f"module exposes a per-pair spread helper: {banned}"
+def test_module_exposes_no_per_pair_spread(monkeypatch):
+    """The two-stage route must not be available, not merely discouraged.
+
+    The check is a name filter, so it is only as good as its ability to fire. A planted
+    decoy proves it does -- without that, a renamed predicate would retire the check and
+    the test would keep passing.
+    """
+    def banned_names():
+        return [n for n in dir(sm) if "spread" in n.lower() and n != "SpreadDesign"]
+
+    assert not banned_names(), f"module exposes a per-pair spread helper: {banned_names()}"
+
+    # NEGATIVE CONTROL: the filter must catch a per-pair spread helper if one appears.
+    monkeypatch.setattr(sm, "compute_pair_spread", lambda *_: None, raising=False)
+    assert "compute_pair_spread" in banned_names()
 
 
 @pytest.mark.slow

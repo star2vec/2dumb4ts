@@ -30,7 +30,12 @@ def nb() -> dict:
 
 @pytest.fixture(scope="module")
 def code_cells(nb) -> list[str]:
-    return ["".join(c["source"]) for c in nb["cells"] if c["cell_type"] == "code"]
+    cells = ["".join(c["source"]) for c in nb["cells"] if c["cell_type"] == "code"]
+    # NEGATIVE CONTROL for every absence-check below: an empty or unparsed notebook
+    # satisfies "does not contain X" for every X.
+    assert len(cells) >= 10, f"only {len(cells)} code cells -- the notebook did not load"
+    assert any("spread_model" in c for c in cells), "cells loaded but look wrong"
+    return cells
 
 
 def test_every_code_cell_parses(code_cells):
