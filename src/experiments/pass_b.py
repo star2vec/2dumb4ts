@@ -46,6 +46,12 @@ class Candidate:
     mean_selection: float
     diff_analysis: float
     mean_analysis: float
+    #: SIGNED analysis-split theta per member. `diff_analysis` is |theta1 - theta2| and
+    #: so cannot say WHICH item the instrument prefers -- which A3.12's framing-transfer
+    #: check needs, because it asks whether the choice-framed scale predicts the
+    #: prefer-framed DV baseline.
+    theta_item1: float
+    theta_item2: float
 
 
 def _short(item_id: str) -> str:
@@ -67,6 +73,8 @@ def _candidates(domain: str, block: pd.DataFrame) -> list[Candidate]:
                 mean_selection=(a["score_selection"] + b["score_selection"]) / 2.0,
                 diff_analysis=abs(a["score_analysis"] - b["score_analysis"]),
                 mean_analysis=(a["score_analysis"] + b["score_analysis"]) / 2.0,
+                theta_item1=float(a["score_analysis"]),
+                theta_item2=float(b["score_analysis"]),
             )
         )
     return out
@@ -207,6 +215,8 @@ def _match_domain(
                     "diff_selection": cand.diff_selection,
                     "mean_selection": cand.mean_selection,
                     "diff_analysis": cand.diff_analysis,
+                    "theta_item1": cand.theta_item1,
+                    "theta_item2": cand.theta_item2,
                     "mean_analysis": cand.mean_analysis,
                     "domain_q_difficult": q_hard,
                     "domain_q_easy": q_easy,

@@ -86,3 +86,82 @@ def test_the_ppc_null_refuses_to_return_a_nan_that_reads_as_no_signal():
     assert np.isnan(s.std(ddof=1)) and not (s.std(ddof=1) > 0), (
         "if NaN sd ever compares > 0, run.py's guard changes meaning")
     assert np.isfinite(s[np.isfinite(s)].std(ddof=1))
+
+
+# ---------------------------------------------------------------------------
+# A3.12 framing transfer
+
+
+def _pre_frame(agree_rate: float, n: int = 200, seed: int = 0):
+    """Pre rows plus pairs, with a controllable agreement between framings."""
+    import pandas as pd
+
+    rng = np.random.default_rng(seed)
+    pair_ids = [f"d/p{i:03d}" for i in range(n)]
+    theta1 = rng.normal(0, 1, n)
+    theta2 = theta1 + rng.choice([-1, 1], n) * rng.uniform(0.5, 2.0, n)
+    pairs = pd.DataFrame({"pair_id": pair_ids, "theta_item1": theta1,
+                          "theta_item2": theta2,
+                          "diff_analysis": np.abs(theta1 - theta2)})
+    theta_says = theta1 > theta2
+    flip = rng.random(n) > agree_rate
+    trials = pd.DataFrame({
+        "pair_id": pair_ids, "condition": "pre", "timepoint": "pre",
+        "item1_id": [f"d/a{i}" for i in range(n)],
+        "item2_id": [f"d/b{i}" for i in range(n)],
+        "item1_wins": np.where(flip, ~theta_says, theta_says),
+        "difficulty": ["difficult"] * (n // 2) + ["easy"] * (n - n // 2),
+    })
+    return trials, pairs
+
+
+def test_framing_transfer_recovers_the_agreement_rate():
+    """Pass A elicits theta with the CHOICE question; the Pass C DV asks about PREFERENCE.
+    The manipulation is calibrated on one framing and the outcome measured on another, and
+    that is recorded nowhere in sections 1-13 or Amendments 1-2. A3.12 pre-specifies this."""
+    from src.analysis.bradley_terry import framing_transfer
+
+    for rate in (0.55, 0.75, 0.95):
+        trials, pairs = _pre_frame(rate, seed=int(rate * 100))
+        out = framing_transfer(trials, pairs)
+        assert out["agreement_overall"] == pytest.approx(rate, abs=0.08), rate
+        assert out["n"] == len(trials)
+
+    # NEGATIVE CONTROL: framings that order items independently must read as chance, not
+    # as agreement -- otherwise the diagnostic cannot detect the failure it exists for.
+    trials, pairs = _pre_frame(0.5, n=600, seed=7)
+    assert framing_transfer(trials, pairs)["agreement_overall"] == pytest.approx(0.5, abs=0.05)
+
+
+def test_framing_transfer_reports_by_difficulty_and_needs_signed_theta():
+    """Near-chance on DIFFICULT pairs is expected -- theta says those items are close. The
+    EASY stratum is the diagnostic, so the split has to be reported."""
+    from src.analysis.bradley_terry import framing_transfer
+
+    trials, pairs = _pre_frame(0.8, seed=3)
+    out = framing_transfer(trials, pairs)
+    assert "agreement_difficult" in out and "agreement_easy" in out
+
+    # |diff| is unsigned and cannot say WHICH item theta prefers, so the check must
+    # refuse rather than guess.
+    with pytest.raises(ValueError, match="theta_item1/theta_item2"):
+        framing_transfer(trials, pairs.drop(columns=["theta_item1", "theta_item2"]))
+    with pytest.raises(ValueError, match="no pre rows"):
+        framing_transfer(trials.assign(timepoint="post"), pairs)
+
+
+def test_pass_b_persists_signed_theta_for_the_framing_check():
+    """The diagnostic is useless if the artifact drops the sign, which it did."""
+    import sys
+
+    from src.config import load_config
+    from src.experiments.pass_b import build_pairs
+
+    sys.path.insert(0, ".")
+    from tests.test_design import SIGMA_ITEM, _synthetic_scores
+
+    cfg = load_config("configs/stage0_qwen2.5-0.5b.yaml")
+    pairs = build_pairs(cfg, _synthetic_scores(cfg), SIGMA_ITEM)
+    assert {"theta_item1", "theta_item2"} <= set(pairs.columns)
+    assert np.allclose(pairs["diff_analysis"],
+                       (pairs["theta_item1"] - pairs["theta_item2"]).abs())

@@ -478,3 +478,51 @@ def anchor_ordering_check(fit: BTFit, anchors: list) -> pd.DataFrame:
     out = out.sort_values("alpha_mean", ascending=False).reset_index(drop=True)
     out["alpha_rank"] = np.arange(len(out))
     return out
+
+
+def framing_transfer(pass_c_trials: pd.DataFrame, pairs: pd.DataFrame) -> dict:
+    """Does the choice-framed item scale predict prefer-framed preference? (A3.12)
+
+    Pass A elicits every anchor comparison with the CHOICE question ("which one would you
+    choose for yourself"), so `theta` -- and therefore `|diff|`, the difficulty
+    manipulation -- lives on the choice framing. The Pass C DV asks a different question
+    ("which of the two do you prefer"). The manipulation is calibrated on one framing and
+    the outcome measured on another, which is nowhere recorded in sections 1-13 or in
+    Amendments 1-2.
+
+    Computed from the PRE rows only. Those are the shared baseline, measured before any
+    manipulation exists, so this carries no information about H1: it cannot distinguish
+    `chose` from `yoked` because at pre there is no condition. That is what makes it safe
+    to run before the primary analysis.
+
+    Returns the rate at which the pre-manipulation preference agrees with the sign of
+    theta, overall and by difficulty. Near 0.5 on difficult pairs is EXPECTED -- those are
+    the pairs where theta says the items are close. The diagnostic is the EASY stratum: if
+    agreement there is not well above chance, the two framings order items differently and
+    `|diff|` is a noisy proxy for the difficulty of the question the DV actually asks.
+    """
+    need = {"pair_id", "condition", "timepoint", "item1_id", "item2_id", "item1_wins"}
+    missing = need - set(pass_c_trials.columns)
+    if missing:
+        raise ValueError(f"trials missing columns: {sorted(missing)}")
+
+    pre = pass_c_trials[pass_c_trials["timepoint"] == "pre"]
+    if pre.empty:
+        raise ValueError("no pre rows; the framing check needs the shared baseline")
+
+    signed = pairs.set_index("pair_id")
+    for col in ("theta_item1", "theta_item2"):
+        if col not in signed.columns:
+            raise ValueError(
+                "pairs must carry theta_item1/theta_item2 to compare framings; |diff| is "
+                "unsigned and cannot say WHICH item theta prefers."
+            )
+    gap = (signed["theta_item1"] - signed["theta_item2"]).reindex(pre["pair_id"])
+    agree = (pre["item1_wins"].to_numpy() == (gap.to_numpy() > 0))
+
+    out = {"n": int(len(pre)), "agreement_overall": float(agree.mean())}
+    if "difficulty" in pre.columns:
+        for level, m in pre.groupby("difficulty", observed=True).groups.items():
+            idx = pre.index.get_indexer(m)
+            out[f"agreement_{level}"] = float(agree[idx].mean())
+    return out

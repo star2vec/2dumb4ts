@@ -1703,6 +1703,56 @@ single replicate fell under the 20-cell floor, and `run.py` guards on `null_sd >
 is `False` for `NaN` — so the misspecification diagnostic reported nothing at all, silently.
 Failed replicates are now dropped and counted, and losing more than half is an error.
 
+### A3.12 The difficulty manipulation and the DV are elicited by different questions
+
+Found by rendering every prompt the pipeline sends and reading them — the same sweep that
+found the choice-prompt defect. **Pass A elicits every anchor comparison with the CHOICE
+question; the Pass C DV asks about PREFERENCE.** Per template:
+
+| template | Pass A (θ, and the Pass C choice) | Pass C DV, pre and post |
+|---|---|---|
+| t0 | "Which one would you **choose** for yourself?" | "Which of the two do you **prefer**?" |
+| t1 | "**Pick** the one you would rather have." | "Which one do you **prefer**?" |
+| t3 | "**Select** the one you want." | "State which you **prefer**." |
+
+So `θ` — and therefore `|diff|`, the difficulty manipulation and the primary regressor —
+lives on the **choice** framing, while the outcome that moves is measured on the
+**preference** framing. This is recorded nowhere in §1–§13 or in Amendments 1–2.
+
+**It is not obviously wrong, and one half of it is right.** The Pass C choice elicitation
+uses the same question as Pass A, so `θ` predicts the model's own pick on the same task it
+was measured on — which is what `OWN_PICK_CONDITIONS` designation needs, and what makes
+`chose` coherent. The DV *has* to differ from the choice question, or the post measurement
+would re-elicit the choice rather than measure preference change.
+
+**The exposure is on the regressor.** "Difficult" means *θ-choose values are close*. If the
+two framings order items differently, `|diff|` is a noisy proxy for the difficulty of the
+question the DV actually asks, and `λ` is **attenuated toward zero**. That direction matters:
+it cannot manufacture H1, only hide it. On a design A3.3 already shows is underpowered,
+though, attenuation is not a comfortable bias to carry unmeasured.
+
+**Pre-specified check, blind, before Pass C.** `bradley_terry.framing_transfer` computes the
+rate at which the **pre-manipulation** preference agrees with the sign of `θ`, overall and
+by difficulty stratum. It runs on the PRE rows only — the shared baseline, measured before
+any manipulation exists — so it **carries no information about H1**: at pre there is no
+condition, and it cannot distinguish `chose` from `yoked`. That is what makes it safe to
+compute before the primary analysis, and it is why it is specified here rather than after.
+
+Reported per model, interpreted as follows, and **committed to now**:
+
+- **Difficult stratum near 0.5 is expected and is not a finding** — those are the pairs
+  where `θ` says the items are close.
+- **The easy stratum is the diagnostic.** Agreement there should be well above chance. If it
+  is not, the two framings order items differently and `|diff|` is measuring the difficulty
+  of a different question.
+- This is **reported, not a gate.** No model is excluded on it. A low easy-stratum figure is
+  reported as a limitation bounding the interpretation of `λ`, because inventing an
+  exclusion rule after seeing the instrument behave is the move A3.6 declined.
+
+`pass_b` now persists **signed** `theta_item1` / `theta_item2`. It previously emitted only
+`diff_analysis = |θ₁ − θ₂|`, which cannot say *which* item the instrument prefers, so the
+check was not computable from the artifact at all.
+
 ### The standing rule this creates
 
 **An amendment that changes a number gets a test that reads the rule and asserts the config
