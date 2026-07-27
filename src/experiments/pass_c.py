@@ -60,11 +60,11 @@ from src.readout.digits import build_label_map
 from src.stimuli.build import (
     Template,
     balanced_designation,
+    choice_messages,
     load_items,
     load_templates,
     post_dv_messages,
     pre_dv_messages,
-    render_choice,
 )
 
 #: Conditions whose designated item is the model's own pick. The 2x2 is entirely
@@ -121,11 +121,14 @@ def run_pass_c(
                     "_t": t,
                 })
                 pre_msgs.append(pre_dv_messages(t, fa, fb, cfg))
-                choice_msgs.append([{
-                    "role": "user",
-                    "content": f"{pre_msgs[-1][0]['content'].split(chr(10) * 2)[0]}"
-                               f"\n\n{render_choice(t, labels)}",
-                }])
+                # Built by the shared template builder, NOT by string-surgery on the pre
+                # prompt. The previous version took `pre.split("\n\n")[0]` to recover the
+                # pair block -- but every template's pair block CONTAINS a blank line, so
+                # the split truncated it to its first line and the model was asked to
+                # choose between A and B without being shown what A and B were. The choice
+                # it returned carried no item content, and six of the eight conditions
+                # designate that choice.
+                choice_msgs.append(choice_messages(t, fa, fb, cfg))
 
     pre = _read(runner, pre_msgs, label_map, cfg, "pass C pre")
     cho = _read(runner, choice_msgs, label_map, cfg, "pass C choice")

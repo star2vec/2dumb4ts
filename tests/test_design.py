@@ -401,3 +401,60 @@ def test_the_generation_scan_actually_detects_generation(tmp_path):
     clean = tmp_path / "fine.py"
     clean.write_text("logits = model(ids).logits  # one forward pass\n", encoding="utf-8")
     assert not _generation_offenders([clean])
+
+
+# ---------------------------------------------------------------------------
+# the choice prompt -- the free choice the whole paradigm rests on
+
+
+def test_the_choice_prompt_actually_shows_both_options(cfg, templates):
+    """The model cannot make a free choice between options it was never shown.
+
+    Pass C built this prompt by string-surgery on the pre prompt --
+    `pre.split("\\n\\n")[0]` -- to recover the pair block. But EVERY template's pair block
+    contains a blank line, so the split truncated it to its first line ("Here are two
+    options.") and the choice prompt asked the model to reply A or B having named neither.
+
+    Six of the eight conditions designate that choice, so the primary contrast would have
+    been built on a pick carrying no item content at all. Asserted per template, on both
+    option orders, against the rendered text.
+    """
+    from src.stimuli.build import choice_messages
+
+    for t in templates:
+        for fa, fb in (("a trip to Kyoto", "a trip to Lisbon"),
+                       ("a trip to Lisbon", "a trip to Kyoto")):
+            msgs = choice_messages(t, fa, fb, cfg)
+            assert len(msgs) == 1
+            body = msgs[0]["content"]
+            assert fa in body, f"{t.id}: first option missing from the choice prompt"
+            assert fb in body, f"{t.id}: second option missing from the choice prompt"
+            for label in cfg.readout.option_labels:
+                assert label in body, f"{t.id}: option label {label} missing"
+
+
+def test_pass_c_builds_the_choice_prompt_from_the_shared_builder(cfg, templates):
+    """A second renderer is how the two drift apart; there must be exactly one.
+
+    NEGATIVE CONTROL: the old reconstruction is rebuilt here and shown to lose the items,
+    so this test fails the moment anyone reintroduces prompt string-surgery.
+    """
+    import inspect
+
+    from src.experiments import pass_c
+    from src.stimuli.build import pre_dv_messages
+
+    src = inspect.getsource(pass_c.run_pass_c)
+    # Comments are allowed to NAME the banned construct -- that is how the reason for the
+    # ban survives. Only executable lines are checked.
+    code = "\n".join(ln.split("#", 1)[0] for ln in src.splitlines())
+    assert "choice_messages(" in code, "Pass C must use the shared choice builder"
+    assert "split(chr(10)" not in code and 'split("\\n\\n")' not in code, (
+        "Pass C is reconstructing a prompt by splitting another prompt")
+
+    t = templates[0]
+    fa, fb = "a trip to Kyoto", "a trip to Lisbon"
+    broken = pre_dv_messages(t, fa, fb, cfg)[0]["content"].split("\n\n")[0]
+    assert fa not in broken and fb not in broken, (
+        "the old reconstruction no longer loses the options -- this control is stale "
+        "and the test above needs rewriting rather than trusting")
