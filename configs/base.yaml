@@ -42,7 +42,9 @@ pass_b:
   max_uses_per_item: 2
   within_domain: true
   match_on_mean_rating: true     # removes the extremity/ceiling confound
-  match_tolerance: 0.15
+  # A2.9.2: tolerance = match_tolerance_sigma_fraction x sigma_item, per model.
+  # Was a fixed 0.15 "rating points" applied to theta-scale gaps in logits (A3.9).
+  match_tolerance_sigma_fraction: 0.26
 
 pass_c:
   # Amendment 2 A2.9.3. First four are the transcript-structure x wording 2x2.

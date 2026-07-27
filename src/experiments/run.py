@@ -207,8 +207,12 @@ def run(cfg: RunConfig, *, stop_after: str | None = None, progressbar: bool = Tr
         scores = theta_item_scores(cfg, comparisons, arm="digits")
         print(f"theta scores: selection sd {scores['score_selection'].std(ddof=1):.3f}, "
               f"analysis sd {scores['score_analysis'].std(ddof=1):.3f}")
-        pairs = stage_b.run_pass_b(cfg, scores, prov)
+        pairs = stage_b.run_pass_b(cfg, scores, prov, instrument["sigma_item"])
         print(f"wrote: {b_path}")
+    stage_b.assert_tolerance_matches(cfg, pairs, instrument["sigma_item"])
+    print(f"match tolerance {cfg.pass_b.match_tolerance(instrument['sigma_item']):.4f} "
+          f"= {cfg.pass_b.match_tolerance_sigma_fraction} x sigma_item "
+          f"({instrument['sigma_item']:.4f})  [A2.9.2, per model]")
 
     diag = stage_b.pair_diagnostics(pairs)
     print(diag.to_string(index=False))

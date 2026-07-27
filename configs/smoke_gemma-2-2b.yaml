@@ -17,7 +17,8 @@ smoke_pairs_per_level: 4
 batch_size: 8
 
 pass_b:
-  match_tolerance: 0.6
+  # smoke pools are tiny; loosened so matching can fill them at all
+  match_tolerance_sigma_fraction: 1.5
 
 analysis:
   chains: 2

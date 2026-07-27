@@ -212,13 +212,29 @@ class PassBConfig(Frozen):
     # Difficult and easy pools are matched on mean pair rating; matching removes
     # the extremity/ceiling confound rather than modelling it.
     match_on_mean_rating: bool = True
-    match_tolerance: float = 0.15  # rating points, per matched stratum
+    #: A2.9.2: the tolerance is `match_tolerance_sigma_fraction * sigma_item`, computed per
+    #: model from that model's own fit. It is NOT a fixed constant.
+    #:
+    #: It was one until 2026-07-27. §5 set 0.15 *rating points*, A1.8 deferred re-expressing
+    #: it, A2.9.2 re-expressed it as 0.26 x sigma_item -- and the code was never changed, so
+    #: a rating-point constant was applied as a hard filter to theta-scale gaps in logits.
+    #: The damage was not strictness. A FIXED logit constant is a DIFFERENT effective
+    #: strictness per model, varying inversely with sigma_item, so every model's matched sets
+    #: were built under a different rule while the ladder comparison assumes they were not.
+    #: Invisible within any single model. See A3.9.
+    match_tolerance_sigma_fraction: float = 0.26
 
     @model_validator(mode="after")
     def _balanced(self) -> "PassBConfig":
         if not 0.0 < self.difficult_quantile < self.easy_quantile < 1.0:
             raise ValueError("require 0 < difficult_quantile < easy_quantile < 1")
         return self
+
+    def match_tolerance(self, sigma_item: float) -> float:
+        """The realized tolerance for one model, on the theta scale (A2.9.2)."""
+        if not (sigma_item > 0):
+            raise ValueError(f"sigma_item must be positive, got {sigma_item!r}")
+        return self.match_tolerance_sigma_fraction * float(sigma_item)
 
 
 class PassCConfig(Frozen):

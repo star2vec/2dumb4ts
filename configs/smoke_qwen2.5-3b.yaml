@@ -19,7 +19,8 @@ batch_size: 8
 pass_b:
   # Loosened for the smoke pool only: 12 items/domain gives 66 candidate pairs,
   # so the production tolerance would fail matching for lack of candidates.
-  match_tolerance: 0.6
+  # smoke pools are tiny; loosened so matching can fill them at all
+  match_tolerance_sigma_fraction: 1.5
 
 analysis:
   chains: 2

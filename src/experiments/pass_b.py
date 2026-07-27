@@ -72,8 +72,15 @@ def _candidates(domain: str, block: pd.DataFrame) -> list[Candidate]:
     return out
 
 
-def build_pairs(cfg: RunConfig, scores: pd.DataFrame) -> pd.DataFrame:
+def build_pairs(cfg: RunConfig, scores: pd.DataFrame, sigma_item: float) -> pd.DataFrame:
+    """Matched pair construction. `sigma_item` sets the matching tolerance (A2.9.2).
+
+    `sigma_item` is required rather than defaulted: a default would silently reinstate the
+    fixed-constant bug it exists to fix, and would do so invisibly, since a too-strict
+    tolerance changes WHICH easy pairs are eligible without changing how many are built.
+    """
     n_diff, n_easy = cfg.n_difficult, cfg.n_easy
+    tol = cfg.pass_b.match_tolerance(sigma_item)
     domains = list(cfg.stimuli.domains)
 
     if cfg.pass_b.match_on_mean_rating and n_diff != n_easy:
@@ -111,10 +118,18 @@ def build_pairs(cfg: RunConfig, scores: pd.DataFrame) -> pd.DataFrame:
             key=lambda c: (-c.diff_selection, c.pair_id),
         )
         selected.extend(
-            _match_domain(cfg, domain, hard_pool, easy_pool, per_domain, q_hard, q_easy)
+            _match_domain(cfg, domain, hard_pool, easy_pool, per_domain, q_hard, q_easy,
+                          tol)
         )
 
     frame = pd.DataFrame(selected)
+    # The REALIZED tolerance, not the rule. The config hash keys on the fraction, which is
+    # constant across models, while the value actually applied depends on sigma_item -- and
+    # sigma_item comes from the instrument fit, whose estimator source is NOT in the pass_b
+    # hash. Two different pair sets could otherwise share one hash. Recorded per row so it
+    # survives the parquet round-trip and can be checked on cache reuse.
+    frame["match_tolerance_realized"] = tol
+    frame["sigma_item"] = float(sigma_item)
     _validate(cfg, frame)
     return frame
 
@@ -127,12 +142,12 @@ def _match_domain(
     target: int,
     q_hard: float,
     q_easy: float,
+    tol: float,
 ) -> list[dict]:
     """Greedy matched selection under the item-reuse and level-exclusivity rules."""
     uses: dict[str, int] = {}
     level: dict[str, str] = {}
     max_uses = cfg.pass_b.max_uses_per_item
-    tol = cfg.pass_b.match_tolerance
 
     def feasible(c: Candidate, lvl: str) -> bool:
         for item in (c.item1, c.item2):
@@ -201,7 +216,8 @@ def _match_domain(
     if n_sets < target:
         raise RuntimeError(
             f"domain {domain!r}: only {n_sets} of {target} matched sets could be built "
-            f"under max_uses_per_item={max_uses}, match_tolerance={tol}. Widen the "
+            f"under max_uses_per_item={max_uses}, match_tolerance={tol:.4f} "
+            f"(= {cfg.pass_b.match_tolerance_sigma_fraction} x sigma_item). Widen the "
             "tolerance or enlarge the item pool -- do NOT silently accept fewer pairs, "
             "which would break difficulty x domain balance."
         )
@@ -285,13 +301,44 @@ def pair_diagnostics(pairs: pd.DataFrame) -> pd.DataFrame:
     return diag
 
 
-def run_pass_b(cfg: RunConfig, scores: pd.DataFrame, prov: Provenance) -> pd.DataFrame:
-    pairs = build_pairs(cfg, scores)
+def run_pass_b(cfg: RunConfig, scores: pd.DataFrame, prov: Provenance,
+               sigma_item: float) -> pd.DataFrame:
+    pairs = build_pairs(cfg, scores, sigma_item)
     return write_parquet(pairs, artifact_path(cfg), prov)
 
 
-def load_or_run(cfg: RunConfig, scores: pd.DataFrame, prov: Provenance) -> pd.DataFrame:
+def assert_tolerance_matches(cfg: RunConfig, pairs: pd.DataFrame, sigma_item: float) -> None:
+    """Refuse a cached Pass B built under a different realized tolerance.
+
+    The pass_b config hash covers `match_tolerance_sigma_fraction`, which is the same for
+    every model, but the applied tolerance is that fraction times `sigma_item` -- and
+    `sigma_item` comes from the instrument fit, keyed on the SOURCE digest of the estimator
+    rather than on anything in the config. Change the estimator and the tolerance moves
+    while the pass_b hash stands still. That is the stimulus-digest failure again: one hash,
+    two artifacts. This makes the collision loud instead of silent.
+    """
+    if "match_tolerance_realized" not in pairs.columns:
+        raise ValueError(
+            f"cached Pass B at {artifact_path(cfg)} predates A3.9 and carries no realized "
+            "match tolerance, so it was built with the fixed 0.15-logit constant. Delete it "
+            "and rebuild -- it cannot be verified and must not be reused."
+        )
+    want = cfg.pass_b.match_tolerance(sigma_item)
+    got = float(pairs["match_tolerance_realized"].iloc[0])
+    if abs(got - want) > 1e-9:
+        raise ValueError(
+            f"cached Pass B was built with match_tolerance={got:.6f} but this run computes "
+            f"{want:.6f} ({cfg.pass_b.match_tolerance_sigma_fraction} x sigma_item="
+            f"{sigma_item:.6f}). The pass_b hash cannot see this difference. Delete "
+            f"{artifact_path(cfg)} and rebuild."
+        )
+
+
+def load_or_run(cfg: RunConfig, scores: pd.DataFrame, prov: Provenance,
+                sigma_item: float) -> pd.DataFrame:
     path = artifact_path(cfg)
     if path.exists():
-        return read_parquet(path)
-    return run_pass_b(cfg, scores, prov)
+        pairs = read_parquet(path)
+        assert_tolerance_matches(cfg, pairs, sigma_item)
+        return pairs
+    return run_pass_b(cfg, scores, prov, sigma_item)

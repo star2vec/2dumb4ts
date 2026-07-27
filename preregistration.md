@@ -1579,6 +1579,92 @@ already absorbed, just not attributed to items.
 (An earlier draft justified this by pointing at `θ` and `|diff|`. That answers the
 **regressor** side — whether the item scale is well measured — which was not what §7.2 asked.)
 
+## A3.9 `match_tolerance` was amended and never implemented
+
+**A2.9.2 re-expressed the matching tolerance as `0.26 × σ_item`, per model. The code was never
+changed.** `config.py` kept `match_tolerance: float = 0.15  # rating points` and
+`pass_b.py` applied it directly as a hard filter — `if gap > tol: continue` — where `gap` is
+`|mean_selection(difficult) − mean_selection(easy)|` on the **θ scale, in logits**. A constant
+declared in units of a retired instrument was filtering a quantity measured in a different one.
+
+**This is a deviation from a frozen preregistration**, found before any Pass C data for this
+design existed, and it is stated as a deviation rather than absorbed.
+
+**The damage is not strictness — it is scale.** For gemma, `σ_item = 1.573`, so A2.9.2
+specifies **0.409** where the code used **0.15**: 2.7× too strict. But a *fixed* logit constant
+is a *different* effective strictness for every model, varying inversely with `σ_item`. Each
+model's matched sets were therefore built under a different matching rule, while the ladder
+comparison in §9.2 assumes they were not. Within any single model this is invisible: the run
+either fills its complement or raises, and gives no sign that the rule differed elsewhere.
+
+**Audit item T2.3 had already caught it**, and named two constants: `match_tolerance` and
+`sigma_between_min`. It was marked closed with nothing verifying it. Document and code then
+diverged unwatched across two amendments. That is the failure this amendment is really about.
+
+### The audit T2.3 should have had
+
+Every numeric constant in `config.py` and `base.yaml`, checked against what the frozen
+amendments specify:
+
+| constant | status |
+|---|---|
+| `match_tolerance` | **live deviation** — fixed here |
+| `sesoi_sigma_fraction` = 0.15 | correct per A2.9.2 (0.15 × 1.573 = 0.2359, the figure A3.3 quotes) |
+| `chains/tune/draws`, `hdi_prob`, `rhat_max`, `ess_min` | correct per §7.1 |
+| `ppc_null_replicates`, `power_target` | correct |
+| `sigma_between_min` = 0.5 | **deferred by A1.8 and never resolved** — A2.9.2 resolved `match_tolerance` and the SESOI but not this. Survivable only because it now lives solely in the absolute-Pass-A path, which A1.5 made an instrument-validation record that gates nothing. |
+| `validity_rho_min`, `validity_min_surviving_templates`, `icc_tripwire` | same — retired or inert, confined to that record |
+| `sesoi_raw_secondary` | retired by A2.9.2; still a field, reaches no live analysis code |
+| `power_n_sims` | dead — `power.py` is closed-form since A3.1; nothing reads it |
+| the ±16 spread bound | deferred by A1.8; moot, the Gaussian DV it bounded is retired |
+
+So exactly one constant was actively wrong. The point is that **the process had no way to know
+that**, which is why the finding is the missing guarantee rather than the single value.
+
+### The fix, and what it costs
+
+`match_tolerance` is now `match_tolerance_sigma_fraction` (0.26) times the model's own
+`σ_item`, computed at runtime. It is **not** retuned: any problem with 0.26 × σ_item is an
+Amendment 4 item found later, not a licence to pick a new number now.
+
+`pass_a` hashes are **unchanged** — the 40k anchor comparisons per model survive. `pass_b` and
+`pass_c` hashes move, so Pass B and Pass C must be rebuilt. A3.2 and A3.3's figures are
+recomputed from the rebuilt Pass B on the run machine, which resolves their
+development-machine provenance as a side effect.
+
+**One collision had to be closed first.** The config hash keys on the *fraction*, which is
+identical across models, while the value actually applied depends on `σ_item` — and `σ_item`
+comes from the instrument fit, keyed on the estimator's **source digest**, which no config
+field can see. Change the estimator and the tolerance moves while the `pass_b` hash stands
+still: one hash, two different pair sets. That is the stimulus-digest failure again. The
+realized tolerance and `σ_item` are therefore written into the pairs artifact itself, and a
+cached Pass B whose recorded tolerance disagrees with the current one is **refused**, as is any
+artifact predating this amendment (those were built with 0.15 and cannot be verified).
+
+### The standing rule this creates
+
+**An amendment that changes a number gets a test that reads the rule and asserts the config
+implements it.** Amendments without enforcement tests are aspirational.
+`tests/test_amendments_are_implemented.py` holds them, and each carries a **negative control**
+— a demonstration that it fails when the defect is present. The first version of that file
+passed two checks vacuously by matching compiled bytecode, which is the same failure class one
+level up, and is why the controls are mandatory rather than encouraged.
+
+### Disclosure
+
+One Pass C artifact has been opened:
+`artifacts/analysis/qwen2.5-3b-instruct/24e7b03199a1/results_24e7b03199a1.json`, read on
+2026-07-27 while enumerating artifacts during this audit. It is `smoke: True` — reduced
+stimuli — on `device: mps`, `git_sha: no-commit`, `git_dirty: True`, dated 2026-07-26, under
+the pre-Amendment-2 absolute-rating instrument with the Gaussian spread DV and five conditions,
+for a model the current reliability gate **excludes**. `assert_reportable` rejects it on four
+independent grounds.
+
+**Only the `outcome` string was read** (`primary-inconclusive`). No effect size, HDI,
+direction, or contrast value was viewed. This is disclosed because A2.0 states "No Pass C data
+of any kind exists", and a smoke-mode Pass C artifact is a kind of Pass C data — the claim was
+true of the design but not literally true as written.
+
 Any replacement robustness model would have to be specified against the logit DV and its
 identification demonstrated before it is fit. That is Stage 1 work at the earliest, and doing
 it now, mid-run, is the move A3.6 declined. The notebook reports this section as withdrawn

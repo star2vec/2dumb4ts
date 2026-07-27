@@ -255,9 +255,14 @@ def _synthetic_scores(cfg, seed: int = 0) -> pd.DataFrame:
     )
 
 
+#: The synthetic scores below are on the theta scale with unit-ish spread, so this stands
+#: in for a model's fitted sigma_item. A2.9.2 makes the tolerance 0.26 x this.
+SIGMA_ITEM = 1.573
+
+
 @pytest.fixture(scope="module")
 def pairs(cfg):
-    return build_pairs(cfg, _synthetic_scores(cfg))
+    return build_pairs(cfg, _synthetic_scores(cfg), SIGMA_ITEM)
 
 
 def test_pair_counts_and_domain_balance(cfg, pairs):
@@ -302,7 +307,7 @@ def test_difficult_and_easy_are_matched_on_mean_rating(cfg, pairs):
         index="matched_set", columns="difficulty", values="mean_selection"
     )
     gap = (wide["difficult"] - wide["easy"]).abs()
-    assert gap.max() <= cfg.pass_b.match_tolerance + 1e-9
+    assert gap.max() <= cfg.pass_b.match_tolerance(SIGMA_ITEM) + 1e-9
 
     hard = pairs[pairs.difficulty == "difficult"]["mean_analysis"].mean()
     easy = pairs[pairs.difficulty == "easy"]["mean_analysis"].mean()
@@ -311,18 +316,19 @@ def test_difficult_and_easy_are_matched_on_mean_rating(cfg, pairs):
 
 
 def test_pair_construction_is_deterministic(cfg):
-    a = build_pairs(cfg, _synthetic_scores(cfg))
-    b = build_pairs(cfg, _synthetic_scores(cfg))
+    a = build_pairs(cfg, _synthetic_scores(cfg), SIGMA_ITEM)
+    b = build_pairs(cfg, _synthetic_scores(cfg), SIGMA_ITEM)
     pd.testing.assert_frame_equal(a, b)
 
 
 def test_pair_construction_fails_loudly_rather_than_returning_fewer_pairs(cfg):
     """Silently accepting fewer pairs would break difficulty x domain balance."""
     tight = cfg.model_copy(
-        update={"pass_b": cfg.pass_b.model_copy(update={"match_tolerance": 1e-9})}
+        update={"pass_b": cfg.pass_b.model_copy(
+            update={"match_tolerance_sigma_fraction": 1e-9})}
     )
     with pytest.raises(RuntimeError, match="matched sets could be built"):
-        build_pairs(tight, _synthetic_scores(cfg))
+        build_pairs(tight, _synthetic_scores(cfg), SIGMA_ITEM)
 
 
 # ---------------------------------------------------------------------------
