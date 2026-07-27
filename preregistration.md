@@ -1641,6 +1641,25 @@ realized tolerance and `σ_item` are therefore written into the pairs artifact i
 cached Pass B whose recorded tolerance disagrees with the current one is **refused**, as is any
 artifact predating this amendment (those were built with 0.15 and cannot be verified).
 
+### A3.10 The ledger
+
+Four preregistered elements have now been withdrawn outright, seven superseded, one inverted
+and one left open. **`PREREGISTRATION_LEDGER.md`** is the first-hand count: every element of
+§1–§13, its fate, a one-line reason, and the amendment that decided it. It is built now, before
+write-up, because a reviewer tallying withdrawals across five amendments will arrive at a number
+and not at the reasons.
+
+Two facts decide how the count reads, and both are checkable: **every withdrawal is on the
+instrument or inference side — none touches a hypothesis** — and **every one was made with no
+H1-bearing data in hand**. Nine of the twelve non-kept rows trace to a single decision, A1.1's
+replacement of the absolute rating instrument, propagating through the scale, the polarity
+machinery, the DV, the model, the priors and every constant expressed in rating points.
+
+The ledger corrects one of our own counts. Withdrawals were being tallied as three (§5.1, §8,
+§7.2); **§6.5 belongs on the list and is the largest of them** — the dependent variable named in
+the original specification is not computed anywhere, and the module that replaced it exposes no
+function returning one. Calling that an amendment understates it.
+
 ### The standing rule this creates
 
 **An amendment that changes a number gets a test that reads the rule and asserts the config

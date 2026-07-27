@@ -178,3 +178,59 @@ def test_a3_1_the_withdrawn_power_criterion_is_not_reinstated_in_config():
     src = inspect.getsource(power._decide_pass)
     assert "max(z * post_sd, sesoi)" in src, (
         "the SESOI floor is gone from _decide_pass -- that is the change A3.6 declined")
+
+
+# ---------------------------------------------------------------------------
+# the ledger
+
+
+def _headers() -> set[str]:
+    """Section and amendment identifiers declared by preregistration.md headers."""
+    import re
+
+    text = (Path(__file__).resolve().parents[1] / "preregistration.md").read_text(
+        encoding="utf-8")
+    out: set[str] = set()
+    for line in text.splitlines():
+        m = re.match(r"^#{2,3} (A?\d+(?:\.\d+)*)\.? ", line)
+        if m:
+            out.add(m.group(1))
+    return out
+
+
+def test_the_ledger_cites_only_things_that_exist():
+    """PREREGISTRATION_LEDGER.md is a reviewer-facing count; a stale citation discredits it.
+
+    Amendments without enforcement tests are aspirational (A3.9), and a ledger of amendments
+    is no exception.
+    """
+    import re
+
+    ledger = (Path(__file__).resolve().parents[1] / "PREREGISTRATION_LEDGER.md").read_text(
+        encoding="utf-8")
+    headers = _headers()
+
+    sections = {m.group(1) for m in re.finditer(r"§(\d+(?:\.\d+)*)", ledger)}
+    amendments = {m.group(1) for m in re.finditer(r"\b(A\d+\.\d+(?:\.\d+)*)\b", ledger)}
+
+    # NEGATIVE CONTROL: a broken regex would make both sets empty and pass silently.
+    assert len(sections) >= 25, f"only found {len(sections)} section citations"
+    assert len(amendments) >= 10, f"only found {len(amendments)} amendment citations"
+    assert "5.1" in sections and "A3.9" in amendments
+
+    missing_s = sorted(s for s in sections if s not in headers)
+    missing_a = sorted(a for a in amendments if a not in headers)
+    assert not missing_s, f"ledger cites nonexistent sections: {missing_s}"
+    assert not missing_a, f"ledger cites nonexistent amendments: {missing_a}"
+
+
+def test_the_ledger_covers_every_top_level_preregistered_section():
+    """A count is only trustworthy if nothing was left out of it."""
+    import re
+
+    ledger = (Path(__file__).resolve().parents[1] / "PREREGISTRATION_LEDGER.md").read_text(
+        encoding="utf-8")
+    cited = {m.group(1) for m in re.finditer(r"§(\d+)(?:\.\d+)*", ledger)}
+    frozen = {h for h in _headers() if re.fullmatch(r"\d+", h)}
+    assert frozen, "no top-level frozen sections found -- the header parse is broken"
+    assert not (frozen - cited), f"ledger omits frozen sections: {sorted(frozen - cited)}"
