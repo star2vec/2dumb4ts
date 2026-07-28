@@ -20,8 +20,9 @@ onto the θ scale without altering the fraction (A2.9.2), and A3.6 records a con
 to loosen the criterion it feeds while a run was in flight.
 
 Legend: **KEPT** · **AMENDED** (same purpose, changed form) · **SUPERSEDED** (purpose overtaken
-by a later design) · **WITHDRAWN** (removed, nothing put in its place) · **OPEN** (integrity
-question unresolved).
+by a later design) · **WITHDRAWN** (removed, nothing put in its place) · **INVERTED** (the
+implemented rule is the opposite of the stated one) · **VIOLATED** (the code does what the
+element forbids; found, recorded, not reconciled) · **OPEN** (integrity question unresolved).
 
 ---
 
@@ -57,7 +58,7 @@ question unresolved).
 | §5.1 Polarity validity ρ ≥ 0.6 — "the sole categorical exclusion" | **WITHDRAWN** | retired and replaced by an order-invariance gate — **which was itself retired**, so the original criterion has no successor. Recorded in the A1.5 instrument-validation record, which gates nothing. | A1.2, then A2.2 |
 | §5.2 Dynamic range, `σ_between < 0.5` | **SUPERSEDED** | stated in rating points; A1.8 deferred re-expressing it and no amendment ever did. Survives only inside the inert A1.5 record. | A1.8, A3.9 |
 | §5.3 Reliability "does not exclude a model" | **INVERTED** | reliability became **the sole exclusion criterion** — the exact opposite of what §5.3 preregistered. The empirical split-half of θ is used, not the model-internal figure. | A2.2 |
-| §5.4 No trial-level exclusions | **KEPT** | — | — |
+| §5.4 No trial-level exclusions | **VIOLATED** | the code performs one. `fit_bradley_terry` drops readouts below A1.6's mass floor before fitting `θ`, as do the order-invariance and excess-slope diagnostics. §5.4, A1.6 and `validity.py` each state there is no analysis-time filter. The exclusion is **asymmetric**: it applies to the instrument, and `spread_model` does not filter, so low-mass trials enter the DV. Reported and bounded rather than reconciled. | A3.14 |
 
 ## §6 Pass B and Pass C design
 
@@ -106,7 +107,12 @@ question unresolved).
 ## The count
 
 **Withdrawn outright: four** — §5.1 (and its replacement), §6.5, §7.2, §8.
-**Superseded: seven.** **Inverted: one** (§5.3). **Open: one** (§4.4).
+**Superseded: seven.** **Inverted: one** (§5.3). **Violated: one** (§5.4). **Open: one** (§4.4).
+
+§5.4 was listed as KEPT when this ledger was built on 2026-07-27 and corrected on 2026-07-28,
+after a fifth preregistration-versus-code pass found the exclusion. A ledger that is wrong
+about its own subject is worse than no ledger, so the correction is dated rather than
+silently applied.
 
 A note on the arithmetic, since it will be checked. An earlier count put withdrawals at three
 (§5.1, §8, §7.2). **§6.5 belongs on the list and is the largest of them**: the dependent
