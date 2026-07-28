@@ -118,3 +118,52 @@ def test_status_reports_pass_c_and_keeps_its_fields():
         assert field in src, f"status.py drops {field} from the transmitted summaries"
     assert "def pass_c_table" in src, "STATUS.md has no Pass C table"
     assert "_newest_per_model(results)" in src, "the write loop is not de-duplicated"
+
+
+def test_the_robustness_refit_cannot_displace_or_overwrite_the_primary():
+    """A4.1 commitment 2: the CENTERED fit stays primary, the non-centered one is a check.
+
+    Two ways that could have been broken, both now closed:
+      - the refit writing over contrasts_/results_ (they are keyed on the model source
+        digest, as the posterior already was), and
+      - status.py's newest-wins de-duplication silently promoting the newer robustness fit
+        over the fit the amendment named primary.
+    """
+    import importlib.util
+
+    spec = importlib.util.spec_from_file_location("status", ROOT / "scripts" / "status.py")
+    status = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(status)
+
+    rows = [  # the refit is NEWER, as it will be in reality
+        {"_stage": "analysis", "model": "llama", "_when": "2026-07-29T10:00:00",
+         "spread_parameterization": "non-centered", "primary": {"median": 0.44}},
+        {"_stage": "analysis", "model": "llama", "_when": "2026-07-28T10:00:00",
+         "spread_parameterization": "centered", "primary": {"median": 0.436}},
+    ]
+    kept = status._newest_per_model(rows)
+    assert len(kept) == 1
+    assert kept[0]["spread_parameterization"] == "centered", (
+        "the robustness refit displaced the primary -- A4.1 commitment 2 is broken")
+    assert status.robustness_rows(rows)[0]["spread_parameterization"] == "non-centered"
+
+    # Artifacts predating A4.1 carry no field and ARE centered; they must stay primary.
+    legacy = [{"_stage": "analysis", "model": "gemma", "_when": "2026-07-28T09:00:00"},
+              {"_stage": "analysis", "model": "gemma", "_when": "2026-07-29T09:00:00",
+               "spread_parameterization": "non-centered"}]
+    assert "spread_parameterization" not in status._newest_per_model(legacy)[0]
+
+    # NEGATIVE CONTROL: without the preference, newest-wins gives the refit -- the bug.
+    assert sorted(rows, key=lambda r: r["_when"], reverse=True)[0][
+        "spread_parameterization"] == "non-centered"
+
+
+def test_the_three_clobberable_artifacts_are_all_keyed_on_the_model_source():
+    """The posterior was keyed first; contrasts_ and results_ were not, so a refit would
+    have destroyed the evidence for the fit A4.1 calls primary."""
+    src = (ROOT / "src" / "experiments" / "run.py").read_text(encoding="utf-8")
+    assert "spread_model.posterior_path(cfg, out_dir)" in src
+    assert 'contrasts_{cfg.hash()}-{spread_model.source_digest()}' in src
+    assert 'results_{cfg.hash()}-{digest}' in src
+    assert 'results["spread_parameterization"]' in src, (
+        "an artifact must say which parameterization produced it")

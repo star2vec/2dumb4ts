@@ -281,7 +281,11 @@ def run(cfg: RunConfig, *, stop_after: str | None = None, progressbar: bool = Tr
           f"({sigma_item:.3f}) = {sesoi:.4f} logits per SD of |diff|")
     contrasts = spread_model.contrasts(cfg, idata, sesoi)
     print(contrasts.to_string(index=False))
-    contrasts.to_parquet(out_dir / f"contrasts_{cfg.hash()}.parquet", index=False)
+    # Keyed like the posterior. A4.1 commits the CENTERED fit as primary and requires
+    # both fits to be reported, so the robustness refit must not overwrite it.
+    contrasts.to_parquet(
+        out_dir / f"contrasts_{cfg.hash()}-{spread_model.source_digest()}.parquet",
+        index=False)
     idata.to_netcdf(str(spread_model.posterior_path(cfg, out_dir)))
 
     primary = contrasts[(contrasts["name"] == spread_model.PRIMARY)
@@ -317,6 +321,8 @@ def run(cfg: RunConfig, *, stop_after: str | None = None, progressbar: bool = Tr
     results["contrasts"] = contrasts.to_dict("records")
     results["sesoi"] = sesoi
     results["structure_factor_agreement"] = agree
+    results["spread_parameterization"] = spread_model.PARAMETERIZATION
+    results["spread_source_digest"] = spread_model.source_digest()
     results["primary"] = primary.to_dict("records")[0] if len(primary) else {}
     return _finish(out_dir, cfg, results, f"primary-{decision}")
 
@@ -434,7 +440,9 @@ def _power(cfg: RunConfig, pairs: pd.DataFrame, instrument: dict) -> dict:
 
 def _finish(out_dir: Path, cfg: RunConfig, results: dict, outcome: str, code: int = 0) -> int:
     results["outcome"] = outcome
-    path = out_dir / f"results_{cfg.hash()}.json"
+    digest = results.get("spread_source_digest")
+    path = out_dir / (f"results_{cfg.hash()}-{digest}.json" if digest
+                      else f"results_{cfg.hash()}.json")
     path.write_text(json.dumps(results, indent=2, default=str), encoding="utf-8")
     print(f"\nresults: {path}")
     if code == HALT:

@@ -60,15 +60,32 @@ def _newest_per_model(rows: list[dict]) -> list[dict]:
     JSONs would have carried 07-26 numbers, predating every fix since. That is the
     "silently reported superseded numbers" failure this file exists to prevent, reproduced
     inside the file itself. Found by the run machine while staging a transmit.
+
+    A4.1 adds a second wrinkle: a model can now legitimately have TWO analysis results --
+    the centered fit, which A4.1 commits as PRIMARY, and the non-centered robustness refit,
+    which is newer. Newest-wins would silently promote the robustness check over the fit the
+    amendment named primary, so the centered one is preferred explicitly. Artifacts written
+    before A4.1 carry no `spread_parameterization` field and are centered, which is why the
+    default is "centered" rather than "unknown".
     """
+    def primary_first(r):
+        param = r.get("spread_parameterization", "centered")
+        return (0 if param == "centered" else 1,)
+
     seen, out = set(), []
-    for r in rows:
+    for r in sorted(rows, key=primary_first):
         key = (r.get("_stage"), r.get("model"))
         if key in seen:
             continue
         seen.add(key)
         out.append(r)
     return out
+
+
+def robustness_rows(rows: list[dict]) -> list[dict]:
+    """Analysis results that are NOT the primary fit -- reported alongside, never instead."""
+    return [r for r in rows
+            if r.get("spread_parameterization", "centered") != "centered"]
 
 
 def _get(d: dict, *path, default=None):

@@ -42,7 +42,7 @@ spread: there is no function that returns one, and the interaction exists only a
 from __future__ import annotations
 
 import hashlib
-from dataclasses import dataclass, field
+from dataclasses import dataclass
 from pathlib import Path as _Path
 
 import arviz as az
@@ -74,6 +74,13 @@ PRIMARY = "chose - yoked"
 #: Label for the shared pre-manipulation baseline. Not a condition -- one physical
 #: measurement per (pair, template, option order), emitted once.
 PRE_SENTINEL = "pre"
+
+
+#: Which form of the template random effect this module implements. Recorded in every
+#: artifact so a fit can say which parameterization produced it, rather than leaving it to
+#: be inferred from a filename. Artifacts written before A4.1 carry no field at all and are
+#: read as "centered", which is what they are.
+PARAMETERIZATION = "non-centered"
 
 
 def source_digest() -> str:
