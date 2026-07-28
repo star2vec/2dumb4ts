@@ -21,6 +21,19 @@ from src.experiments.pass_a_pairwise import evaluate_reliability_gate
 CONFIG = "configs/stage0_qwen2.5-0.5b.yaml"
 
 
+def _cfg():
+    """Sampler settings the run machine can actually execute.
+
+    cores=1 or PyMC deadlocks on the Windows spawn start method -- the same reason run.py
+    has --sampler-cores. These three tests fit Bradley-Terry twice each and were written
+    without it, so they hung on the run machine and had to be skipped: the sole exclusion
+    criterion was untested exactly where it matters most.
+    """
+    base = load_config(CONFIG)
+    return base.model_copy(update={"analysis": base.analysis.model_copy(
+        update={"chains": 2, "tune": 400, "draws": 400, "sampler_cores": 1})})
+
+
 def _comparisons(signal: float, n_items: int = 24, n_anchor: int = 4, seed: int = 0):
     """Anchor comparisons whose theta recoverability is controlled by `signal`.
 
@@ -59,7 +72,7 @@ TEMPLATES = [_T(i) for i in range(5)]
 
 @pytest.mark.slow
 def test_a_recoverable_item_ordering_passes_the_gate():
-    cfg = load_config(CONFIG)
+    cfg = _cfg()
     gate = evaluate_reliability_gate(cfg, _comparisons(signal=3.0, seed=1), TEMPLATES)
 
     assert gate["threshold"] == cfg.gates.reliability_min
@@ -75,7 +88,7 @@ def test_coin_flip_comparisons_are_excluded():
     """NEGATIVE CONTROL for the test above: with no item ordering to recover, the two
     independent fits must disagree and the model must be excluded. Without this, a gate
     that returned `passed=True` unconditionally would look correct."""
-    cfg = load_config(CONFIG)
+    cfg = _cfg()
     gate = evaluate_reliability_gate(cfg, _comparisons(signal=0.0, seed=2), TEMPLATES)
 
     assert gate["passed"] is False
@@ -87,7 +100,7 @@ def test_coin_flip_comparisons_are_excluded():
 @pytest.mark.slow
 def test_the_threshold_is_read_from_config_not_hardcoded():
     """Raising the bar above a passing model's score must flip it to excluded."""
-    cfg = load_config(CONFIG)
+    cfg = _cfg()
     comparisons = _comparisons(signal=3.0, seed=1)
     passing = evaluate_reliability_gate(cfg, comparisons, TEMPLATES)
     assert passing["passed"]
@@ -106,6 +119,6 @@ def test_overlapping_template_splits_are_refused():
     """4.4's whole point is independence; an overlapping split would inflate the gate."""
     from src.analysis.bradley_terry import test_retest
 
-    cfg = load_config(CONFIG)
+    cfg = _cfg()
     with pytest.raises(ValueError, match="disjoint"):
         test_retest(cfg, _comparisons(1.0), ["t0", "t1"], ["t1", "t2"])

@@ -272,7 +272,10 @@ def test_recovers_a_known_interaction(cfg):
     true_effect = -0.8
     frame = _synthetic_pass_c(true_effect, seed=11)
     fast = cfg.model_copy(
-        update={"analysis": cfg.analysis.model_copy(update={"chains": 2, "tune": 500, "draws": 500})}
+        update={"analysis": cfg.analysis.model_copy(
+            # cores=1 or PyMC deadlocks on the Windows spawn start method, which is
+            # the run machine. A slow test that hangs there is worse than none.
+            update={"chains": 2, "tune": 500, "draws": 500, "sampler_cores": 1})}
     )
     design = mixed.prepare_design(fast, frame)
     idata = mixed.fit(fast, design, with_item=False)
@@ -293,7 +296,10 @@ def test_finds_no_interaction_when_none_was_planted(cfg):
     return a negative."""
     frame = _synthetic_pass_c(0.0, n_pairs=30, seed=12)
     fast = cfg.model_copy(
-        update={"analysis": cfg.analysis.model_copy(update={"chains": 2, "tune": 500, "draws": 500})}
+        update={"analysis": cfg.analysis.model_copy(
+            # cores=1 or PyMC deadlocks on the Windows spawn start method, which is
+            # the run machine. A slow test that hangs there is worse than none.
+            update={"chains": 2, "tune": 500, "draws": 500, "sampler_cores": 1})}
     )
     design = mixed.prepare_design(fast, frame)
     idata = mixed.fit(fast, design, with_item=False)

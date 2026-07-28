@@ -51,3 +51,28 @@ def test_the_checker_actually_detects_an_undefined_name(tmp_path):
         [sys.executable, "-m", "pyflakes", str(bad)], capture_output=True, text=True)
     assert "undefined name" in proc.stdout, (
         "pyflakes did not flag a planted undefined name; the checks above are vacuous")
+
+
+def test_every_slow_test_file_forces_single_core_sampling():
+    """A slow test that hangs on the run machine is worse than no slow test.
+
+    PyMC deadlocks on the Windows spawn start method unless cores=1 -- the same reason
+    run.py carries --sampler-cores. Five slow tests were written without it and hung there,
+    including all three covering the SOLE exclusion criterion, so the run machine had to
+    skip exactly the checks it most needed to run.
+
+    Checked per FILE rather than per test: any file with a slow marker must name
+    sampler_cores somewhere, which is coarse but cannot be satisfied by accident.
+    """
+    offenders = []
+    for path in sorted((ROOT / "tests").glob("test_*.py")):
+        text = path.read_text(encoding="utf-8")
+        if "mark.slow" in text and "sampler_cores" not in text:
+            offenders.append(path.name)
+    assert not offenders, (
+        f"slow tests that will deadlock on the run machine: {offenders}")
+
+    # NEGATIVE CONTROL: the walk must find slow files at all, or this passes vacuously.
+    slow_files = [p.name for p in (ROOT / "tests").glob("test_*.py")
+                  if "mark.slow" in p.read_text(encoding="utf-8")]
+    assert len(slow_files) >= 5, f"only {len(slow_files)} slow files found"
