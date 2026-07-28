@@ -2321,3 +2321,76 @@ tracks the measured preference gap, it is a graded measurement. If it saturates 
 of gap, it is a temperature artifact and the gain is illusory.
 
 Specified here before that check is run.
+
+## A4.7 The graded DV is rejected — and the check found the real cause of A4.2
+
+Run on gemma's 2,000 pre-manipulation measurements, before any manipulation exists.
+
+| quantity | value |
+|---|---|
+| Spearman(`\|diff\|`, `\|logit p_item1\|`) | **+0.093** (bar was ≥ 0.3) |
+| median confidence, widest ÷ narrowest `\|diff\|` bin | **1.20×** |
+| binned medians across six `\|diff\|` bins | 3.75, 3.88, 3.88, 4.13, 3.88, **4.50** |
+| saturated (`p` < 0.01 or > 0.99) | **40.3%** |
+| median `\|logit p\|` | **4.00** (i.e. p ≈ 0.982) |
+
+### The call: Stage 0-bis on the graded DV is NOT run
+
+Applying the readings fixed in A4.6 before these numbers existed: ρ = 0.093 is a third of
+the bar and the binned medians are flat. This is the **"confidence unrelated to preference"**
+case. The model states an opinion hard and its confidence barely moves with how different
+the items are, as the Bradley-Terry instrument measured independently on different prompts
+in a different pass.
+
+So the pilot's 10–16× is **real as precision and precision about the wrong quantity** —
+stated decoding confidence, not preference strength. That is the case A4.5 named as worse
+than being noisy about the right thing, because the tight intervals lend it credibility.
+The criterion is applied as written. No override.
+
+### What the same table shows, which is larger
+
+`power.py` states, as the basis of every preregistered power figure:
+
+> *"W = p(1−p) is maximal at p = 0.5, where difficult pairs sit **by construction**."*
+
+**They do not.** On the narrowest `|diff|` bin — the difficult pairs, the ones the whole
+design is built around — the median readout is `|logit p| = 3.75`, i.e. **p = 0.977**.
+
+| | p | W = p(1−p) |
+|---|---|---|
+| assumed (difficult pairs at p = 0.5) | 0.500 | 0.2500 |
+| **measured** (narrowest `\|diff\|` bin) | 0.977 | **0.0224** |
+
+That is **11.1× less information per observation**, implying **3.34× SE inflation**.
+Measured in A4.2: **qwen-1.5b 3.44×** — a near-exact match — and **gemma 5.38×**, of which
+this accounts for the dominant part (11.1× of ~29× variance inflation) but not all.
+
+**This supersedes A4.2's proposed mechanism.** That section offered between-template
+variance, ordered across three models, and said explicitly it was suggestive and must not be
+reported as a mechanism without direct evidence. This is the direct evidence, and it is a
+different cause: **the difficulty manipulation does not produce uncertainty in the DV.**
+
+`|diff|` is measured on θ, where the items genuinely are close. The DV answers at 97.7%
+confidence anyway. The manipulation is real on the instrument and absent from the outcome.
+
+**Not established: whether this generalises.** These are gemma's numbers. llama's precision
+matched prediction (1.05×), which implies llama is far less saturated — but `p_item1` was
+only collected for gemma, so that is inference, not measurement. Confirming it needs Pass C
+re-collected for llama and qwen-1.5b.
+
+### What this means for the paradigm
+
+The design needs pairs where the model is genuinely undecided. It selects them on θ and
+gets them: `|diff|` really is small. But the DV then answers those same pairs at 97.7%
+confidence, so **the near-equal pairs are not near-equal to the DV**. Combined with A3.12 —
+the two elicitations agree only 66–75% even on *easy* pairs — the two measurements are not
+reading the same preference.
+
+That is a property of the paradigm as implemented, not of the sample size, and no amount of
+data or re-parameterisation fixes it. A future study would have to make the DV *sensitive to
+difficulty* before anything else is worth doing, and that is a design problem, not an
+analysis one.
+
+**Stage 0's reported result is unchanged.** It was `inconclusive` on all three models and it
+remains so. What has changed is that the reason is now diagnosed rather than attributed to
+sample size.
