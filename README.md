@@ -1,136 +1,164 @@
 # Consistency restoration vs truth tracking — Stage 0
 
-Tests whether consistency-restoration and truth-tracking are separate, causally
-dissociable mechanisms in instruction-tuned LMs. Target: ARR October 2026.
+Does an instruction-tuned language model, after making a choice, shift its stated preference
+*toward what it picked and away from what it rejected* — and does that shift depend on how
+hard the choice was?
 
-**Stage 0 is a kill gate.** It asks only whether the behavioural effect exists at all:
-does an instruction-tuned LM show spreading-of-alternatives after a free choice, and does
-that spreading depend on choice difficulty in a way that requires the model's own
-authorship? If the interaction is absent, no later stage is built.
+In humans this is **spreading of alternatives**, the classic signature of dissonance
+reduction. The project's larger question is whether **consistency restoration** and
+**truth tracking** are separate, causally dissociable mechanisms in LMs. Stage 0 is the
+**kill gate**: it asks only whether the behavioural effect exists at all. If it does not, no
+later stage is built.
 
-Read [`preregistration.md`](preregistration.md) first. It was frozen before any experiment
-code was written and before any model was run, and it is the authority on every design
-decision below.
+---
 
-## Quick start
+## Result
+
+**Stage 0 is complete. All three surviving models returned `inconclusive`. Stage 1 is not
+entered.**
+
+| model | λ (chose − yoked) | 95% HDI | decision |
+|---|---|---|---|
+| gemma-2-2b | −0.0015 | [−1.08, +1.09] | inconclusive |
+| qwen2.5-1.5b | −0.1367 | [−1.00, +0.65] | inconclusive |
+| llama-3.2-3b | **+0.4361** | [+0.21, +0.70] | inconclusive |
+
+Two further models were excluded at the reliability gate. llama's effect is credible but in
+the **wrong direction**, and it does not survive a preregistered robustness restriction
+(A4.4).
+
+**The important part is why.** The study could not have detected an effect at the smallest
+size it declared interesting, and the cause is diagnosed rather than guessed:
+
+- Realised precision was **3.4–5.4× worse** than the blind power analysis predicted (A4.2).
+- The design selects near-equal item pairs on the instrument scale `θ`, and gets them. **The
+  outcome measure then answers those same pairs at 97.7% confidence** (A4.7). The power
+  calculation assumed difficult pairs sit near p = 0.5 "by construction"; they do not. That
+  alone costs **11× the information per observation**.
+- Instrument and outcome are elicited by **different questions** and agree only 66–75% even
+  on easy pairs (A3.12).
+
+So **H1 is untested, not disconfirmed** — and the obstacle is a design property, not a
+sample size. More data does not fix it.
+
+---
+
+## How to read this repository
+
+| file | what it is |
+|---|---|
+| [`preregistration.md`](preregistration.md) | **The authority.** §1–13 were frozen before any experiment code existed. Four appended amendments record everything found since. Read §1–2, then the amendment headers. |
+| [`PREREGISTRATION_LEDGER.md`](PREREGISTRATION_LEDGER.md) | Every preregistered element and its fate — kept, amended, superseded, withdrawn, violated. Start here for the honest count. |
+| [`RETRACTIONS.md`](RETRACTIONS.md) | Claims we made and then refuted, with the cause of each. |
+| [`STATUS.md`](STATUS.md) | Generated from provenance-stamped artifacts by `scripts/status.py`. Never hand-written. |
+| [`preregistration_stage1.md`](preregistration_stage1.md) | Drafted blind, never triggered — the gate was not met. |
+
+Artifacts and the full result set live on the **`stage0-passc`** branch:
 
 ```bash
-uv venv --python 3.11
-uv pip install -e ".[dev]"
-
-pytest -m "not slow"                       # fast suite
-pytest -m slow                             # parameter recovery (fits models)
-
-python -m src.experiments.run --config configs/stage0_qwen2.5-3b.yaml
-jupyter lab notebooks/stage0_analysis.ipynb
+git fetch origin && git checkout origin/stage0-passc -- artifacts results STATUS.md
 ```
 
-One command runs Stage 0 end-to-end for one model: Pass A → validity gate → σ_between /
-SESOI → Pass B → power simulation → Pass C → mixed model, contrasts, figures. Every stage
-is skipped when its artifact already exists under the current config hash.
+---
+
+## The design, as it actually is
+
+The preregistration was amended four times and §1–13 no longer describes the running
+system. What follows is current; the ledger records every difference.
+
+**Pass A — the instrument.** Each item is compared against fixed anchors, both option
+orders, five paraphrase templates. Bradley-Terry with a per-template position term `β` gives
+each item a scale value `θ`. The original absolute 1–9 rating instrument was **retired**
+(A1.1) after every model tested ignored reversed scale anchors — but it is still run at full
+scale and reported as a validation record (A1.5), so the switch rests on evidence rather
+than on a pilot.
+
+**Pass B — pairs.** Within domain, 100 difficult (near-equal `θ`) and 100 easy pairs per
+model, matched on mean rating so difficulty is not confounded with extremity.
+
+**Pass C — the experiment.** For each pair the model states a preference, is told it chose /
+was assigned / a third party chose, then states its preference again. **Eight conditions**
+(A2.9.3), including a 2×2 separating transcript structure from attribution wording.
+`yoked`/`random` and `3p-yoked`/`3p-random` use byte-identical wording and differ only in
+which item is designated; a test enforces it, and that is what licenses reading
+`yoked − random` as a pure selection-artifact estimate.
+
+**The test.** `λ_chose − λ_yoked`, predicted negative — the *interaction* of agency with
+difficulty. A main effect alone is not evidence: it is exactly what context-window
+sensitivity predicts, and is how the published rebuttal eliminated the prior version of this
+claim (§1.1). **There is a large main effect in these data, and the design declines to
+interpret it.** That refusal is the design working.
+
+---
 
 ## What the design guarantees
 
 | Constraint | How it is enforced |
 |---|---|
-| Every DV from **one forward pass at one token position** | no `.generate()` anywhere under `src/`, asserted by a test |
-| **bf16 only**, no 4/8-bit | loader raises if the dtype is not bf16; there is no quantized path |
-| Ratings are an **expected value over digit logits**, never argmax | `readout/expected_value.py`; tested against a bimodal case where argmax is wrong |
-| All randomness seeded, counterbalancing **by construction** | Pass A and Pass C are complete crossings; the only seeded draw is exactly balanced within stratum |
-| No pooling across devices | `provenance.assert_poolable` raises on any device or dtype mismatch |
+| Every DV from **one forward pass at one token position** | no `.generate()` under `src/`, checked per line, with a planted-violation control |
+| **bf16 only**, no quantisation | the loader raises if the dtype is not bf16; there is no quantised path |
+| All randomness seeded; counterbalancing **by construction** | complete crossings; the one seeded draw is exactly balanced within stratum |
+| No pooling across devices | `provenance.assert_poolable` raises on device or dtype mismatch |
+| Reported numbers originate on the run machine | `assert_reportable` requires CUDA, bf16, a pinned revision, a clean tree, and non-smoke |
+| An artifact cannot be silently stale | every expensive artifact is keyed on the **source digest** of the code that writes it, not only on the config hash |
 
-### The 1–9 scale
+**Hardware split.** Dev (M1, MPS/CPU) for scaffolding and analysis; run machine
+(RTX 2000 Ada, CUDA, bf16) for every reported number. `assert_reportable` makes the
+separation mechanical rather than a convention.
 
-The spec asked for 1–10. Measured on the actual tokenizers, `"10"` is two tokens on
-Qwen2.5 and Gemma-2 **and its first token is byte-identical to `"1"`**, so a 1–10 scale
-cannot be read at one token position on three of the five models — the one-position
-constraint and the 1–10 scale were mutually unsatisfiable. At 1–9 every rating is a single
-collision-free token on every tokenizer. Descending scores reverse as `10 − x` (not
-`11 − x`, which belongs to a 1–10 scale and would bias every collapsed mean by +0.5).
-
-### The five conditions
-
-Receipt is matched across all five — every condition states that the model receives the
-designated item, otherwise `3p-yoked − yoked` would confound endorsement with ownership.
-
-| condition | designated item | authorship | endorsement |
-|---|---|---|---|
-| `chose` | model's own pick | self | — |
-| `yoked` | model's own pick | none | none |
-| `3p-yoked` | model's own pick | other | other person |
-| `3p-random` | random | other | other person |
-| `random` | random | none | none |
-
-`yoked`/`random` and `3p-yoked`/`3p-random` use **byte-identical wording** and differ only
-in which item is designated; a test enforces it. That is what licenses reading
-`yoked − random` as a pure selection-artifact estimate.
-
-**Primary test:** `(chose − yoked) × |diff|`, predicted negative, `|diff|` continuous. A main
-effect of agency is reported but is *not* the test — on its own it is fully consistent with
-context-window sensitivity, which is how the prior version of this claim was eliminated.
+---
 
 ## Layout
 
 ```
-preregistration.md            frozen before any experiment code
-configs/                      base.yaml + one YAML per model; config hash in every filename
-src/config.py                 typed config, deterministic hash
-src/provenance.py             device/dtype/revision/seed/git capture + pooling guard
-src/stimuli/                  400 items (4 domains), 5 templates, invariant assertions
-src/readout/                  digit map, expected-value readout, choice readout
-src/models/runner.py          bf16 device-agnostic loading, one-position batched forward
-src/experiments/              pass_a, pass_b, pass_c, run (the one command)
-src/analysis/                 reliability, mixed model, power, plots
-artifacts/<stage>/<model>/<config_hash>/
-notebooks/stage0_analysis.ipynb
+preregistration.md              frozen at 57ef60d + four amendments
+configs/                        base.yaml + one YAML per model
+src/config.py                   typed config, deterministic stage hashes
+src/provenance.py               capture + pooling and reportability guards
+src/stimuli/                    400 items (4 domains), 5 templates, invariant assertions
+src/readout/                    digit map, expected-value readout, choice readout
+src/models/runner.py            bf16 loading, one-position batched forward
+src/experiments/                pass_a, pass_a_pairwise, pass_b, pass_c, run
+src/analysis/                   bradley_terry, spread_model, power, plots
+src/archive/                    retired modules, kept so their numbers stay traceable
+scripts/                        status, sensitivity, pilot and validity checks
+tests/                          281 tests; see below
 ```
 
-## Hardware split
+---
 
-- **Dev (M1, MPS/CPU):** scaffolding, analysis, plots, smoke tests at ≤0.5B.
-- **Run (RTX 2000 Ada, CUDA, bf16):** all reported numbers.
+## Reproducing
 
-`provenance.assert_reportable` rejects any artifact that is not CUDA + bf16 + a pinned
-commit SHA + a clean tree, so dev-machine output cannot reach the paper. `smoke: true` is
-part of the config hash, so smoke artifacts land in their own directory.
+```bash
+uv sync --extra dev
+pytest -m "not slow"        # 265 tests
+pytest -m slow              # 16 more; fits models, needs cores=1 on Windows
 
-`configs/wiring_check_*.yaml` disables the gate thresholds purely to exercise Pass B/C code
-paths. It is an engineering artifact, not a result, and it carries `smoke: true`.
+python -m src.experiments.run --config configs/stage0_gemma-2-2b.yaml
+jupyter lab notebooks/stage0_analysis.ipynb
+```
 
-## Status
+One command runs a model end to end. Each stage is skipped when its artifact exists under
+the current keys.
 
-**Read `STATUS.md` for current numbers — it is generated by `scripts/status.py` from
-artifacts, never typed.** Read `RETRACTIONS.md` for claims that were reported and
-later refuted; there are four, and that file explains why status reporting is
-generated.
-
-Scaffolding complete. **Stage 0's hypothesis has never been tested** — Pass C has
-never run. All work so far is instrument development.
-
-**The instrument has been replaced once and corrected once.**
-
-*Amendment 1* retired the absolute 1-9 Likert scale: it compressed ratings into a
-narrow band and every model tested ignored reversed scale anchors, which is confirmed
-at full sample on the run machine. It was replaced by anchor-based pairwise
-comparison scored with Bradley-Terry.
-
-*Amendment 2* added a per-template order term to that model. Omitting it compressed
-the latent scale **most at small gaps** — the only regime the paradigm operates in —
-and position bias turns out to be large, signed, model-specific, and heterogeneous
-across prompt paraphrases. Two conclusions were withdrawn as a result: that the
-operating window was closed at near-equal pairs, and that template responses were
-non-independent. Both are in `RETRACTIONS.md`.
-
-The A1.4 order-invariance gate is **retired**; its null moves with the position-bias
-parameter. It is replaced by an empirical split-half reliability criterion on theta.
-
-**Currently open:** the order model remains misspecified (the preregistered
-excess-consistency slope is not flat), and empirical reliability sits well below the
-model-internal figure. Both are flagged in A2.4 rather than resolved.
+---
 
 ## Out of scope for Stage 0
 
 No steering hooks, no probes, no CAA, no knowledge-conflict paradigm, no truth-tracking
-stimuli, no free-text valence exposure (replaced by the calibrated `3p-*` conditions), no
-open-ended generation anywhere. Stage 0 is a kill gate; if the interaction is absent, that
-code is wasted.
+stimuli, no open-ended generation anywhere. Stage 0 is a kill gate; the gate was not passed,
+so none of it was built.
+
+---
+
+## A note on the process record
+
+This repository keeps its mistakes on purpose. `RETRACTIONS.md` lists claims withdrawn, the
+ledger lists preregistered elements abandoned, and the amendments record occasions where a
+change would have helped the hypothesis and was **declined** (A3.6), or was made and flagged
+as an **override** rather than dressed as a pass (A4.6).
+
+Some of it is uncomfortable: a power analysis falsified by its own data (A4.2), a
+preregistered constant that went two amendments without being implemented (A3.9), a choice
+prompt that showed the model neither option, and a decision rule that is unsatisfiable as
+written (A3.1). Every one was found before it could change what Stage 0 reports.
