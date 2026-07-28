@@ -282,7 +282,7 @@ def run(cfg: RunConfig, *, stop_after: str | None = None, progressbar: bool = Tr
     contrasts = spread_model.contrasts(cfg, idata, sesoi)
     print(contrasts.to_string(index=False))
     contrasts.to_parquet(out_dir / f"contrasts_{cfg.hash()}.parquet", index=False)
-    idata.to_netcdf(str(out_dir / f"spread_posterior_{cfg.hash()}.nc"))
+    idata.to_netcdf(str(spread_model.posterior_path(cfg, out_dir)))
 
     primary = contrasts[(contrasts["name"] == spread_model.PRIMARY)
                         & (contrasts["term"] == "lambda")]

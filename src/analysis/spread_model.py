@@ -41,7 +41,9 @@ spread: there is no function that returns one, and the interaction exists only a
 
 from __future__ import annotations
 
+import hashlib
 from dataclasses import dataclass, field
+from pathlib import Path as _Path
 
 import arviz as az
 import numpy as np
@@ -72,6 +74,24 @@ PRIMARY = "chose - yoked"
 #: Label for the shared pre-manipulation baseline. Not a condition -- one physical
 #: measurement per (pair, template, option order), emitted once.
 PRE_SENTINEL = "pre"
+
+
+def source_digest() -> str:
+    """Digest of this module, for the saved posterior's filename.
+
+    The posterior was stored as `spread_posterior_{cfg.hash()}.nc` -- a CONFIG hash, which
+    cannot see the model code. A4.1 non-centered `u_template` without changing any config
+    field, so the notebook's `if posterior_path.exists()` would have loaded the CENTERED
+    posterior and reported it as the new fit. Same class as the Pass B cache key.
+
+    It also does the thing A4.1 requires: the centered and non-centered fits land under
+    different names, so both are retained and neither overwrites the other.
+    """
+    return hashlib.sha256(_Path(__file__).read_bytes()).hexdigest()[:8]
+
+
+def posterior_path(cfg, out_dir):
+    return out_dir / f"spread_posterior_{cfg.hash()}-{source_digest()}.nc"
 
 
 @dataclass
@@ -175,7 +195,21 @@ def fit(cfg: RunConfig, design: SpreadDesign, *, progressbar: bool = False) -> a
         sd_pair = pm.HalfNormal("sd_pair", 2.0)
         u_pair = pm.ZeroSumNormal("u_pair", sigma=sd_pair, dims="pair")
         sd_tmpl = pm.HalfNormal("sd_template", 1.0)
-        u_tmpl = pm.ZeroSumNormal("u_template", sigma=sd_tmpl, dims="template")
+        # NON-CENTERED (A4.1). The centered form, ZeroSumNormal(sigma=sd_template), funnels
+        # when the group SD approaches zero: llama's templates produce nearly identical
+        # spread (sd_template ~ 0.043), its posterior piles against zero, and 4.5% of draws
+        # diverged there. Divergence count tracked sd_template exactly across the three
+        # models -- 0.303/7, 0.132/70, 0.043/362 -- which is what identifies the mechanism.
+        #
+        # Scaling a zero-sum vector by a positive scalar preserves the sum-to-zero
+        # constraint, so this is a pure reparameterization: same model, same posterior in
+        # expectation, different geometry for the sampler to traverse.
+        #
+        # `u_pair` is deliberately left CENTERED. Its diagnostics show no funnel (divergent
+        # vs non-divergent sd_pair: 1.017 vs 1.014), and altering an unimplicated part of
+        # the model after seeing the results would have no justification.
+        z_tmpl = pm.ZeroSumNormal("z_template", sigma=1.0, dims="template")
+        u_tmpl = pm.Deterministic("u_template", z_tmpl * sd_tmpl, dims="template")
 
         ci = f["cond_idx"].to_numpy()
         logit_p = (

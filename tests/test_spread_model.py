@@ -215,3 +215,61 @@ def test_a_frame_with_no_recognised_condition_raises_before_fitting():
     only_pre = trials.assign(condition=sm.PRE_SENTINEL, timepoint="pre")
     with pytest.raises(ValueError, match="nothing to estimate lambda from"):
         sm.prepare(cfg, only_pre)
+
+
+@pytest.mark.slow
+def test_non_centering_the_template_effect_leaves_the_primary_unchanged():
+    """A4.1's claim, tested on synthetic data where the truth is known.
+
+    The reparameterization is defended as PURE -- same model, same posterior, different
+    geometry. That is a checkable claim, and checking it on synthetic data is the only way
+    to check it without using the real result as the referee.
+
+    Scaling a zero-sum vector by a positive scalar preserves sum-to-zero, so the two forms
+    are the same distribution. If this test ever fails, the reparameterization is not what
+    A4.1 says it is and llama's refit cannot be read as a robustness check.
+    """
+    import pymc as pm
+
+    cfg = _fast(load_config(CONFIG))
+    trials, truth = _synth(-0.7, n_pairs=40, n_tmpl=4, seed=5)
+    design = sm.prepare(cfg, trials)
+
+    non_centered = sm.fit(cfg, design)
+    nc = (sm._draws(non_centered, "lambda", "chose")
+          - sm._draws(non_centered, "lambda", "yoked"))
+
+    # The centered form, rebuilt here so the comparison is against real code rather than a
+    # remembered number.
+    f, coords = design.frame, {"condition": design.conditions,
+                               "pair": design.pairs, "template": design.templates}
+    with pm.Model(coords=coords):
+        gamma = pm.Normal("gamma", 0.0, 1.0, dims="condition")
+        lam = pm.Normal("lambda", 0.0, 1.0, dims="condition")
+        beta = pm.Normal("beta", 0.0, 1.5, dims="template")
+        sd_pair = pm.HalfNormal("sd_pair", 2.0)
+        u_pair = pm.ZeroSumNormal("u_pair", sigma=sd_pair, dims="pair")
+        sd_tmpl = pm.HalfNormal("sd_template", 1.0)
+        u_tmpl = pm.ZeroSumNormal("u_template", sigma=sd_tmpl, dims="template")
+        ci = f["cond_idx"].to_numpy()
+        pm.Bernoulli(
+            "item1_wins",
+            logit_p=(u_pair[f["pair_idx"].to_numpy()] + u_tmpl[f["tmpl_idx"].to_numpy()]
+                     + beta[f["tmpl_idx"].to_numpy()] * f["s"].to_numpy()
+                     + f["post"].to_numpy() * f["d"].to_numpy()
+                     * (gamma[ci] + lam[ci] * f["diff_z"].to_numpy())),
+            observed=f["item1_wins"].to_numpy().astype(int))
+        centered = pm.sample(draws=cfg.analysis.draws, tune=cfg.analysis.tune,
+                             chains=cfg.analysis.chains, random_seed=cfg.seed,
+                             target_accept=0.9, progressbar=False, cores=1)
+    ce = (sm._draws(centered, "lambda", "chose") - sm._draws(centered, "lambda", "yoked"))
+
+    # Agreement well inside Monte Carlo error of either fit.
+    mcse = (nc.std(ddof=1) / np.sqrt(len(nc))) + (ce.std(ddof=1) / np.sqrt(len(ce)))
+    assert abs(nc.mean() - ce.mean()) < 10 * mcse, (
+        f"non-centered {nc.mean():+.4f} vs centered {ce.mean():+.4f}; the "
+        "reparameterization is NOT pure and A4.1's framing is wrong")
+    assert abs(nc.std(ddof=1) - ce.std(ddof=1)) < 0.25 * ce.std(ddof=1)
+    # PRECONDITION: both must actually recover the planted effect, or agreement is cheap.
+    for draws in (nc, ce):
+        assert draws.mean() < 0 and abs(draws.mean() - truth) < 0.5, draws.mean()

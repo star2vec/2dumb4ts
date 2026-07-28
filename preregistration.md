@@ -1906,3 +1906,86 @@ Any replacement robustness model would have to be specified against the logit DV
 identification demonstrated before it is fit. That is Stage 1 work at the earliest, and doing
 it now, mid-run, is the move A3.6 declined. The notebook reports this section as withdrawn
 with a pointer here rather than omitting it.
+
+---
+
+# Amendment 4 — 2026-07-28
+
+**Status: OPEN. This amendment is POST-HOC and every entry in it is to be read that way.**
+
+Amendment 3 was written blind. Stage 0 is now complete and its outcome is known: two models
+excluded at the reliability gate, three through to Pass C, **all three primaries
+`inconclusive`** — gemma and qwen-1.5B near zero, llama a credible effect in the **wrong
+(positive)** direction. Nothing recorded from here can claim the protection A1.0, A2.0 and
+A3's header claimed, and no entry here may change a decision rule. That boundary is dated
+rather than blurred.
+
+**The result is what the design predicted.** A3.3, computed blind, put `inconclusive` at
+~48% even when the effect is real and exactly at the SESOI, and ~70% under a true null. All
+three inconclusive is the modal outcome, not a surprise, and it will not be written up as
+one.
+
+## A4.1 llama's H1 fit has 362 divergences: a `sd_template` funnel
+
+Reported by the run machine. **4.5% of draws (362/8000) diverged**, across 3 of 4 chains.
+Energy is healthy (BFMI 0.90–1.00), so this is local geometry rather than a mixing failure.
+
+**Mechanism: Neal's funnel on the template random-effect scale.** `spread_model.py:178` uses
+a **centered** parameterization, `u_template = ZeroSumNormal(sigma=sd_template)`, which
+funnels when the group SD approaches zero. Divergent draws sit at `sd_template` median
+**0.003** against **0.031** for non-divergent — ten times deeper into the neck. `sd_pair`
+shows no such split (1.017 vs 1.014), so it is specific to the template scale.
+
+**Divergence count tracks the group SD exactly across models**, which is what makes the
+mechanism rather than a coincidence:
+
+| model | `sd_template` mean | divergences |
+|---|---|---|
+| gemma | 0.303 | 7 (0.1%) |
+| qwen-1.5B | 0.132 | 0.9% (70) |
+| llama | 0.043 | **4.5% (362)** |
+
+llama's templates produce nearly identical spread, so its `sd_template` posterior piles
+against zero — the sharpest part of the funnel. Same model, harder data.
+
+**What it does and does not touch.** Everything feeding the primary is clean:
+`lambda[chose]` R̂ 1.0 / ESS 3831, `lambda[yoked]` R̂ 1.0 / ESS 3281; all `lambda`, `gamma`
+and `beta` at max R̂ 1.0 and min ESS_bulk 3000. The single degraded parameter is
+`sd_template` itself, at **ESS_bulk 646, ESS_tail 357**.
+
+**That is a §7.1 violation and it is recorded as one.** §7.1 requires ESS > 400 "for every
+reported parameter; failure is reported rather than silently re-tuned." ESS_tail 357 is
+below it. `sd_template` is a nuisance variance and no claim rests on it, so the consequence
+is narrow — **"how much templates vary in spread" cannot be reported for llama** — but the
+threshold is stated per parameter and this parameter misses it.
+
+### The reparameterization, and the commitment made BEFORE running it
+
+Non-centering the template effect is a **pure reparameterization**: identical model,
+identical posterior in expectation, different sampler geometry. It is the standard remedy
+and it is correct. It is also being contemplated *after* seeing an inconvenient result on
+the model that produced it, which is exactly the position A3.6 refused to exploit.
+
+So the prediction and the decision rule are fixed **here, before the refit runs**:
+
+1. **Prediction.** `lambda_chose − lambda_yoked` for llama is **+0.436, 95% HDI
+   [+0.213, +0.699]** under the centered fit. The non-centered fit is predicted to
+   reproduce it to within Monte Carlo error. Divergences are predicted to fall to ~0 and
+   `sd_template` ESS to recover above 400.
+2. **The centered fit remains PRIMARY.** The non-centered fit is a **robustness check**.
+   This holds whichever direction the numbers move, and is committed now precisely so it
+   cannot be chosen later.
+3. **If the estimate moves materially, that is a finding, not a correction.** It would mean
+   the divergences did bias the primary, and the conclusion would be that llama's H1
+   estimate is not trustworthy under *either* parameterization — not that the second one is
+   the right answer.
+4. **Both fits are reported for all three models**, not just llama. Refitting only the model
+   with an unwelcome result would be indefensible regardless of the reparameterization's
+   validity.
+5. The change is confined to `u_template`. `u_pair` is **not** non-centered: its diagnostics
+   show no funnel, and changing an unimplicated part of the model after seeing results has
+   no justification.
+
+`target_accept` is **not** raised. It is a weaker remedy that does not clear a centered
+funnel, and moving a sampler knob after seeing the answer is the move §7.1's "rather than
+silently re-tuned" was written against.
