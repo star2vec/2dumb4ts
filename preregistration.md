@@ -2135,3 +2135,59 @@ Pooled empirical logits are not the average of per-pair logits when `u_pair` has
 variance (`sd_pair ≈ 1.0`), so a gap in that direction is expected and is a property of the
 overlay, not a fit failure. `plots._empirical_shift` documents this; the caption must repeat
 it or a reader will read it as misfit.
+
+## A4.4 A3.13's sensitivity analysis, and A4.1's prediction verified
+
+Both fits under the **same** parameterization (non-centered, A4.1). The recorded primaries
+were fitted centered, so comparing a restricted non-centered fit against them would confound
+A3.13's restriction with A4.1's reparameterization; the full sample is therefore re-fitted
+rather than read from the artifact.
+
+**Computed on the development machine and therefore EXPLORATORY.** §12 requires reported
+numbers to originate on the run machine; `scripts/sensitivity_match_gap.py` exists so the
+reportable version is produced there. These figures are a preview and must not be quoted.
+
+### A4.1's prediction: confirmed on all three models
+
+| model | recorded (centered) | re-fitted (non-centered) | shift |
+|---|---|---|---|
+| gemma-2-2b | −0.0015 | −0.0017 | 0.0002 |
+| qwen2.5-1.5b | −0.1367 | −0.1399 | 0.0032 |
+| llama-3.2-3b | +0.4361 | +0.4395 | 0.0034 |
+
+Every shift is inside Monte Carlo error, and llama's divergences fell from **362 to 1**.
+A4.1's commitment 1 holds, commitment 4 (all three re-fitted, not only llama) is satisfied,
+and commitment 3 is not triggered: no estimate moved materially, so the divergences did not
+bias the primary.
+
+### A3.13's restriction: only the model with an effect moves
+
+| model | tolerance | pairs kept | full sample (PRIMARY) | within tolerance | shift |
+|---|---|---|---|---|---|
+| gemma-2-2b | 0.408 | 118/200 | −0.0017 [−1.060, +1.093] | +0.0078 [−1.200, +1.193] | +0.04 × SESOI |
+| qwen2.5-1.5b | 0.419 | 80/200 | −0.1399 [−1.014, +0.611] | −0.1132 [−1.085, +0.755] | +0.11 × SESOI |
+| llama-3.2-3b | 0.289 | 94/200 | +0.4395 [+0.221, +0.672] | **+0.3260 [−0.053, +0.679]** | **−0.68 × SESOI** |
+
+All six fits remain `inconclusive`, so **no decision changes**.
+
+**The pattern is the finding.** gemma and qwen move by 0.04 and 0.11 SESOI — noise, as
+expected when λ is already indistinguishable from zero: dropping pairs cannot move an
+estimate that is not there. **llama moves by 0.68 SESOI and its HDI crosses zero**
+(P(λ<0) 0.000 → 0.045).
+
+So the one credible effect in the study is **partly carried by matched sets that are
+imbalanced on the measurement the primary model uses**. Two contributions have to be kept
+apart: the HDI widens 1.63× while √(200/94) = 1.46, so most of the widening is the smaller
+sample — but **the median moving 0.11 logits is not a sample-size effect**. That is the
+extremity confound §13 item 8 introduced design-level matching to remove, and which A3.13
+showed matching does not bind on the analysis scale.
+
+**Neither estimate is promoted.** The full sample remains the preregistered primary. A3.13
+fixed that before the data existed precisely so this result could not be used to choose.
+
+**What it licenses saying.** llama's wrong-direction effect is the only signal in Stage 0,
+and it is not robust to a preregistered restriction. Combined with A4.2 — realized precision
+3.4–5.4× worse than predicted — and A3.12 — the difficulty regressor agreeing with the DV's
+framing only 66–75% of the time on easy pairs — the honest reading is that **this design did
+not have the resolution to answer H1 in either direction**, and llama's effect should be
+reported as suggestive of a wrong-signed relationship rather than as a finding about it.
