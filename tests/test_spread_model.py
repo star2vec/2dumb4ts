@@ -319,9 +319,12 @@ def test_the_graded_fit_refuses_data_it_cannot_model():
     with pytest.raises(ValueError, match="predate A4.5"):
         sm.fit_graded(cfg, sm.prepare(cfg, trials))
 
+    # p at exactly 0 or 1 is refused for EVERY family, including Beta -- Beta's support is
+    # the open interval, so a 0 or a 1 has no density there either.
     saturated = trials.assign(p_item1=np.where(trials["item1_wins"], 1.0, 0.0))
-    with pytest.raises(ValueError, match="exactly 0 or 1"):
-        sm.fit_graded(cfg, sm.prepare(cfg, saturated))
+    for fam in ("normal", "studentt", "beta"):
+        with pytest.raises(ValueError, match="exactly 0 or 1"):
+            sm.fit_graded(cfg, sm.prepare(cfg, saturated), family=fam)
 
-    with pytest.raises(ValueError, match="normal.*studentt"):
-        sm.fit_graded(cfg, sm.prepare(cfg, trials.assign(p_item1=0.6)), family="beta")
+    with pytest.raises(ValueError, match="normal.*studentt.*beta"):
+        sm.fit_graded(cfg, sm.prepare(cfg, trials.assign(p_item1=0.6)), family="poisson")
