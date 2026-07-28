@@ -500,3 +500,67 @@ def test_the_analysis_scale_gap_is_not_bounded_by_matching(cfg, pairs):
     assert 0.0 < out["frac_over_on_analysis"] <= 1.0
     assert len(out["excluded_matched_sets"]) == out["n_over_on_analysis"]
     assert out["n_matched_sets"] == pairs["matched_set"].nunique()
+
+
+def test_the_structure_contrast_is_not_length_matched_and_the_gap_is_bounded(cfg, templates):
+    """A3.15. A2.9.3 claimed `chose` and `structure-control` are "both 125 tokens --
+    matched exactly". They are not: only one of five templates matches, and the counts are
+    not 125.
+
+    This pins REALITY, not the claim. `template` is a modelled factor so between-template
+    length variation is absorbed by u_template, but this difference is WITHIN template and
+    is not -- it lands in the condition contrast. The bound is asserted so the figure
+    cannot drift again unnoticed.
+    """
+    from transformers import AutoTokenizer
+
+    from src.stimuli.build import post_dv_messages
+
+    try:
+        tok = AutoTokenizer.from_pretrained("Qwen/Qwen2.5-0.5B-Instruct")
+    except Exception as exc:  # noqa: BLE001
+        pytest.skip(f"tokenizer unavailable: {type(exc).__name__}")
+
+    a, b = "a trip to Kyoto", "a trip to Lisbon"
+    labels = cfg.readout.option_labels
+    diffs = {}
+    for t in templates:
+        n = {}
+        for cond in ("chose", "structure-control"):
+            msgs = post_dv_messages(t, a, b, a, b, cond, labels[0], cfg)
+            rendered = tok.apply_chat_template(msgs, tokenize=False,
+                                               add_generation_prompt=True)
+            n[cond] = len(tok(rendered, add_special_tokens=False)["input_ids"])
+        diffs[t.id] = n["chose"] - n["structure-control"]
+
+    assert max(abs(d) for d in diffs.values()) <= 3, (
+        f"the structure contrast's length gap grew beyond the recorded bound: {diffs}")
+    # NEGATIVE CONTROL: if every template were matched, A3.15 would be wrong and this test
+    # would be asserting nothing. It is not -- exactly one matches.
+    assert any(d != 0 for d in diffs.values()), (
+        "the conditions are now length-matched everywhere; A3.15 needs rewriting")
+
+
+def test_the_mass_floor_filters_the_instrument_but_not_the_dv(cfg):
+    """A3.14. Documents an asymmetry three places in the record deny exists.
+
+    5.4 says no trial-level exclusions. A1.6 says invalid trials are marked, not scored.
+    validity.py says the floor is "not a filter applied at analysis time". But
+    fit_bradley_terry drops invalid readouts -- and spread_model does not, so a Pass C
+    trial with most of its mass off the option labels enters the DV as a clean win/loss.
+    """
+    from pathlib import Path
+
+    root = Path(__file__).resolve().parents[1] / "src"
+    bt = (root / "analysis" / "bradley_terry.py").read_text(encoding="utf-8")
+    sm = (root / "analysis" / "spread_model.py").read_text(encoding="utf-8")
+
+    assert 'block[block["readout_valid"]]' in bt, (
+        "the instrument no longer filters invalid readouts -- A3.14 needs rewriting")
+    assert "readout_valid" not in sm, (
+        "spread_model now references readout validity. If it FILTERS, A3.14's asymmetry is "
+        "closed and the amendment must be updated rather than this test relaxed.")
+
+    from src.readout.validity import MASS_FLOOR
+
+    assert MASS_FLOOR == 0.5, "A3.14's 'most of the mass' reasoning assumes a 0.5 floor"

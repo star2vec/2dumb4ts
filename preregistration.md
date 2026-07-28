@@ -1793,6 +1793,91 @@ introduced; the threshold is A2.9.2's, applied to the quantity matching does not
   the restricted one is a sensitivity analysis. Promoting whichever is larger after seeing
   both is the move A3.6 declined.
 
+### A3.14 The readout-mass floor guards the instrument and not the outcome
+
+Three statements are in tension, and the code implements a fourth thing:
+
+| source | says |
+|---|---|
+| §5.4 (frozen) | "Trial-level exclusions. **None.** All trials are retained." |
+| A1.6 | below the floor a trial is "marked **invalid and logged**; never silently scored" |
+| `readout/validity.py:14` | "The floor is **not a filter applied at analysis time**. It travels with the trial." |
+| `bradley_terry.py:121` | `block = block[block["readout_valid"]]` — **it is a filter, at analysis time** |
+
+`fit_bradley_terry` drops invalid readouts before fitting, as do `order_invariance`,
+`excess_consistency_slope` and `excess_slope_ppc_null`. So there **is** a trial-level
+exclusion, it operates on the instrument, and three separate places say there isn't one.
+
+**The asymmetry is the substantive part.** `spread_model.prepare` never mentions
+`readout_valid` — the string does not appear in the module. Pass C trials below the floor
+therefore enter the **DV** unfiltered. `MASS_FLOOR = 0.5`, so such a trial is one where
+**most of the probability mass went somewhere other than the option labels**, and its
+`item1_wins` is an argmax over a minority of the distribution. The mass floor was added by
+A1.6 in direct response to a readout with 0.8% of its mass on the candidate tokens
+producing plausible numbers — and that exact failure is filtered out of `θ` and left in the
+outcome.
+
+This is not idle: A2.4 records a Pass A template running at **~48% invalid readouts**. High
+invalid rates occur in this project.
+
+**Direction of the risk.** Invalid trials are near-arbitrary win/loss draws, so they add
+noise to the DV. That **attenuates `λ` toward zero** — it cannot manufacture H1. But it
+inflates exactly the variance the equivalence claims are computed against, on a design A3.3
+already shows is underpowered, which is the reason §3.1 forbids quantization.
+
+**Pre-specified now, blind.** No filter is introduced mid-run and §5.4's rule is not
+rewritten. Instead:
+
+- **Reported per model and per condition**: the count and fraction of Pass C trials below
+  the floor. `run.py` already prints `validity.summarize(trials, by=["condition"])`; that
+  figure becomes a reported result rather than console output.
+- **If any condition exceeds 5% invalid**, the primary is additionally reported on the
+  valid-only subset as a **sensitivity analysis**. The full sample stays primary. Choosing
+  between them after seeing both is the move A3.6 declined.
+- **A condition above 20% invalid is an instrument failure for that condition**, reported
+  as such, and its contrasts are not interpreted. That is a statement about the readout,
+  not about H1.
+
+The 5% and 20% figures are set here, before the data, precisely because they cannot be set
+afterwards.
+
+### A3.15 A2.9.3's token-match check is wrong
+
+A2.9.3 reports, as evidence that the structure factor is about structure rather than
+length: *"`chose` and `structure-control` are both **125 tokens** — matched exactly."*
+
+Measured on the actual templates, Qwen2.5 tokenizer, identical item strings in both
+conditions:
+
+| template | `chose` | `structure-control` | difference |
+|---|---|---|---|
+| t0 | 121 | 123 | **−2** |
+| t1 | 121 | 118 | **+3** |
+| t2 | 120 | 119 | **+1** |
+| t3 | 125 | 122 | **+3** |
+| t4 | 127 | 127 | 0 |
+
+**Only t4 is matched.** The counts are not a single 125 either — they range 120–127 with
+real items and 102–109 with placeholders, because token count depends on the item strings,
+which vary across 400 items. The quoted 125 appears to be `chose` on t3 alone, reported as
+though it characterised both conditions across the battery.
+
+**Why it is not fatal.** The gap is ≤3 tokens on ~122, under 2.5%, and it is the
+confirm-versus-choice wording — which **is** the factor being manipulated, not an
+extraneous confound. A perfectly length-matched pair would require the two questions to
+tokenize identically, which no paraphrase battery can guarantee.
+
+**Why it still matters.** `template` is a modelled factor, so *between*-template length
+variation is absorbed by `u_template`. The `chose` − `structure-control` difference is
+**within** template, so `u_template` does not absorb it and it lands in the condition
+contrast. More importantly, A2.9.3 performed this check *because* length confounding
+matters, and then recorded a number that does not hold.
+
+**Corrected claim**, replacing "matched exactly": the two conditions differ by **−2 to +3
+tokens depending on template, and are exactly matched on one of five**. The per-template
+counts are asserted by `tests/test_design.py` so the figure cannot drift again, and the
+difference is reported alongside the structure contrast rather than asserted away.
+
 ### The standing rule this creates
 
 **An amendment that changes a number gets a test that reads the rule and asserts the config
