@@ -237,6 +237,86 @@ def fit(cfg: RunConfig, design: SpreadDesign, *, progressbar: bool = False) -> a
         return pm.sample(**kwargs)
 
 
+def fit_graded(cfg: RunConfig, design: SpreadDesign, *, family: str = "normal",
+               progressbar: bool = False) -> az.InferenceData:
+    """A4.5 PILOT MODEL. Same linear predictor, graded outcome instead of a coin flip.
+
+    NOT A PREREGISTERED PRIMARY. The continuous DV changes the likelihood, so its priors,
+    the SESOI's units and 9.2's thresholds all have to be restated on the new scale in a
+    preregistration written blind. This exists to measure ONE thing: how much precision the
+    binarisation costs. Stage 0's reported result is unaffected by anything computed here.
+
+        y = logit(p_item1)
+        mu = u_pair + u_template + beta_t*s + post*d*(gamma_c + lambda_c*diff_z)
+        y ~ Normal(mu, sigma_obs)   or   StudentT(nu, mu, sigma_obs)
+
+    The linear predictor is IDENTICAL to the Bernoulli model's, which is the point: `gamma`
+    and `lambda` keep their units, so the two fits' standard errors are directly comparable
+    and the ratio means what it appears to mean.
+
+    WHY BOTH FAMILIES. `p_item1` reaches 1.5e-06 and 0.99999, i.e. logits near +/-13. A
+    Gaussian with constant sigma is misspecified in those tails and will report intervals
+    that are too NARROW -- which would look exactly like a precision win. Fitting a
+    Student-t as well is the check: if the two agree the gain is real, and if the Gaussian
+    is much tighter than the t then part of the "gain" is the tails being modelled badly.
+    Reporting only the Gaussian would be the most flattering and least honest choice.
+    """
+    if "p_item1" not in design.frame.columns:
+        raise ValueError(
+            "trials carry no `p_item1`; they predate A4.5 and the graded readout was "
+            "discarded when they were collected. Re-run Pass C."
+        )
+    if family not in ("normal", "studentt"):
+        raise ValueError(f"family must be 'normal' or 'studentt', got {family!r}")
+
+    f = design.frame
+    p_obs = f["p_item1"].to_numpy(dtype=float)
+    if not np.all((p_obs > 0.0) & (p_obs < 1.0)):
+        n_bad = int((~((p_obs > 0.0) & (p_obs < 1.0))).sum())
+        raise ValueError(
+            f"{n_bad} row(s) have p_item1 at exactly 0 or 1, whose logit is infinite. "
+            "Clipping would invent a value for the most extreme observations, which are "
+            "the ones with the most leverage; decide explicitly rather than here."
+        )
+    y = np.log(p_obs / (1.0 - p_obs))
+
+    coords = {"condition": design.conditions, "pair": design.pairs,
+              "template": design.templates}
+    with pm.Model(coords=coords):
+        gamma = pm.Normal("gamma", 0.0, 1.0, dims="condition")
+        lam = pm.Normal("lambda", 0.0, 1.0, dims="condition")
+        beta = pm.Normal("beta", 0.0, 1.5, dims="template")
+
+        sd_pair = pm.HalfNormal("sd_pair", 2.0)
+        u_pair = pm.ZeroSumNormal("u_pair", sigma=sd_pair, dims="pair")
+        sd_tmpl = pm.HalfNormal("sd_template", 1.0)
+        z_tmpl = pm.ZeroSumNormal("z_template", sigma=1.0, dims="template")
+        u_tmpl = pm.Deterministic("u_template", z_tmpl * sd_tmpl, dims="template")
+
+        ci = f["cond_idx"].to_numpy()
+        mu = (
+            u_pair[f["pair_idx"].to_numpy()]
+            + u_tmpl[f["tmpl_idx"].to_numpy()]
+            + beta[f["tmpl_idx"].to_numpy()] * f["s"].to_numpy()
+            + f["post"].to_numpy() * f["d"].to_numpy()
+            * (gamma[ci] + lam[ci] * f["diff_z"].to_numpy())
+        )
+        # The logit of a readout spans a wide range, so the observation scale is given room.
+        sigma_obs = pm.HalfNormal("sigma_obs", 3.0)
+        if family == "normal":
+            pm.Normal("y", mu=mu, sigma=sigma_obs, observed=y)
+        else:
+            nu = pm.Gamma("nu", alpha=2.0, beta=0.1)
+            pm.StudentT("y", nu=nu, mu=mu, sigma=sigma_obs, observed=y)
+
+        kwargs = dict(draws=cfg.analysis.draws, tune=cfg.analysis.tune,
+                      chains=cfg.analysis.chains, random_seed=cfg.seed,
+                      target_accept=0.9, progressbar=progressbar)
+        if cfg.analysis.sampler_cores is not None:
+            kwargs["cores"] = cfg.analysis.sampler_cores
+        return pm.sample(**kwargs)
+
+
 def _draws(idata: az.InferenceData, var: str, condition: str) -> np.ndarray:
     return (idata.posterior[var].sel(condition=condition)
             .stack(sample=("chain", "draw")).to_numpy())

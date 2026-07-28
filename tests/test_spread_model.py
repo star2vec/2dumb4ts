@@ -273,3 +273,55 @@ def test_non_centering_the_template_effect_leaves_the_primary_unchanged():
     # PRECONDITION: both must actually recover the planted effect, or agreement is cheap.
     for draws in (nc, ce):
         assert draws.mean() < 0 and abs(draws.mean() - truth) < 0.5, draws.mean()
+
+
+@pytest.mark.slow
+def test_the_graded_dv_recovers_the_same_effect_as_the_binary_one():
+    """A4.5's pilot model, verified on synthetic data before it is trusted on real data.
+
+    The graded fit is only a fair comparison if it estimates the SAME quantity. Both are
+    run on trials generated from one known truth; both must recover it, and `lambda` must
+    keep its units so the standard errors are comparable at all.
+
+    A model that recovered a DIFFERENT quantity could show a spectacular "precision gain"
+    by being precise about the wrong thing.
+    """
+    cfg = _fast(load_config(CONFIG))
+    trials, truth = _synth(-0.8, n_pairs=40, n_tmpl=3, seed=9)
+
+    # Attach a graded readout consistent with the binary one: a probability on the correct
+    # side of 0.5, with the confidence varying per row.
+    rng = np.random.default_rng(3)
+    conf = rng.uniform(0.55, 0.98, len(trials))
+    trials = trials.assign(
+        p_item1=np.where(trials["item1_wins"].to_numpy(), conf, 1.0 - conf))
+    design = sm.prepare(cfg, trials)
+
+    binary = sm._draws(sm.fit(cfg, design), "lambda", "chose") - \
+        sm._draws(sm.fit(cfg, design), "lambda", "yoked")
+    g = sm.fit_graded(cfg, design, family="normal")
+    graded = sm._draws(g, "lambda", "chose") - sm._draws(g, "lambda", "yoked")
+
+    for name, draws in (("binary", binary), ("graded", graded)):
+        assert draws.mean() < 0, f"{name} lost the sign of the planted effect"
+    # Same quantity, so the two must agree far better than either's own spread.
+    assert abs(graded.mean() - binary.mean()) < 2.0 * max(binary.std(), graded.std()), (
+        f"binary {binary.mean():+.3f} vs graded {graded.mean():+.3f} -- the graded model "
+        "is not estimating the same contrast, so an SE ratio between them is meaningless")
+
+
+def test_the_graded_fit_refuses_data_it_cannot_model():
+    """Both refusals matter: absent trials predate A4.5, and p at exactly 0 or 1 has an
+    infinite logit whose value must be decided deliberately, not clipped in the fitter."""
+    cfg = _fast(load_config(CONFIG))
+    trials, _ = _synth(-0.4, n_pairs=8, n_tmpl=2, seed=1)
+
+    with pytest.raises(ValueError, match="predate A4.5"):
+        sm.fit_graded(cfg, sm.prepare(cfg, trials))
+
+    saturated = trials.assign(p_item1=np.where(trials["item1_wins"], 1.0, 0.0))
+    with pytest.raises(ValueError, match="exactly 0 or 1"):
+        sm.fit_graded(cfg, sm.prepare(cfg, saturated))
+
+    with pytest.raises(ValueError, match="normal.*studentt"):
+        sm.fit_graded(cfg, sm.prepare(cfg, trials.assign(p_item1=0.6)), family="beta")
