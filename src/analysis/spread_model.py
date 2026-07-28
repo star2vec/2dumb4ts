@@ -266,8 +266,8 @@ def fit_graded(cfg: RunConfig, design: SpreadDesign, *, family: str = "normal",
             "trials carry no `p_item1`; they predate A4.5 and the graded readout was "
             "discarded when they were collected. Re-run Pass C."
         )
-    if family not in ("normal", "studentt"):
-        raise ValueError(f"family must be 'normal' or 'studentt', got {family!r}")
+    if family not in ("normal", "studentt", "beta"):
+        raise ValueError(f"family must be 'normal', 'studentt' or 'beta', got {family!r}")
 
     f = design.frame
     p_obs = f["p_item1"].to_numpy(dtype=float)
@@ -278,7 +278,11 @@ def fit_graded(cfg: RunConfig, design: SpreadDesign, *, family: str = "normal",
             "Clipping would invent a value for the most extreme observations, which are "
             "the ones with the most leverage; decide explicitly rather than here."
         )
-    y = np.log(p_obs / (1.0 - p_obs))
+    # `beta` models the probability directly and needs no logit, which is the point: the
+    # run machine saw "overflow encountered in dot" on both logit-scale fits, because
+    # p_item1 reaches 1.5e-06 and logit takes it to -13.4. A Beta likelihood has the right
+    # support, so the extremes need no accommodating and nothing overflows.
+    y = None if family == "beta" else np.log(p_obs / (1.0 - p_obs))
 
     coords = {"condition": design.conditions, "pair": design.pairs,
               "template": design.templates}
@@ -302,12 +306,19 @@ def fit_graded(cfg: RunConfig, design: SpreadDesign, *, family: str = "normal",
             * (gamma[ci] + lam[ci] * f["diff_z"].to_numpy())
         )
         # The logit of a readout spans a wide range, so the observation scale is given room.
-        sigma_obs = pm.HalfNormal("sigma_obs", 3.0)
-        if family == "normal":
-            pm.Normal("y", mu=mu, sigma=sigma_obs, observed=y)
+        if family == "beta":
+            # mu is the SAME linear predictor, on the logit scale of the Beta's mean, so
+            # gamma and lambda keep the units the Bernoulli model gives them.
+            mean = pm.math.sigmoid(mu)
+            kappa = pm.Gamma("kappa", alpha=2.0, beta=0.1)
+            pm.Beta("y", alpha=mean * kappa, beta=(1.0 - mean) * kappa, observed=p_obs)
         else:
-            nu = pm.Gamma("nu", alpha=2.0, beta=0.1)
-            pm.StudentT("y", nu=nu, mu=mu, sigma=sigma_obs, observed=y)
+            sigma_obs = pm.HalfNormal("sigma_obs", 3.0)
+            if family == "normal":
+                pm.Normal("y", mu=mu, sigma=sigma_obs, observed=y)
+            else:
+                nu = pm.Gamma("nu", alpha=2.0, beta=0.1)
+                pm.StudentT("y", nu=nu, mu=mu, sigma=sigma_obs, observed=y)
 
         kwargs = dict(draws=cfg.analysis.draws, tune=cfg.analysis.tune,
                       chains=cfg.analysis.chains, random_seed=cfg.seed,

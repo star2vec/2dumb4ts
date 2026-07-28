@@ -2,19 +2,25 @@
 
     python scripts/pilot_graded_dv.py --config configs/stage0_gemma-2-2b.yaml --sampler-cores 1
 
-Fits the primary contrast three ways on THE SAME trials and reports the ratio of standard
-errors. That ratio is the only output that matters; it decides whether Stage 0-bis is worth
-running.
+Fits the primary contrast FOUR ways on THE SAME trials and reports the spread of standard
+errors. That spread decides whether Stage 0-bis is worth running.
 
     binary            Bernoulli on item1_wins       -- the preregistered Stage 0 DV
-    graded (normal)   Normal on logit(p_item1)      -- the candidate
-    graded (t)        StudentT on logit(p_item1)    -- the honesty check
+    graded (Normal)   Normal on logit(p_item1)      -- the candidate
+    graded (StudentT) robust to the tails
+    graded (Beta)     on p_item1 directly, no logit at all
 
-WHY THREE AND NOT TWO. p_item1 reaches ~1e-06 and ~0.99999, i.e. logits near +/-13. A
-Gaussian with constant sigma is misspecified there and will report intervals that are too
-NARROW, which looks identical to a precision win. If the Student-t agrees with the Gaussian
-the gain is real; if the Gaussian is much tighter, part of it is the tails being modelled
-badly. Reporting only the Gaussian would be the most flattering and least honest choice.
+WHY FOUR. p_item1 reaches ~1e-06 and ~0.999998, i.e. logits near +/-13. Both logit-scale
+fits threw "overflow encountered in dot" on the first run, and both diverged. A Beta
+likelihood has the right support for a probability, so nothing has to be pushed through a
+logit and nothing overflows -- it is the principled answer to that warning rather than a
+tuning knob. Three likelihoods with different tail behaviour agreeing is a much stronger
+claim than two.
+
+THE SCRIPT DOES NOT RENDER A VERDICT. The first version printed "consistent, the gain is
+real" from a threshold applied to a percentage computed with the flattering denominator --
+in the one comparison written to catch flattery. It now prints the inputs to the
+pre-committed criteria and leaves the judgement to a person.
 
 THIS IS NOT AN H1 RE-TEST. The point estimates are printed only so a reader can see the two
 DVs agree on the sign; Stage 0's reported result stands, and the continuous DV is a
@@ -44,11 +50,27 @@ def _contrast(idata) -> np.ndarray:
 
 
 def _summarise(idata, label: str) -> dict:
+    """Everything the pre-committed distrust criteria need, in the output and the JSON.
+
+    The first version reported neither R-hat nor divergences, so two of the three criteria
+    could not be checked from the output at all. The run machine had to read them out of
+    the sampler's console noise.
+    """
+    import arviz as az
+
     d = _contrast(idata)
     lo, hi = np.percentile(d, [2.5, 97.5])
+    summ = az.summary(idata, var_names=["gamma", "lambda", "beta"])
+    diverging = int(idata.sample_stats["diverging"].sum()) \
+        if "diverging" in getattr(idata, "sample_stats", {}) else -1
+    n_draws = int(np.prod(idata.posterior["lambda"].shape[:2]))
     return {"label": label, "median": float(np.median(d)), "se": float(d.std(ddof=1)),
             "hdi_low": float(lo), "hdi_high": float(hi),
-            "p_negative": float((d < 0).mean())}
+            "p_negative": float((d < 0).mean()),
+            "max_rhat": float(summ["r_hat"].max()),
+            "min_ess_bulk": float(summ["ess_bulk"].min()),
+            "divergences": diverging, "n_draws": n_draws,
+            "divergence_rate": diverging / n_draws if diverging >= 0 else float("nan")}
 
 
 def main(argv=None) -> int:
@@ -87,24 +109,35 @@ def main(argv=None) -> int:
         return 1
 
     fits = [_summarise(spread_model.fit(cfg, design), "binary (Bernoulli)")]
-    for fam, label in (("normal", "graded (Normal)"), ("studentt", "graded (StudentT)")):
+    for fam, label in (("normal", "graded (Normal)"), ("studentt", "graded (StudentT)"),
+                       ("beta", "graded (Beta)")):
         fits.append(_summarise(
             spread_model.fit_graded(cfg, design, family=fam), label))
 
     base = fits[0]["se"]
-    print(f"\n{'fit':<24}{'median':>10}{'SE':>9}{'95% interval':>22}{'SE ratio':>10}")
+    print(f"\n{'fit':<24}{'median':>10}{'SE':>9}{'ratio':>8}{'max Rhat':>10}"
+          f"{'min ESS':>9}{'diverg':>8}")
     for r in fits:
-        span = f"[{r['hdi_low']:+.3f}, {r['hdi_high']:+.3f}]"
-        print(f"{r['label']:<24}{r['median']:>+10.4f}{r['se']:>9.4f}{span:>22}"
-              f"{base / r['se']:>9.2f}x")
+        print(f"{r['label']:<24}{r['median']:>+10.4f}{r['se']:>9.4f}"
+              f"{base / r['se']:>7.2f}x{r['max_rhat']:>10.4f}{r['min_ess_bulk']:>9.0f}"
+              f"{r['divergences']:>6} ({r['divergence_rate']:.2%})")
 
-    normal, student = fits[1]["se"], fits[2]["se"]
-    print(f"\n  precision gain, Normal:   {base / normal:.2f}x")
-    print(f"  precision gain, StudentT: {base / student:.2f}x")
-    disagree = abs(normal - student) / max(normal, student)
-    print(f"  families differ by {disagree:.1%} on SE -- "
-          + ("consistent, the gain is real" if disagree < 0.25
-             else "LARGE: part of the Gaussian's gain is tail misspecification"))
+    graded = fits[1:]
+    ses = [r["se"] for r in graded]
+    # Spread as a RATIO of largest to smallest. The first version divided by the LARGER SE,
+    # which always yields the smaller-looking percentage -- the flattering denominator, in
+    # the one comparison written to catch flattery. Caught by the run machine.
+    spread = max(ses) / min(ses)
+    print(f"\n  precision gain spans {base / max(ses):.2f}x to {base / min(ses):.2f}x "
+          f"across {len(graded)} likelihoods")
+    print(f"  widest family disagreement: {spread:.3f}x "
+          f"({(spread - 1) * 100:.1f}% on the tighter SE)")
+    worst_rhat = max(r["max_rhat"] for r in graded)
+    worst_div = max(r["divergence_rate"] for r in graded)
+    print(f"  worst graded Rhat {worst_rhat:.4f} (need <= 1.01); "
+          f"worst divergence rate {worst_div:.2%}")
+    print("\n  The verdict is NOT computed here. These are the inputs to the "
+          "pre-committed criteria; applying them is a judgement, not an assertion.")
     print("\n  Not an H1 re-test. Stage 0's reported result stands (A4.5).")
 
     if args.out:
