@@ -253,14 +253,11 @@ def test_every_expensive_artifact_is_keyed_on_the_code_that_writes_it():
     from src.config import load_config
 
     cfg = load_config("configs/stage0_gemma-2-2b.yaml")
-    for path, digest in ((pass_b.artifact_path(cfg), pass_b.source_digest()),
-                         (pass_c.artifact_path(cfg), pass_c.source_digest())):
-        assert digest in path.name, f"{path.name} does not carry its source digest"
-        assert cfg.hash(path.parent.parent.parent.name.replace("-", "_")
-                        if False else "pass_b") or True  # (config hash checked below)
-
-    assert cfg.hash("pass_b") in pass_b.artifact_path(cfg).name
-    assert cfg.hash("pass_c") in pass_c.artifact_path(cfg).name
+    # Both halves of the key must be present: the config hash AND the source digest.
+    for stage, mod in (("pass_b", pass_b), ("pass_c", pass_c)):
+        name = mod.artifact_path(cfg).name
+        assert cfg.hash(stage) in name, f"{name} lost its config hash"
+        assert mod.source_digest() in name, f"{name} lost its source digest"
 
     # NEGATIVE CONTROL: the digests must differ between modules, or one is being reused
     # for all of them and the check means nothing.
