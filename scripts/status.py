@@ -83,9 +83,28 @@ def _newest_per_model(rows: list[dict]) -> list[dict]:
 
 
 def robustness_rows(rows: list[dict]) -> list[dict]:
-    """Analysis results that are NOT the primary fit -- reported alongside, never instead."""
-    return [r for r in rows
-            if r.get("spread_parameterization", "centered") != "centered"]
+    """Analysis results that are NOT the primary fit -- reported alongside, never instead.
+
+    A4.1 commitment 4 requires BOTH fits reported for all three models. This helper existed
+    and was never called, so the non-centered fit lived only in raw artifacts and appeared
+    in neither STATUS.md nor the tracked results/. Present as data, absent from the report,
+    which is not "reported". Found by the run machine while staging the transmit.
+    """
+    seen, out = set(), []
+    for r in rows:
+        if r.get("spread_parameterization", "centered") == "centered":
+            continue
+        key = (r.get("_stage"), r.get("model"))
+        if key in seen:
+            continue
+        seen.add(key)
+        out.append(r)
+    return out
+
+
+def pass_c_robustness_table(results: list[dict]) -> pd.DataFrame:
+    """A4.1's non-centered refit, reported beside the primary and never instead of it."""
+    return _pass_c_rows(robustness_rows(results))
 
 
 def _get(d: dict, *path, default=None):
@@ -113,6 +132,8 @@ def absolute_table(results: list[dict]) -> pd.DataFrame:
             "icc_c1_asc": _get(g, "icc_all", "icc_c1"),
             "passed": g.get("passed"),
         })
+    if not rows:
+        return pd.DataFrame()
     return pd.DataFrame(rows).drop_duplicates(subset=["model"]).sort_values("model")
 
 
@@ -140,6 +161,8 @@ def pairwise_table(results: list[dict]) -> pd.DataFrame:
             "excess_slope": ex.get("slope"),
             "excess_flat": ex.get("flat"),
         })
+    if not rows:
+        return pd.DataFrame()
     return pd.DataFrame(rows).drop_duplicates(subset=["model"]).sort_values("model")
 
 
@@ -163,8 +186,12 @@ def pass_c_table(results: list[dict]) -> pd.DataFrame:
     status.py had no Pass C table at all: the reporting layer was never extended past the
     instrument, so the headline result was not in the generated record.
     """
+    return _pass_c_rows(_newest_per_model(results))
+
+
+def _pass_c_rows(source: list[dict]) -> pd.DataFrame:
     rows = []
-    for r in _newest_per_model(results):
+    for r in source:
         pr, pw = r.get("primary"), r.get("power") or {}
         if not pr:
             continue
@@ -228,6 +255,19 @@ def render(results: list[dict]) -> str:
               "is the rule as preregistered; it is reported here rather than amended.",
               ""]
 
+    rb = pass_c_robustness_table(results)
+    if not rb.empty:
+        L += ["## Pass C robustness -- A4.1 non-centered template effect", "",
+              rb.round(4).to_markdown(index=False), "",
+              "A4.1 non-centred `u_template` after llama's centered fit showed 362 "
+              "divergences in a `sd_template` funnel. The reparameterisation is pure -- "
+              "same model, same posterior in expectation -- and was verified on synthetic "
+              "data before it touched the real fit.",
+              "",
+              "**The centered fit above remains PRIMARY** (A4.1 commitment 2). This table "
+              "is a robustness check and is reported whichever way it moves; that was "
+              "fixed before the refit ran so it could not be chosen afterwards.", ""]
+
     a = absolute_table(results)
     if not a.empty:
         L += ["## Absolute-Likert instrument (A1.5 validation record)", "",
@@ -285,8 +325,17 @@ def main() -> int:
                              "structure_factor_agreement", "pairs",
                              "instrument_validation")}
             (OUT / name).write_text(json.dumps(keep, indent=2, default=str), encoding="utf-8")
+        for r in robustness_rows(results):
+            keep = {k: v for k, v in r.items()
+                    if k in ("model", "outcome", "config_hash", "provenance", "primary",
+                             "contrasts", "sesoi", "power", "spread_parameterization",
+                             "spread_source_digest", "structure_factor_agreement")}
+            (OUT / f"{r['_stage']}_robustness__{r.get('model','unknown')}.json").write_text(
+                json.dumps(keep, indent=2, default=str), encoding="utf-8")
+
         kept = _newest_per_model(results)
         print(f"\nwrote STATUS.md and {len(kept)} summary file(s) to results/ "
+              f"+ {len(robustness_rows(results))} robustness file(s) "
               f"(de-duplicated from {len(results)} artifact result files)")
     return 0
 

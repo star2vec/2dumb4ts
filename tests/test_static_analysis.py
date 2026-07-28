@@ -167,3 +167,66 @@ def test_the_three_clobberable_artifacts_are_all_keyed_on_the_model_source():
     assert 'results_{cfg.hash()}-{digest}' in src
     assert 'results["spread_parameterization"]' in src, (
         "an artifact must say which parameterization produced it")
+
+
+def _status():
+    import importlib.util
+
+    spec = importlib.util.spec_from_file_location("status", ROOT / "scripts" / "status.py")
+    mod = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(mod)
+    return mod
+
+
+def _result(model, param, median, when):
+    return {"_stage": "analysis", "model": model, "_when": when,
+            "spread_parameterization": param, "sesoi": 0.2355,
+            "outcome": "primary-inconclusive", "provenance": {"device": "cuda"},
+            "power": {"mde_over_sesoi": 1.37, "equivalence_reachable": True},
+            "primary": {"median": median, "hdi_low": median - 0.2,
+                        "hdi_high": median + 0.2, "p_negative": 0.5,
+                        "decision": "inconclusive"}}
+
+
+def test_both_fits_reach_the_report_not_just_the_artifacts():
+    """A4.1 commitment 4: BOTH fits reported for all three models.
+
+    `robustness_rows()` was written and never called, so the non-centered fit existed only
+    in raw artifacts -- absent from STATUS.md and from the tracked results/. Present as data
+    is not reported. Found by the run machine while staging the transmit; it is the third
+    time a mechanism was built here and not wired in.
+    """
+    st = _status()
+    rows = []
+    for m, cen, non in [("gemma", -0.0015, 0.0003), ("llama", 0.4361, 0.4401)]:
+        rows.append(_result(m, "centered", cen, "2026-07-28T10:00"))
+        rows.append(_result(m, "non-centered", non, "2026-07-29T10:00"))
+
+    primary = st.pass_c_table(rows).set_index("model")["lambda_median"]
+    robust = st.pass_c_robustness_table(rows).set_index("model")["lambda_median"]
+    assert primary["llama"] == pytest.approx(0.4361), "the primary table lost the centered fit"
+    assert robust["llama"] == pytest.approx(0.4401), "the robustness table is not the refit"
+    assert len(robust) == 2, "one robustness row per model"
+
+    text = st.render(rows)
+    assert "Pass C robustness" in text, "STATUS.md has no robustness section"
+    assert "remains PRIMARY" in text, "the report does not say which fit is primary"
+
+    # NEGATIVE CONTROL: with no refit present the section must vanish rather than render
+    # empty, or its presence stops meaning anything.
+    centered_only = [r for r in rows if r["spread_parameterization"] == "centered"]
+    assert st.pass_c_robustness_table(centered_only).empty
+    assert "Pass C robustness" not in st.render(centered_only)
+
+
+def test_every_status_table_survives_having_no_matching_results():
+    """`absolute_table` built a DataFrame from an empty list and then sorted it by a column
+    that does not exist -- a KeyError crash whenever no result carries `gates`. The other
+    builders guard it; two did not. Found by feeding status.py synthetic Pass C rows."""
+    st = _status()
+    rows = [_result("gemma", "centered", -0.0015, "2026-07-28T10:00")]
+    for name in ("absolute_table", "pairwise_table", "readout_mass_table",
+                 "pass_c_robustness_table"):
+        got = getattr(st, name)(rows)
+        assert got.empty, f"{name} should be empty for these rows"
+    assert st.render(rows)  # must not raise
