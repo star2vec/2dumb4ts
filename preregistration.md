@@ -2054,3 +2054,84 @@ this is its most expensive instance: it validated a power analysis that was wron
 
 **Not changed.** No threshold, no SESOI, no decision rule. The gate outcome stands as
 computed.
+
+## A4.3 The three pre-specified diagnostics, run on the completed data
+
+All three were specified blind (A3.12, A3.13, A3.14) with their thresholds fixed before the
+data existed. Reported here against those thresholds, unchanged.
+
+### A3.14 — readout-mass floor: **passes on all three models**
+
+| model | trials below the 0.5 floor | worst condition |
+|---|---|---|
+| llama-3.2-3b | 0.01% | — |
+| qwen2.5-1.5b | 0.76% | `pre` 2.1% |
+| gemma-2-2b | 0.79% | `pre` 7.1% |
+
+A3.14's thresholds were 5% (sensitivity analysis required) and 20% (instrument failure).
+**No model reaches either.** The valid-only sensitivity analysis is therefore *not* run, per
+the rule as written. The A3.14 asymmetry — the instrument filters and the DV does not — is
+real but immaterial at these rates.
+
+`pre` is consistently the worst condition, which is worth a line in the write-up: the shared
+baseline carries no manipulation text, so its prompts are the shortest and evidently the
+most likely to draw an off-label token.
+
+### A3.13 — match gap: **the leakage is large**
+
+| model | tolerance | matched sets over, on the ANALYSIS scale | max gap |
+|---|---|---|---|
+| gemma-2-2b | 0.408 | **41 / 100 (41%)** | 1.518 |
+| llama-3.2-3b | 0.289 | **53 / 100 (53%)** | 1.139 |
+| qwen2.5-1.5b | 0.419 | **60 / 100 (60%)** | 1.982 |
+
+Over tolerance on the **selection** scale: **0, 0, 0** — exactly as A3.13 predicted, because
+the tolerance is a hard filter at construction and cannot be exceeded there.
+
+Between 41% and 60% of matched sets are imbalanced beyond the preregistered tolerance **on
+the measurement the primary model actually uses**, with maximum gaps 3–5× the tolerance.
+This is the substantive half of A3.13 and it is larger than expected. **The sensitivity
+analysis A3.13 pre-specified — the primary reported on the within-tolerance subset as well
+as the full sample — is required and must be run.** The full sample remains primary.
+
+### A3.12 — framing transfer: **the two framings agree only 66–75% on easy pairs**
+
+Agreement between the pre-manipulation preference and the sign of `θ`:
+
+| model | difficult | **easy** | overall |
+|---|---|---|---|
+| gemma-2-2b | 0.500 | **0.658** | 0.579 |
+| llama-3.2-3b | 0.511 | **0.726** | 0.619 |
+| qwen2.5-1.5b | 0.530 | **0.752** | 0.641 |
+
+The difficult stratum sits at chance, exactly as A3.12 said to expect — those are the pairs
+`θ` calls near-equal. **The easy stratum is the diagnostic**, and it is the weak result.
+On pairs `θ` places 1.5–2 logits apart, the prefer-framed baseline agrees with the
+choice-framed scale only about two times in three.
+
+So `|diff|` is a **substantially noisier proxy** for the difficulty of the question the DV
+asks than the design assumed. Per A3.12 this is **reported as a limitation bounding the
+interpretation of `λ`, and is not a gate**: no model is excluded on it, and inventing an
+exclusion now would be the post-hoc move A3.6 declined. It attenuates `λ` toward zero, so it
+cannot have manufactured any effect — including llama's.
+
+### What the figures show that the tables do not
+
+Rendered on the real posteriors, the interaction plot makes one thing immediate: the
+`chose` and `yoked` lines are separated by a **large main effect**, not by their slopes. For
+llama, `chose` sits near **−1.6** log-odds at zero gap while `yoked` sits near **+2.6** —
+the model shifts *away* from the item it was told it chose, and *toward* the item it was
+told was assigned.
+
+**§1.1 forbids reading that as evidence for consistency restoration**, and this is the case
+it was written for: a main effect of agency is exactly what context sensitivity predicts,
+which is how the published rebuttal eliminated the prior version of this claim. The
+discriminating quantity is the interaction, and the interaction is inconclusive on all three
+models. **The design refused to be fooled by a large main effect. That is the design
+working, and it is the honest headline.**
+
+One caveat for the figure caption: the `yoked` model line sits above its own binned overlay.
+Pooled empirical logits are not the average of per-pair logits when `u_pair` has real
+variance (`sd_pair ≈ 1.0`), so a gap in that direction is expected and is a property of the
+overlay, not a fit failure. `plots._empirical_shift` documents this; the caption must repeat
+it or a reader will read it as misfit.
