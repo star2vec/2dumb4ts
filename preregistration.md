@@ -2394,3 +2394,62 @@ analysis one.
 **Stage 0's reported result is unchanged.** It was `inconclusive` on all three models and it
 remains so. What has changed is that the reason is now diagnosed rather than attributed to
 sample size.
+
+## A4.8 Position bias cannot explain A4.7, and the floor either way
+
+### The arithmetic, done before the check rather than after
+
+A4.7's headline was challenged on the ground that it correlated `|diff|` against the **raw**
+readout, which contains both preference and position. The concern is legitimate and the
+decomposition is exact — but the magnitudes settle it in advance.
+
+The readout is `logit p = d + β·s` with `s = ±1` and `d ⊥ s`, so
+`var(readout) = var(d) + β²`. For a symmetric `d`, `median|X| = 0.6745·σ`:
+
+| quantity | value |
+|---|---|
+| median \|readout\| | 4.00 logits |
+| implied sd(readout) | 5.93 → var 35.2 |
+| gemma's mean `β²` (per template 1.53, 1.33, 1.15, 1.73, 0.67) | 1.77 |
+| implied **var(d)** | **33.4** (sd 5.78) |
+| **position's share of the variance** | **5.0%** |
+
+Two consequences:
+
+- **Saturation is not position.** With `d = 0` the readout would be `|β|`, median **1.33
+  logits → p = 0.79**. Observed is 4.00 → **p = 0.982**. Position cannot move 0.79 to 0.98.
+- **The correlation barely moves.** Attenuation is
+  `sqrt(var(d)/(var(d)+β²)) = 0.974`, so ρ = 0.093 corrects to **0.095** against a bar of
+  0.30. `β` would have to be several times its measured size to matter.
+
+An earlier framing here described position as "17–43% of what I measured." That compared
+`β` to readout *magnitude*, conflating a standard deviation with a mean absolute value, and
+ignored that both orders are run so `β` enters symmetrically. **On variance — the quantity
+that governs attenuation — it is 5%.** The decomposition is still run, but as confirmation,
+not as a live threat.
+
+### The renormalisation concern is already bounded
+
+A3.14 measured gemma at **0.79%** of trials below the 0.5 readout-mass floor, worst
+condition `pre` at **7.1%** — and A4.7 used pre rows. So ~93% of the relevant trials already
+have the majority of their probability mass on the two option tokens, and renormalisation
+needs *low* mass to manufacture confidence from small numbers. The mass–confidence
+correlation is checked anyway; this is the prior it is checked against.
+
+### The floor, recorded now rather than after the result
+
+Whatever the decomposition returns, and whichever of the remaining hypotheses holds — the
+`"Reply with A or B only"` instruction forcing commitment, RLHF sharpening the output
+distribution, magnitude not being represented, or the logit scale simply not being
+calibrated to preference — **the dependent variable still cannot express difficulty.** The
+paradigm is untestable with this readout either way.
+
+What changes is only **what the claim is about**:
+
+- **about models** — preference magnitude is not represented; or
+- **about elicitation** — magnitude is represented and this readout does not expose it.
+
+Both are reportable. The **elicitation** version is the more useful of the two to anyone
+building pairwise LLM evaluation, because it says what to change rather than only what
+fails. Recording this before the number arrives, so neither outcome can be presented as the
+one that was hoped for.

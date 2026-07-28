@@ -59,6 +59,31 @@ def _bins(x, y, n=6, label="x"):
     return out
 
 
+def _self_check() -> None:
+    """NEGATIVE CONTROL. Recover a known (d, beta) before trusting any real output.
+
+    Fifth instance of the vacuous-match class if skipped: a decomposition that silently
+    returns the wrong component would look exactly like a finding.
+    """
+    rng = np.random.default_rng(0)
+    d_true = rng.normal(0, 5.8, 4000)          # gemma's implied sd(d)
+    beta_true = 1.33
+    l0, l1 = d_true + beta_true, d_true - beta_true
+    d_hat, b_hat = (l0 + l1) / 2, (l0 - l1) / 2
+    assert np.allclose(d_hat, d_true), "the decomposition does not recover d"
+    assert np.allclose(b_hat, beta_true), "the decomposition does not recover beta"
+
+    # ...and it must SEPARATE them: a correlation planted in d must survive, and beta
+    # must not leak into it.
+    from scipy import stats
+
+    gap = np.abs(d_true) + rng.normal(0, 2, len(d_true))
+    r_true = stats.spearmanr(gap, np.abs(d_true))[0]
+    r_hat = stats.spearmanr(gap, np.abs(d_hat))[0]
+    assert abs(r_true - r_hat) < 1e-9, "a planted correlation did not survive the split"
+    print(f"  self-check: d and beta recovered exactly; planted rho {r_hat:+.3f} preserved\n")
+
+
 def main(argv=None) -> int:
     ap = argparse.ArgumentParser(description=__doc__)
     ap.add_argument("--config", required=True)
@@ -67,6 +92,7 @@ def main(argv=None) -> int:
 
     from scipy import stats
 
+    _self_check()
     cfg = load_config(args.config)
     if args.artifacts:
         cfg = cfg.model_copy(update={"artifacts_dir": Path(args.artifacts)})
@@ -84,6 +110,14 @@ def main(argv=None) -> int:
     if not {0, 1} <= set(wide["logit"].columns):
         print("both option orders are needed to separate position from preference.")
         return 1
+    # Both orders must exist for every cell or `d` is not computable and the script would
+    # silently run on whatever subset happens to be complete.
+    complete = wide["logit"].notna().all(axis=1)
+    if not complete.all():
+        print(f"  WARNING: {int((~complete).sum())} of {len(wide)} cells lack both orders; "
+              "dropping them. d is undefined without the pair.")
+        wide = wide[complete]
+
     l0 = wide["logit"][0].to_numpy()
     l1 = wide["logit"][1].to_numpy()
     d = (l0 + l1) / 2.0                       # preference, position cancelled
