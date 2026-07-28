@@ -2250,3 +2250,74 @@ likelihood, so the priors, the SESOI's units and §9.2's thresholds all have to 
 on the new scale before any Stage 0-bis data is collected. Amendment 4 is post-hoc and
 cannot carry that; it is a separate preregistration, written blind, and Stage 0's result
 stands as reported regardless of what it finds.
+
+## A4.6 The graded-DV pilot: result, and a condition I set that failed
+
+Run on gemma's re-collected trials (18,000 rows, `p_item1` continuous, 1,791 distinct
+values, never at 0 or 1). Identical trials, four likelihoods, same linear predictor.
+
+| fit | SE | gain | max R̂ | min ESS | divergences |
+|---|---|---|---|---|---|
+| binary (Bernoulli) — the Stage 0 DV | 0.5477 | 1.00× | 1.0000 | 3613 | 1 (0.01%) |
+| graded (Normal on logit) | 0.0537 | **10.20×** | 1.0000 | 6486 | 2 (0.03%) |
+| graded (StudentT on logit) | 0.0422 | **12.98×** | 1.0000 | 4160 | 9 (0.11%) |
+| graded (Beta on p) | 0.0340 | **16.10×** | 1.0000 | 3961 | 2 (0.03%) |
+
+All four converged cleanly. All four agree on the sign and land near zero (the binary
+median is +0.0003, Beta's −0.0028), so they estimate the same contrast.
+
+### The condition I set, and its failure
+
+I pre-committed to three conditions. Two are met: **R̂ ≤ 1.01 everywhere** (all exactly
+1.0000, ESS in the thousands) and **Beta clean of the overflow** (it emitted none; only the
+two logit-scale fits did).
+
+**The third is not met.** I required the three graded likelihoods within ~1.3× of each
+other. The span is **1.58×**. The bar is not cleared and this section does not pretend
+otherwise.
+
+**I am proceeding anyway, and that is an override, not a pass.** The reasons, on the record:
+
+1. **The miss is entirely Normal.** StudentT (0.0422) and Beta (0.0340) agree within
+   **1.24×** — inside the tolerance. The constant-σ Gaussian on logits is the outlier, and
+   it is the crudest of the three tail treatments.
+2. **The direction refutes the artifact it was written to catch.** The condition existed to
+   detect one likelihood reporting a falsely tight interval through misspecification. If
+   that were happening, the **crudest** model would be the **tightest**. The opposite holds:
+   the cleanest likelihood — Beta, correct support, no overflow — is tightest, and the most
+   tail-suspect is loosest. The proxy failed while the thing it proxied for is satisfied.
+3. **The decision does not turn on the disagreement.** No single multiplier can be quoted,
+   so the **floor** is what gets planned against: **10.2×**, from the most conservative fit.
+   A 10× precision gain takes gemma's MDE from 6.57× SESOI to **≈0.64× SESOI** — below the
+   smallest effect declared interesting. 10× and 16× lead to the same decision.
+
+**This is the second criterion of three I have had to override as mis-specified**, after the
+divergence rule that had no rate threshold and would have condemned the binary fit's single
+divergence. The pattern is mine: I write conditions that are easy to state rather than
+conditions that test what I mean. Recorded because two overrides out of three is a poor
+record for pre-committed criteria, and the next set should be written to be *falsifiable by
+the mechanism*, not by a round number.
+
+### The magnitude is plausible, which is not the same as verified
+
+A 10–16× SE reduction is a 100–260× variance reduction, i.e. roughly 7–8 bits more usable
+information per observation. `p_item1` carries ~11 bits of resolution (1,791 distinct values
+over 18,000 rows), so the arithmetic is consistent rather than miraculous. A binary
+observation carries at most one bit; this is the cost of that, measured.
+
+### The question the pilot does NOT answer, and which Stage 0-bis must
+
+Every graded fit treats `p_item1` as a meaningful reading of **preference strength**. The
+three likelihoods differ only in how they handle the tails; **none of them tests that
+premise**. If the model's stated confidence is a decoding artifact rather than a graded
+preference — saturating near 0 and 1 for reasons unrelated to how much it prefers the item —
+then the graded DV is precise about the wrong quantity, and precision about the wrong
+quantity is worse than noise about the right one.
+
+**This is now the blocking question for Stage 0-bis**, and it is cheap to answer from the
+pilot data already collected: at **pre**, before any manipulation, `p_item1` should vary
+monotonically with `|diff|` — the θ gap the instrument measured independently. If confidence
+tracks the measured preference gap, it is a graded measurement. If it saturates regardless
+of gap, it is a temperature artifact and the gain is illusory.
+
+Specified here before that check is run.
