@@ -161,3 +161,28 @@ def test_design_se_agrees_with_an_actual_fit():
             update={"conditions": ["chose", "yoked", "self-recounted", "structure-control"]})}),
         pairs, _beta(3), 1.573)
     assert design.se == pytest.approx(fitted_sd, rel=0.5), (design.se, fitted_sd)
+
+
+def test_the_conservatism_claim_is_recorded_as_falsified():
+    """A4.2. This module told the reader its error direction, and the direction was wrong.
+
+    `power.py` claimed absorbing pair and template as fixed effects makes the design SE err
+    WIDE. On the completed run it erred NARROW by up to 5.4x, so the preregistered MDE of
+    1.37x SESOI was really 6.57x for gemma. The claim is struck in place rather than
+    deleted, because every preregistered power figure was computed under it.
+
+    Pinned because a future reader will otherwise take the paragraph at face value, which
+    is exactly what happened to us.
+    """
+    import inspect
+
+    from src.analysis import power
+
+    doc = inspect.getsource(power)[:4000]
+    assert "FALSIFIED BY THE COMPLETED RUN (A4.2)" in doc, (
+        "the conservatism claim is unmarked again; a reader would trust it")
+    assert "errs NARROW" in doc
+
+    # NEGATIVE CONTROL: the original claim must still be present, not quietly deleted --
+    # it is the assumption the preregistered figures were computed under.
+    assert "absorbed as fixed effects" in doc

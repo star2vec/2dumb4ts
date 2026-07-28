@@ -1989,3 +1989,68 @@ So the prediction and the decision rule are fixed **here, before the refit runs*
 `target_accept` is **not** raised. It is a weaker remedy that does not clear a centered
 funnel, and moving a sampler knob after seeing the answer is the move §7.1's "rather than
 silently re-tuned" was written against.
+
+## A4.2 The blind power analysis over-estimated precision by up to 5.4×
+
+Measured on the completed run. This is a **post-hoc measurement of the design**, not a
+change to any rule, and it is the most consequential thing Stage 0 produced.
+
+| model | SESOI | SE predicted (A3.1, blind) | SE realized | ratio | MDE predicted | **MDE realized** |
+|---|---|---|---|---|---|---|
+| llama-3.2-3b | 0.1665 | 0.1178 | 0.1241 | **1.05×** | 1.99× SESOI | **2.09× SESOI** |
+| qwen2.5-1.5b | 0.2418 | 0.1223 | 0.4202 | **3.44×** | 1.43× SESOI | **4.87× SESOI** |
+| gemma-2-2b | 0.2355 | 0.1027 | 0.5525 | **5.38×** | 1.37× SESOI | **6.57× SESOI** |
+
+`SE realized` is the posterior HDI width of `lambda_chose − lambda_yoked` divided by
+2 × 1.96. All three ran the full 200 pairs, so this is not a sample-size shortfall.
+
+**The stated direction of the error is falsified.** `power.py:52` claims:
+
+> *CONSERVATISM. Pair and template effects are absorbed as fixed effects, whereas the
+> fitted model partially pools them.*
+
+— i.e. the design SE should come out **wide, never narrow**. `tests/test_power.py`
+asserted the same, and A3.4 repeated it. Reality is narrow by up to 5.4×. The one
+directional guarantee the power module made about its own error is wrong, and it is wrong
+in the **anti-conservative** direction.
+
+**Candidate mechanism, offered as a hypothesis and not as an established result.** The
+error tracks the fitted between-template SD monotonically across all three models:
+
+| model | `sd_template` | SE ratio |
+|---|---|---|
+| gemma | 0.303 | 5.38× |
+| qwen-1.5B | 0.132 | 3.44× |
+| llama | 0.043 | 1.05× |
+
+Absorbing template as a fixed effect removes its variance from the Fisher information; the
+fitted model estimates it, and its uncertainty propagates. Where between-template variance
+is near zero (llama) the two agree almost exactly, which is what a correctly-specified
+information calculation should do. **n = 3. This ordering is suggestive, not demonstrated**,
+and it must not be reported as a mechanism without a simulation that varies `sd_template`
+directly.
+
+**Consequences, all of which are reporting consequences.**
+
+1. **A3.2's and A3.3's figures are superseded as descriptions of the realized design.** They
+   were computed blind on gemma's staged design and were honest at the time; they are
+   retained as what was predicted, alongside what occurred.
+2. **The study is substantially more underpowered than A3.3 said**, and A3.3 already said it
+   was underpowered. The realized MDE is 2.1–6.6× the SESOI. An effect at the SESOI was
+   never detectable on this design, and now that is measured rather than modelled.
+3. **The three `inconclusive` outcomes are the expected result of the realized precision.**
+   With gemma's HDI spanning [−1.08, +1.09] against a SESOI of 0.236, `inconclusive` was
+   close to the only reachable cell — the ROPE is 22× narrower than the interval.
+4. **A3.1's withdrawal of §8 is reinforced, not undermined.** §8 asked for 80% power at the
+   SESOI; the realized design cannot reach 80% power at 6× the SESOI for gemma.
+
+**Why the power module's own validation missed it.** `tests/test_power.py` checks the closed
+form against an actual sampler fit and passed, at `rel=0.5`. It used 60 pairs and 3
+templates of synthetic data generated from the model — a design whose between-template
+variance is whatever `_synth` happened to produce. The test could not express the failure
+because its fixture did not vary the quantity the error depends on. That is the same
+fixture-too-small-to-express-the-failure pattern recorded three times in the test suite, and
+this is its most expensive instance: it validated a power analysis that was wrong by 5×.
+
+**Not changed.** No threshold, no SESOI, no decision rule. The gate outcome stands as
+computed.

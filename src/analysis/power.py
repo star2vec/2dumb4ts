@@ -49,7 +49,13 @@ information. `diff_analysis` still carries its own measurement error, which infl
 spread of gaps slightly, so the resulting figure is mildly CONSERVATIVE for the difficult
 stratum -- the direction to err in.
 
-CONSERVATISM. Pair and template effects are absorbed as fixed effects, whereas the fitted
+CONSERVATISM -- FALSIFIED BY THE COMPLETED RUN (A4.2). This paragraph claimed the design
+SE errs WIDE. Measured against the realized fits it errs NARROW, by 1.05x for llama, 3.44x
+for qwen-1.5b and 5.38x for gemma, and the error tracks the fitted between-template SD.
+Realized MDE is 2.1-6.6x the SESOI, not the 1.37-1.99x this module reported. The claim is
+left in place, struck, because it is what the preregistered figures were computed under.
+
+Pair and template effects are absorbed as fixed effects, whereas the fitted
 model partially pools them. Fixed-effect absorption spends more degrees of freedom and so
 gives a wider SE than partial pooling. The figures here therefore understate power rather
 than overstate it.
