@@ -43,6 +43,7 @@ Building a half-working cache now would be worse than building none.
 from __future__ import annotations
 
 import argparse
+import hashlib
 import sys
 from pathlib import Path
 
@@ -75,9 +76,30 @@ OWN_PICK_CONDITIONS = frozenset({
 })
 
 
+#: Modules whose source determines Pass C's OUTPUT, digested into its artifact name.
+#:
+#: Third instance of the same defect. The config hash covers PARAMETERS; it cannot see that
+#: this module changed what it writes. A4.5 added `p_item1`, no config field moved, so a
+#: re-run would have found the cached trials, skipped, and produced nothing new -- exactly
+#: how the Pass B key failed when signed theta was added, and how the posterior key failed
+#: when the template effect was non-centred.
+#:
+#: Whole-file digest, deliberately: Pass C is expensive, but a spurious re-run is recoverable
+#: and reusing trials that lack a column the analysis needs is not.
+_PASS_C_SOURCES = ("src/experiments/pass_c.py",)
+
+
+def source_digest() -> str:
+    root = Path(__file__).resolve().parents[2]
+    h = hashlib.sha256()
+    for rel in _PASS_C_SOURCES:
+        h.update((root / rel).read_bytes())
+    return h.hexdigest()[:8]
+
+
 def artifact_path(cfg: RunConfig) -> Path:
     h = cfg.hash("pass_c")
-    return cfg.artifact_dir("pass_c") / f"trials_{h}.parquet"
+    return cfg.artifact_dir("pass_c") / f"trials_{h}-{source_digest()}.parquet"
 
 
 def _displayed(item1: str, item2: str, option_order: int) -> tuple[str, str]:

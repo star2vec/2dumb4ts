@@ -230,3 +230,39 @@ def test_every_status_table_survives_having_no_matching_results():
         got = getattr(st, name)(rows)
         assert got.empty, f"{name} should be empty for these rows"
     assert st.render(rows)  # must not raise
+
+
+def test_every_expensive_artifact_is_keyed_on_the_code_that_writes_it():
+    """Three artifacts have now failed this the same way, so it is asserted for all of them.
+
+      Pass B  -- signed theta added, config hash unmoved, stale pairs would be reused
+      posterior -- template effect non-centred, config hash unmoved, stale fit reloaded
+      Pass C  -- p_item1 added, config hash unmoved, stale trials would be reused
+
+    The config hash covers PARAMETERS. It cannot see a module changing what it writes. Every
+    artifact whose contents depend on module source must carry a digest of that source.
+    """
+    from src.analysis import spread_model
+    from src.experiments import pass_b, pass_c
+
+    for mod, name in ((pass_b, "pass_b"), (pass_c, "pass_c"), (spread_model, "spread_model")):
+        assert hasattr(mod, "source_digest"), f"{name} has no source digest"
+        digest = mod.source_digest()
+        assert len(digest) == 8 and digest.isalnum(), f"{name}: {digest!r}"
+
+    from src.config import load_config
+
+    cfg = load_config("configs/stage0_gemma-2-2b.yaml")
+    for path, digest in ((pass_b.artifact_path(cfg), pass_b.source_digest()),
+                         (pass_c.artifact_path(cfg), pass_c.source_digest())):
+        assert digest in path.name, f"{path.name} does not carry its source digest"
+        assert cfg.hash(path.parent.parent.parent.name.replace("-", "_")
+                        if False else "pass_b") or True  # (config hash checked below)
+
+    assert cfg.hash("pass_b") in pass_b.artifact_path(cfg).name
+    assert cfg.hash("pass_c") in pass_c.artifact_path(cfg).name
+
+    # NEGATIVE CONTROL: the digests must differ between modules, or one is being reused
+    # for all of them and the check means nothing.
+    assert len({pass_b.source_digest(), pass_c.source_digest(),
+                spread_model.source_digest()}) == 3
