@@ -1,34 +1,190 @@
 {
   "model": "qwen2.5-0.5b-instruct",
-  "config_hash": "cab25f7f98ce",
+  "config_hash": "c7d7f50fe84d",
   "provenance": {
-    "device": "mps",
-    "device_name": "apple-arm64",
+    "device": "cuda",
+    "device_name": "NVIDIA RTX 2000 Ada Generation Laptop GPU",
     "dtype": "bfloat16",
     "attn_implementation": "sdpa",
-    "torch_version": "2.8.0",
+    "torch_version": "2.8.0+cu126",
     "transformers_version": "5.14.1",
+    "pymc_version": "5.28.5",
+    "pytensor_version": "2.38.3",
+    "pytensor_mode": "NUMBA|PYTENSOR_FLAGS=mode=NUMBA",
     "model_name": "qwen2.5-0.5b-instruct",
     "model_hf_id": "Qwen/Qwen2.5-0.5B-Instruct",
     "model_revision": "7ae557604adf67be50417f59c2c2f167def9a775",
     "model_revision_pinned": true,
     "seed": 20261025,
-    "config_hash": "cab25f7f98ce",
-    "git_sha": "a0e430eb5c97defbf8f5799f218111c2acf5ceb7",
-    "git_dirty": true,
-    "platform": "macOS-14.2.1-arm64-arm-64bit",
-    "python_version": "3.11.14",
-    "created_utc": "2026-07-25T23:44:55+00:00"
+    "config_hash": "c7d7f50fe84d",
+    "git_sha": "554ccb55cf8746c9ba12b0e350c5b9fc222690f2",
+    "git_dirty": false,
+    "platform": "Windows-10-10.0.26200-SP0",
+    "python_version": "3.11.15",
+    "created_utc": "2026-07-26T12:19:48+00:00"
   },
   "readout_mass": [
     {
       "arm": "digits",
-      "n": 4000,
+      "n": 40000,
       "n_invalid": 0,
       "frac_invalid": 0.0,
-      "mass_median": 0.9995195865631104,
-      "mass_min": 0.7608426809310913
+      "mass_median": 0.999283105134964,
+      "mass_min": 0.970179557800293
     }
   ],
-  "outcome": "halted-order-invariance"
+  "readout_mass_by_template": [
+    {
+      "arm": "digits",
+      "template": "t0",
+      "n": 8000,
+      "n_invalid": 0,
+      "frac_invalid": 0.0,
+      "mass_median": 0.9995542764663696,
+      "mass_min": 0.9782824516296387
+    },
+    {
+      "arm": "digits",
+      "template": "t1",
+      "n": 8000,
+      "n_invalid": 0,
+      "frac_invalid": 0.0,
+      "mass_median": 0.9942807257175446,
+      "mass_min": 0.970179557800293
+    },
+    {
+      "arm": "digits",
+      "template": "t2",
+      "n": 8000,
+      "n_invalid": 0,
+      "frac_invalid": 0.0,
+      "mass_median": 0.9988930523395538,
+      "mass_min": 0.9816949963569641
+    },
+    {
+      "arm": "digits",
+      "template": "t3",
+      "n": 8000,
+      "n_invalid": 0,
+      "frac_invalid": 0.0,
+      "mass_median": 0.999894380569458,
+      "mass_min": 0.9974105954170227
+    },
+    {
+      "arm": "digits",
+      "template": "t4",
+      "n": 8000,
+      "n_invalid": 0,
+      "frac_invalid": 0.0,
+      "mass_median": 0.9993810951709747,
+      "mass_min": 0.9969425201416016
+    }
+  ],
+  "order_invariance_reported": [
+    {
+      "arm": "digits",
+      "template": "t0",
+      "n_pairs": 4000,
+      "order_invariance": 0.0,
+      "unambiguous_item_win": 0.0,
+      "regime": "position-dominated"
+    },
+    {
+      "arm": "digits",
+      "template": "t1",
+      "n_pairs": 4000,
+      "order_invariance": 0.2445,
+      "unambiguous_item_win": 0.1945,
+      "regime": "position-dominated"
+    },
+    {
+      "arm": "digits",
+      "template": "t2",
+      "n_pairs": 4000,
+      "order_invariance": 0.0,
+      "unambiguous_item_win": 0.0,
+      "regime": "position-dominated"
+    },
+    {
+      "arm": "digits",
+      "template": "t3",
+      "n_pairs": 4000,
+      "order_invariance": 0.0,
+      "unambiguous_item_win": 0.0,
+      "regime": "position-dominated"
+    },
+    {
+      "arm": "digits",
+      "template": "t4",
+      "n_pairs": 4000,
+      "order_invariance": 0.0,
+      "unambiguous_item_win": 0.0,
+      "regime": "position-dominated"
+    }
+  ],
+  "beta": [
+    {
+      "template": "t0",
+      "beta_mean": 8.633301650695191,
+      "beta_sd": 0.5056498589267443,
+      "beta_hdi_low": 7.6833840027865765,
+      "beta_hdi_high": 9.645858867708899
+    },
+    {
+      "template": "t1",
+      "beta_mean": 1.9776334307636514,
+      "beta_sd": 0.04102343047707459,
+      "beta_hdi_low": 1.9014033758308695,
+      "beta_hdi_high": 2.061673303253353
+    },
+    {
+      "template": "t2",
+      "beta_mean": 8.629562028225438,
+      "beta_sd": 0.5071004475108368,
+      "beta_hdi_low": 7.64203931406158,
+      "beta_hdi_high": 9.615773385582683
+    },
+    {
+      "template": "t3",
+      "beta_mean": 8.622398596615456,
+      "beta_sd": 0.5116121025616884,
+      "beta_hdi_low": 7.652366981861719,
+      "beta_hdi_high": 9.627115873639996
+    },
+    {
+      "template": "t4",
+      "beta_mean": 8.624767660331695,
+      "beta_sd": 0.4970460161622676,
+      "beta_hdi_low": 7.646042228144313,
+      "beta_hdi_high": 9.557261934809295
+    }
+  ],
+  "excess_consistency_slope": {
+    "slope": 0.03397282406733317,
+    "ci_low": 0.030953730056865164,
+    "ci_high": 0.03687106138299042,
+    "n_cells": 20000,
+    "mean_excess": -0.01386261685335438,
+    "flat": false
+  },
+  "reliability_gate": {
+    "passed": false,
+    "empirical_reliability_spearman": 0.08343145894661841,
+    "empirical_reliability_pearson": 0.07093795520870165,
+    "threshold": 0.7,
+    "split_a": [
+      "t0",
+      "t1",
+      "t2"
+    ],
+    "split_b": [
+      "t3",
+      "t4"
+    ],
+    "reasons": [
+      "EXCLUDED: empirical split-half reliability of theta (Spearman 0.083) < 0.7. Items cannot be ranked well enough to select near-equal pairs or to detect movement."
+    ],
+    "model_reliability": 0.7691645832632841
+  },
+  "outcome": "halted-reliability"
 }

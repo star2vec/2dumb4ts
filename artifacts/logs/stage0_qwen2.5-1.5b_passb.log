@@ -1,0 +1,238 @@
+WARNING (pytensor.configdefaults): g++ not available, if using conda: `conda install gxx`
+WARNING (pytensor.configdefaults): g++ not detected!  PyTensor will be unable to compile C-implementations and will default to Python. Performance may be severely degraded. To remove this warning, set PyTensor flags cxx to an empty string.
+
+========================================================================
+Stage 0  |  qwen2.5-1.5b-instruct  |  config 05035926622c
+========================================================================
+device=cuda (NVIDIA RTX 2000 Ada Generation Laptop GPU)  dtype=bfloat16
+revision=989aa7980e4cf806f80c7fef2b1adb7bc71aa306 pinned=True
+git=65228696ce8c dirty=False  seed=20261025
+
+========================================================================
+Absolute Pass A -- instrument-validation record (A1.5). Gates nothing.
+========================================================================
+cached: artifacts\pass_a\qwen2.5-1.5b-instruct\5711cad12bd2\ratings_5711cad12bd2.parquet
+  median polarity rho = -0.916  (retired threshold was 0.6)
+  sigma_between: collapsed 0.098, ascending 0.502
+  ICC(C,1) ascending = 0.343
+  digit mass: median 0.9995, min 0.9181
+  -> fails the retired polarity criterion, as expected. Recorded, not acted on.
+
+========================================================================
+Pairwise Pass A -- anchor comparisons (A1.1)
+========================================================================
+cached: artifacts\pass_a_pairwise\qwen2.5-1.5b-instruct\5711cad12bd2\comparisons_5711cad12bd2.parquet
+
+readout mass by template (A1.6) -- where prompt bugs surface first:
+   arm template    n  n_invalid  frac_invalid  mass_median  mass_min
+digits       t0 8000          0           0.0     0.993335  0.966965
+digits       t1 8000          0           0.0     0.998387  0.609890
+digits       t2 8000          0           0.0     0.999838  0.989341
+digits       t3 8000          0           0.0     0.999921  0.983728
+digits       t4 8000          0           0.0     0.999992  0.995814
+
+order invariance -- reported only, retired as a gate (A2.2):
+   arm template  n_pairs  order_invariance  unambiguous_item_win             regime
+digits       t0     4000           0.47800               0.39475 position-dominated
+digits       t1     4000           0.14825               0.14725 position-dominated
+digits       t2     4000           0.27775               0.26750 position-dominated
+digits       t3     4000           0.00150               0.00100 position-dominated
+digits       t4     4000           0.59550               0.43575   random-dominated
+
+========================================================================
+Bradley-Terry with per-template order term (A2.1)
+========================================================================
+Initializing NUTS using jitter+adapt_diag...
+Sequential sampling (4 chains in 1 job)
+NUTS: [sigma_item, theta, alpha, beta]
+Sampling 4 chains for 2_000 tune and 2_000 draw iterations (8_000 + 8_000 draws total) took 388 seconds.
+Initializing NUTS using jitter+adapt_diag...
+Sequential sampling (4 chains in 1 job)
+NUTS: [sigma_item, theta, alpha, beta]
+Sampling 4 chains for 2_000 tune and 2_000 draw iterations (8_000 + 8_000 draws total) took 395 seconds.
+Initializing NUTS using jitter+adapt_diag...
+Sequential sampling (4 chains in 1 job)
+NUTS: [sigma_item, theta, alpha, beta]
+Sampling 4 chains for 2_000 tune and 2_000 draw iterations (8_000 + 8_000 draws total) took 404 seconds.
+Initializing NUTS using jitter+adapt_diag...
+Sequential sampling (4 chains in 1 job)
+NUTS: [sigma_item, theta, alpha, beta]
+Sampling 4 chains for 2_000 tune and 2_000 draw iterations (8_000 + 8_000 draws total) took 400 seconds.
+Initializing NUTS using jitter+adapt_diag...
+Sequential sampling (4 chains in 1 job)
+NUTS: [sigma_item, theta, alpha, beta]
+Sampling 4 chains for 2_000 tune and 2_000 draw iterations (8_000 + 8_000 draws total) took 399 seconds.
+Initializing NUTS using jitter+adapt_diag...
+Sequential sampling (4 chains in 1 job)
+NUTS: [sigma_item, theta, alpha, beta]
+Sampling 4 chains for 2_000 tune and 2_000 draw iterations (8_000 + 8_000 draws total) took 398 seconds.
+Initializing NUTS using jitter+adapt_diag...
+Sequential sampling (4 chains in 1 job)
+NUTS: [sigma_item, theta, alpha, beta]
+Sampling 4 chains for 2_000 tune and 2_000 draw iterations (8_000 + 8_000 draws total) took 393 seconds.
+Initializing NUTS using jitter+adapt_diag...
+Sequential sampling (4 chains in 1 job)
+NUTS: [sigma_item, theta, alpha, beta]
+Sampling 4 chains for 2_000 tune and 2_000 draw iterations (8_000 + 8_000 draws total) took 394 seconds.
+Initializing NUTS using jitter+adapt_diag...
+Sequential sampling (4 chains in 1 job)
+NUTS: [sigma_item, theta, alpha, beta]
+Sampling 4 chains for 2_000 tune and 2_000 draw iterations (8_000 + 8_000 draws total) took 392 seconds.
+Initializing NUTS using jitter+adapt_diag...
+Sequential sampling (4 chains in 1 job)
+NUTS: [sigma_item, theta, alpha, beta]
+Sampling 4 chains for 2_000 tune and 2_000 draw iterations (8_000 + 8_000 draws total) took 387 seconds.
+Initializing NUTS using jitter+adapt_diag...
+Sequential sampling (4 chains in 1 job)
+NUTS: [sigma_item, theta, alpha, beta]
+Sampling 4 chains for 2_000 tune and 2_000 draw iterations (8_000 + 8_000 draws total) took 387 seconds.
+Initializing NUTS using jitter+adapt_diag...
+Sequential sampling (4 chains in 1 job)
+NUTS: [sigma_item, theta, alpha, beta]
+Sampling 4 chains for 2_000 tune and 2_000 draw iterations (8_000 + 8_000 draws total) took 385 seconds.
+Initializing NUTS using jitter+adapt_diag...
+Sequential sampling (4 chains in 1 job)
+NUTS: [sigma_item, theta, alpha, beta]
+Sampling 4 chains for 2_000 tune and 2_000 draw iterations (8_000 + 8_000 draws total) took 385 seconds.
+Initializing NUTS using jitter+adapt_diag...
+Sequential sampling (4 chains in 1 job)
+NUTS: [sigma_item, theta, alpha, beta]
+Sampling 4 chains for 2_000 tune and 2_000 draw iterations (8_000 + 8_000 draws total) took 386 seconds.
+Initializing NUTS using jitter+adapt_diag...
+Sequential sampling (4 chains in 1 job)
+NUTS: [sigma_item, theta, alpha, beta]
+Sampling 4 chains for 2_000 tune and 2_000 draw iterations (8_000 + 8_000 draws total) took 383 seconds.
+Initializing NUTS using jitter+adapt_diag...
+Sequential sampling (4 chains in 1 job)
+NUTS: [sigma_item, theta, alpha, beta]
+Sampling 4 chains for 2_000 tune and 2_000 draw iterations (8_000 + 8_000 draws total) took 388 seconds.
+Initializing NUTS using jitter+adapt_diag...
+Sequential sampling (4 chains in 1 job)
+NUTS: [sigma_item, theta, alpha, beta]
+Sampling 4 chains for 2_000 tune and 2_000 draw iterations (8_000 + 8_000 draws total) took 386 seconds.
+Initializing NUTS using jitter+adapt_diag...
+Sequential sampling (4 chains in 1 job)
+NUTS: [sigma_item, theta, alpha, beta]
+Sampling 4 chains for 2_000 tune and 2_000 draw iterations (8_000 + 8_000 draws total) took 386 seconds.
+Initializing NUTS using jitter+adapt_diag...
+Sequential sampling (4 chains in 1 job)
+NUTS: [sigma_item, theta, alpha, beta]
+Sampling 4 chains for 2_000 tune and 2_000 draw iterations (8_000 + 8_000 draws total) took 390 seconds.
+Initializing NUTS using jitter+adapt_diag...
+Sequential sampling (4 chains in 1 job)
+NUTS: [sigma_item, theta, alpha, beta]
+Sampling 4 chains for 2_000 tune and 2_000 draw iterations (8_000 + 8_000 draws total) took 391 seconds.
+Initializing NUTS using jitter+adapt_diag...
+Sequential sampling (4 chains in 1 job)
+NUTS: [sigma_item, theta, alpha, beta]
+Sampling 4 chains for 2_000 tune and 2_000 draw iterations (8_000 + 8_000 draws total) took 388 seconds.
+Initializing NUTS using jitter+adapt_diag...
+Sequential sampling (4 chains in 1 job)
+NUTS: [sigma_item, theta, alpha, beta]
+Sampling 4 chains for 2_000 tune and 2_000 draw iterations (8_000 + 8_000 draws total) took 387 seconds.
+Initializing NUTS using jitter+adapt_diag...
+Sequential sampling (4 chains in 1 job)
+NUTS: [sigma_item, theta, alpha, beta]
+Sampling 4 chains for 2_000 tune and 2_000 draw iterations (8_000 + 8_000 draws total) took 388 seconds.
+Initializing NUTS using jitter+adapt_diag...
+Sequential sampling (4 chains in 1 job)
+NUTS: [sigma_item, theta, alpha, beta]
+Sampling 4 chains for 2_000 tune and 2_000 draw iterations (8_000 + 8_000 draws total) took 390 seconds.
+Initializing NUTS using jitter+adapt_diag...
+Sequential sampling (4 chains in 1 job)
+NUTS: [sigma_item, theta, alpha, beta]
+Sampling 4 chains for 2_000 tune and 2_000 draw iterations (8_000 + 8_000 draws total) took 386 seconds.
+Initializing NUTS using jitter+adapt_diag...
+Sequential sampling (4 chains in 1 job)
+NUTS: [sigma_item, theta, alpha, beta]
+Sampling 4 chains for 2_000 tune and 2_000 draw iterations (8_000 + 8_000 draws total) took 235 seconds.
+Initializing NUTS using jitter+adapt_diag...
+Sequential sampling (4 chains in 1 job)
+NUTS: [sigma_item, theta, alpha, beta]
+Sampling 4 chains for 2_000 tune and 2_000 draw iterations (8_000 + 8_000 draws total) took 163 seconds.
+Bradley-Terry (+ per-template order term): 400 items from 40000 valid comparisons (0 dropped below the mass floor)
+  theta spread: sd across items = 1.149, range -1.30 to 4.95
+  precision: posterior SD of theta, median 0.322 (min 0.303, max 0.502)
+  sigma_item (between-item scale) = 1.612
+  separation ratio = 5.00
+  model reliability = 0.959 (compare against the EMPIRICAL split-half figure)
+  beta: mean -3.214 (favours slot 2), range -8.730 to +0.228 across 5 templates
+convergence: max R-hat 1.0000 (limit 1.01), min ESS 7875 (limit 400), divergences 0, 0 parameter(s) failing
+
+position bias by template (beta):
+template  beta_mean  beta_sd  beta_hdi_low  beta_hdi_high
+      t0     -1.302    0.031        -1.363         -1.240
+      t1     -3.680    0.057        -3.795         -3.568
+      t2     -2.587    0.042        -2.668         -2.504
+      t3     -8.730    0.334        -9.398         -8.102
+      t4      0.228    0.027         0.173          0.279
+
+anchor abilities (intended tier is a design annotation, never shown):
+            anchor_id  alpha_mean  alpha_sd      tier  tier_rank  alpha_rank
+     anchor/long-walk    0.747930  0.049213 upper-mid          1           0
+ anchor/queue-in-rain    0.577295  0.048884       low          4           1
+anchor/favourite-meal    0.401204  0.050692      high          0           2
+     anchor/tax-forms    0.369650  0.049193       low          4           3
+      anchor/old-film    0.234261  0.049695       mid          2           4
+     anchor/lost-keys    0.229375  0.049131       low          4           5
+  anchor/blocked-sink    0.161567  0.049750       low          4           6
+anchor/free-afternoon    0.071957  0.050002      high          0           7
+ anchor/tidy-a-drawer   -0.145094  0.049140       mid          2           8
+  anchor/waiting-room   -2.648144  0.066794 lower-mid          3           9
+
+fit quality (A2.1): slope +0.0197 [+0.0161, +0.0233] vs null +0.0063 (sd 0.0011) -> +12.27 sd
+
+wrote: artifacts\instrument_fit\qwen2.5-1.5b-instruct\5711cad12bd2-a635cf66\fit_5711cad12bd2-a635cf66.json
+
+========================================================================
+Reliability gate (A2.2) -- the sole exclusion criterion
+========================================================================
+empirical split-half of theta, ['t0', 't1', 't2'] vs ['t3', 't4']: Spearman 0.743 (threshold 0.7)
+model-internal reliability 0.959 (all templates) -- NOT the comparator; using it as the gate would admit models whose item rankings do not reproduce across paraphrases
+length-matched prediction for a 3/2 split = 0.919
+  shortfall vs THAT: -0.176  (A2.4's open discrepancy is this number, not the shortfall against the full-data figure)
+  ->  PASS
+
+========================================================================
+Pass B -- pairs from theta on disjoint template sets
+========================================================================
+Initializing NUTS using jitter+adapt_diag...
+Sequential sampling (4 chains in 1 job)
+NUTS: [sigma_item, theta, alpha, beta]
+Sampling 4 chains for 2_000 tune and 2_000 draw iterations (8_000 + 8_000 draws total) took 237 seconds.
+Initializing NUTS using jitter+adapt_diag...
+Sequential sampling (4 chains in 1 job)
+NUTS: [sigma_item, theta, alpha, beta]
+Sampling 4 chains for 2_000 tune and 2_000 draw iterations (8_000 + 8_000 draws total) took 161 seconds.
+theta scores: selection sd 1.369, analysis sd 1.167
+wrote: artifacts\pass_b\qwen2.5-1.5b-instruct\5f5a3cd71279\pairs_5f5a3cd71279-bdc5d72a.parquet
+match tolerance 0.4191 = 0.26 x sigma_item (1.6119)  [A2.9.2, per model]
+difficulty  n_pairs  diff_sel_mean  diff_sel_sd  diff_sel_min  diff_sel_max  diff_ana_mean  diff_ana_sd  mean_rating_mean  mean_rating_sd
+ difficult      100       0.000415     0.000402      0.000003      0.001438       0.827500     0.670642          0.845031        0.979334
+      easy      100       3.005391     1.618503      0.409859      6.980392       1.861278     1.053446          0.737045        0.773462
+matching quality: {'match_gap_selection_mean': 0.2975, 'match_gap_selection_max': 0.4183, 'match_gap_analysis_mean': 0.6281, 'match_gap_analysis_max': 1.9819}
+
+========================================================================
+Power on the realized design (A3.1/A3.4) -- computed before Pass C runs
+========================================================================
+SE(lambda_chose - lambda_yoked) = 0.1223 logits per SD of |diff|
+SESOI = 0.2418  (0.15 * sigma_item, Amendment 2)
+MINIMUM DETECTABLE EFFECT at 80% power = 0.3467  = 1.43x SESOI
+power at the SESOI itself = 0.494 -- NOT compared against a target, see below
+SECTION 8's CRITERION IS UNSATISFIABLE AND IS NOT USED HERE. It asks for >= 80% power AT the SESOI, but section 9.2's `pass` cell requires the posterior median to EXCEED the SESOI. When the true effect IS the SESOI the median is centred on that threshold, so power at the SESOI converges to exactly 0.500 as SE -> 0 and can never reach 0.80 at any sample size. This is a property of the two rules together, not of this design. The minimum detectable effect is reported instead; its floor is the SESOI itself. Raised as Amendment 3, not silently patched.
+equivalence branch REACHABLE: the HDI can fit inside the ROPE, so a null may be reported as equivalence
+information for lambda by stratum:
+  stratum  n_post_obs   mean_w  share_of_lambda_information
+difficult        8000 0.087818                     0.428499
+     easy        8000 0.076172                     0.571501
+assumptions: n_pairs=200, n_templates=5, n_orders=2, n_conditions=8, n_observations=18000, gamma_assumed=0.4, beta_measured=-8.730..+0.228, sigma_item_measured=1.6119, gap_source=diff_analysis (disjoint templates), never diff_selection, random_effects=absorbed as fixed -> conservative vs partial pooling
+
+gamma sensitivity (gamma is the one quantity unknown before Pass C):
+ gamma     se  power_at_sesoi  min_detectable  equivalence_reachable
+   0.0 0.1145          0.4945          0.3400                   True
+   0.2 0.1182          0.4943          0.3431                   True
+   0.4 0.1223          0.4941          0.3467                   True
+   0.8 0.1323          0.4437          0.3722                  False
+   1.5 0.1565          0.3347          0.4406                  False
+
+results: artifacts\analysis\qwen2.5-1.5b-instruct\05035926622c\results_05035926622c.json

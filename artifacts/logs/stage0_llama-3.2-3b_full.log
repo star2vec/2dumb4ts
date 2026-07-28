@@ -1,0 +1,176 @@
+WARNING (pytensor.configdefaults): g++ not available, if using conda: `conda install gxx`
+WARNING (pytensor.configdefaults): g++ not detected!  PyTensor will be unable to compile C-implementations and will default to Python. Performance may be severely degraded. To remove this warning, set PyTensor flags cxx to an empty string.
+
+========================================================================
+Stage 0  |  llama-3.2-3b-instruct  |  config 6ba42ef73455
+========================================================================
+device=cuda (NVIDIA RTX 2000 Ada Generation Laptop GPU)  dtype=bfloat16
+revision=0cb88a4f764b7a12671c53f0838cd831a0843b95 pinned=True
+git=a4179b5ebaf7 dirty=False  seed=20261025
+
+========================================================================
+Absolute Pass A -- instrument-validation record (A1.5). Gates nothing.
+========================================================================
+cached: artifacts\pass_a\llama-3.2-3b-instruct\d9cdda8294a2\ratings_d9cdda8294a2.parquet
+  median polarity rho = -0.922  (retired threshold was 0.6)
+  sigma_between: collapsed 0.163, ascending 0.630
+  ICC(C,1) ascending = 0.464
+  digit mass: median 0.9996, min 0.0737
+  -> fails the retired polarity criterion, as expected. Recorded, not acted on.
+
+========================================================================
+Pairwise Pass A -- anchor comparisons (A1.1)
+========================================================================
+cached: artifacts\pass_a_pairwise\llama-3.2-3b-instruct\d9cdda8294a2\comparisons_d9cdda8294a2.parquet
+
+readout mass by template (A1.6) -- where prompt bugs surface first:
+   arm template    n  n_invalid  frac_invalid  mass_median  mass_min
+digits       t0 8000          0           0.0     0.998578  0.900053
+digits       t1 8000          0           0.0     0.999746  0.966743
+digits       t2 8000          0           0.0     0.999604  0.989920
+digits       t3 8000          0           0.0     0.999486  0.937908
+digits       t4 8000          0           0.0     0.999803  0.994247
+
+order invariance -- reported only, retired as a gate (A2.2):
+   arm template  n_pairs  order_invariance  unambiguous_item_win             regime
+digits       t0     4000           0.62600               0.42275     content-driven
+digits       t1     4000           0.70125               0.46325     content-driven
+digits       t2     4000           0.40675               0.17025 position-dominated
+digits       t3     4000           0.50325               0.39500   random-dominated
+digits       t4     4000           0.16000               0.13975 position-dominated
+
+========================================================================
+Bradley-Terry with per-template order term (A2.1)
+========================================================================
+cached: artifacts\instrument_fit\llama-3.2-3b-instruct\d9cdda8294a2-a635cf66\fit_d9cdda8294a2-a635cf66.json
+Bradley-Terry (+ per-template order term): 400 items from 40000 valid comparisons (0 dropped below the mass floor)
+  theta spread: sd across items = 0.868, range -1.58 to 3.93
+  precision: posterior SD of theta, median 0.279 (min 0.266, max 0.385)
+  sigma_item (between-item scale) = 1.110
+  separation ratio = 3.97
+  model reliability = 0.939 (compare against the EMPIRICAL split-half figure)
+  beta: mean +1.655 (favours slot 1), range +0.442 to +3.742 across 5 templates
+convergence: max R-hat 1.0000 (limit 1.01), min ESS 9855 (limit 400), divergences 0, 0 parameter(s) failing
+
+position bias by template (beta):
+template  beta_mean  beta_sd  beta_hdi_low  beta_hdi_high
+      t0      0.442    0.029         0.384          0.501
+      t1      0.661    0.030         0.600          0.719
+      t2      1.972    0.036         1.901          2.040
+      t3      1.455    0.033         1.387          1.516
+      t4      3.742    0.053         3.636          3.843
+
+anchor abilities (intended tier is a design annotation, never shown):
+            anchor_id  alpha_mean  alpha_sd      tier  tier_rank  alpha_rank
+anchor/favourite-meal    2.877597  0.051375      high          0           0
+ anchor/tidy-a-drawer    1.935558  0.044438       mid          2           1
+anchor/free-afternoon    1.315243  0.041736      high          0           2
+  anchor/blocked-sink    0.619261  0.040709       low          4           3
+      anchor/old-film    0.028301  0.039830       mid          2           4
+     anchor/lost-keys   -0.018356  0.041484       low          4           5
+  anchor/waiting-room   -0.535922  0.042421 lower-mid          3           6
+     anchor/long-walk   -1.390427  0.046539 upper-mid          1           7
+ anchor/queue-in-rain   -1.960080  0.051329       low          4           8
+     anchor/tax-forms   -2.871175  0.060630       low          4           9
+
+fit quality (A2.1): slope +0.0318 [+0.0276, +0.0358] vs null +0.0062 (sd 0.0017) -> +15.46 sd
+
+========================================================================
+Reliability gate (A2.2) -- the sole exclusion criterion
+========================================================================
+empirical split-half of theta, ['t0', 't1', 't2'] vs ['t3', 't4']: Spearman 0.733 (threshold 0.7)
+model-internal reliability 0.939 (all templates) -- NOT the comparator; using it as the gate would admit models whose item rankings do not reproduce across paraphrases
+length-matched prediction for a 3/2 split = 0.880
+  shortfall vs THAT: -0.148  (A2.4's open discrepancy is this number, not the shortfall against the full-data figure)
+  ->  PASS
+
+========================================================================
+Pass B -- pairs from theta on disjoint template sets
+========================================================================
+cached: artifacts\pass_b\llama-3.2-3b-instruct\93e6989f659b\pairs_93e6989f659b-bdc5d72a.parquet
+match tolerance 0.2886 = 0.26 x sigma_item (1.1098)  [A2.9.2, per model]
+difficulty  n_pairs  diff_sel_mean  diff_sel_sd  diff_sel_min  diff_sel_max  diff_ana_mean  diff_ana_sd  mean_rating_mean  mean_rating_sd
+ difficult      100       0.000507     0.000421      0.000004      0.001959       0.407313     0.383147          1.063027        0.596450
+      easy      100       2.780706     0.893522      1.473331      5.702975       2.063303     1.149224          1.310287        0.724572
+matching quality: {'match_gap_selection_mean': 0.2073, 'match_gap_selection_max': 0.2884, 'match_gap_analysis_mean': 0.4168, 'match_gap_analysis_max': 1.1394}
+
+========================================================================
+Power on the realized design (A3.1/A3.4) -- computed before Pass C runs
+========================================================================
+SE(lambda_chose - lambda_yoked) = 0.1178 logits per SD of |diff|
+SESOI = 0.1665  (0.15 * sigma_item, Amendment 2)
+MINIMUM DETECTABLE EFFECT at 80% power = 0.3308  = 1.99x SESOI
+power at the SESOI itself = 0.290 -- NOT compared against a target, see below
+SECTION 8's CRITERION IS UNSATISFIABLE AND IS NOT USED HERE. It asks for >= 80% power AT the SESOI, but section 9.2's `pass` cell requires the posterior median to EXCEED the SESOI. When the true effect IS the SESOI the median is centred on that threshold, so power at the SESOI converges to exactly 0.500 as SE -> 0 and can never reach 0.80 at any sample size. This is a property of the two rules together, not of this design. The minimum detectable effect is reported instead; its floor is the SESOI itself. Raised as Amendment 3, not silently patched.
+equivalence branch UNREACHABLE: the 95% HDI is wider than the ROPE, so the `fail` cell of the section 9.2 rule cannot be entered at ANY observed value. A null result can only be `inconclusive`. Report it as such and do not describe it as equivalence.
+information for lambda by stratum:
+  stratum  n_post_obs   mean_w  share_of_lambda_information
+difficult        8000 0.134077                     0.487125
+     easy        8000 0.096112                     0.512875
+assumptions: n_pairs=200, n_templates=5, n_orders=2, n_conditions=8, n_observations=18000, gamma_assumed=0.4, beta_measured=+0.442..+3.742, sigma_item_measured=1.1098, gap_source=diff_analysis (disjoint templates), never diff_selection, random_effects=absorbed as fixed -> conservative vs partial pooling
+
+gamma sensitivity (gamma is the one quantity unknown before Pass C):
+ gamma     se  power_at_sesoi  min_detectable  equivalence_reachable
+   0.0 0.1095          0.3280          0.3075                  False
+   0.2 0.1134          0.3090          0.3187                  False
+   0.4 0.1178          0.2900          0.3308                  False
+   0.8 0.1279          0.2525          0.3596                  False
+   1.5 0.1515          0.1916          0.4263                  False
+
+========================================================================
+Pass C -- the experiment (A2.9)
+========================================================================
+cached: artifacts\pass_c\llama-3.2-3b-instruct\45991340dc33\trials_45991340dc33.parquet
+
+readout mass by condition:
+        condition    n  n_invalid  frac_invalid  mass_median  mass_min
+        3p-random 2000          0        0.0000     0.998739  0.884229
+         3p-yoked 2000          0        0.0000     0.998988  0.885976
+            chose 2000          1        0.0005     0.986529  0.497426
+chose-provisional 2000          0        0.0000     0.998485  0.679035
+              pre 2000          1        0.0005     0.979932  0.495754
+           random 2000          0        0.0000     0.998184  0.723691
+   self-recounted 2000          0        0.0000     0.998783  0.751278
+structure-control 2000          0        0.0000     0.998014  0.837536
+            yoked 2000          0        0.0000     0.998715  0.904934
+
+========================================================================
+Spread model -- H1 (A2.9.1)
+========================================================================
+Initializing NUTS using jitter+adapt_diag...
+Sequential sampling (4 chains in 1 job)
+NUTS: [gamma, lambda, beta, sd_pair, u_pair, sd_template, z_template]
+Sampling 4 chains for 2_000 tune and 2_000 draw iterations (8_000 + 8_000 draws total) took 193 seconds.
+|diff| centring: mean=1.2353 sd=1.1883
+convergence: 0 parameter(s) failing
+
+SESOI = 0.15 x sigma_item (1.110) = 0.1665 logits per SD of |diff|
+                     name   term    median      mean   hdi_low  hdi_high  p_negative  p_positive  excludes_zero  inside_rope  exceeds_sesoi     decision
+            chose - yoked lambda  0.440098  0.439549  0.214843  0.670553    0.000125    0.999875           True        False           True inconclusive
+            chose - yoked  gamma -3.801509 -3.801988 -4.047927 -3.542636    1.000000    0.000000           True        False           True         pass
+   chose - self-recounted lambda  0.752290  0.748789  0.476246  1.005301    0.000000    1.000000           True        False           True         pass
+   chose - self-recounted  gamma -4.615306 -4.616962 -4.951827 -4.301155    1.000000    0.000000           True        False           True         pass
+structure-control - yoked lambda -0.003554 -0.003338 -0.307854  0.301707    0.508625    0.491375          False        False          False inconclusive
+structure-control - yoked  gamma  0.382963  0.384117  0.064523  0.712176    0.010250    0.989750           True        False           True         pass
+   self-recounted - yoked lambda -0.311122 -0.309240 -0.621071  0.015858    0.971625    0.028375          False        False           True inconclusive
+   self-recounted - yoked  gamma  0.813470  0.814974  0.442421  1.167931    0.000000    1.000000           True        False           True         pass
+chose - chose-provisional lambda  0.237472  0.237922  0.085068  0.390193    0.001000    0.999000           True        False           True inconclusive
+chose - chose-provisional  gamma  0.786658  0.787112  0.640000  0.937620    0.000000    1.000000           True        False           True         pass
+         chose - 3p-yoked lambda  0.640002  0.640335  0.449374  0.843960    0.000000    1.000000           True        False           True inconclusive
+         chose - 3p-yoked  gamma -3.268864 -3.268875 -3.480501 -3.043691    1.000000    0.000000           True        False           True         pass
+         3p-yoked - yoked lambda -0.201155 -0.200786 -0.465733  0.064950    0.928625    0.071375          False        False           True inconclusive
+         3p-yoked - yoked  gamma -0.532297 -0.533114 -0.819105 -0.244430    0.999875    0.000125           True        False           True         pass
+           yoked - random lambda -0.125369 -0.124425 -0.377263  0.152688    0.825875    0.174125          False        False          False inconclusive
+           yoked - random  gamma -0.161858 -0.162953 -0.435499  0.102246    0.880125    0.119875          False        False          False inconclusive
+       3p-random - random lambda -0.090330 -0.090111 -0.272977  0.090571    0.837750    0.162250          False        False          False inconclusive
+       3p-random - random  gamma -1.384373 -1.385430 -1.574131 -1.201813    1.000000    0.000000           True        False           True         pass
+
+========================================================================
+PRIMARY TEST (chose - yoked) x |diff|  ->  INCONCLUSIVE
+========================================================================
+  median +0.4401   95% HDI [+0.2148, +0.6706]   P(<0) = 0.000
+
+structure factor estimated twice: chose - self-recounted = +0.7523, structure-control - yoked = -0.0036, discrepancy +0.7558
+  (agreement means a turn-presence effect is identified and subtractable)
+
+results: artifacts\analysis\llama-3.2-3b-instruct\6ba42ef73455\results_6ba42ef73455-678f7a80.json
