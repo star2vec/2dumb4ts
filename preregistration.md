@@ -2191,3 +2191,62 @@ and it is not robust to a preregistered restriction. Combined with A4.2 — real
 framing only 66–75% of the time on easy pairs — the honest reading is that **this design did
 not have the resolution to answer H1 in either direction**, and llama's effect should be
 reported as suggestive of a wrong-signed relationship rather than as a finding about it.
+
+## A4.5 The DV was dichotomised, and that is where the precision went
+
+A4.2 established that realized precision was 3.4–5.4× worse than predicted, so that an
+effect at the SESOI was never detectable. Closing that gap by scale alone needs **4× the
+data for llama and 43× for gemma** — roughly 860,000 forward passes per model, which is not
+available. This section is why that arithmetic is the wrong response.
+
+**The DV throws away most of each measurement.** `read_choice` returns a renormalised
+distribution over the two option labels. Pass C keeps `index` — the **argmax** — and derives
+the binary `item1_wins`. The **margin** is computed on every trial and discarded before the
+artifact is written. So each observation is reduced from a graded preference to one bit.
+
+**The specification says not to do this, in two places.**
+
+- §3.1, constraint 3: *"Ratings are expected values over the logit distribution across
+  digit tokens, **never argmax**."* §3.5 grants argmax to the **choice**, and gives the
+  reason: it is *"a discrete commitment, not a graded measurement."* The DV is a graded
+  measurement. The exemption was read as covering it because both use `read_choice`.
+- §13 item 9 rejects dichotomising the **regressor** — *"continuous `|diff|`, binary
+  secondary … avoids the ~36% variance loss from dichotomising"* — and the outcome was
+  dichotomised anyway. The design argued the case correctly and applied it to one side.
+
+**Why this is the dominant term.** A Bernoulli observation carries at most one bit, and its
+Fisher information is `p(1−p) ≤ 0.25`, maximised only at `p = 0.5`. The graded readout is a
+direct observation of the latent quantity the model is estimating, with only readout noise
+between them. That is not a marginal gain — it is the difference between inferring a
+continuous shift from coin flips and reading it off.
+
+**The size of the gain is NOT estimated here, and cannot be from existing data.** The
+margins were never persisted, so there is nothing to reanalyse. Any number quoted now would
+be invented. What can be said is that the discarded quantity is the one the estimator is
+short of.
+
+### What Stage 0-bis changes, in order of expected gain
+
+1. **Persist and model the graded DV.** Implemented: `pass_c` now writes `p_item1` beside
+   `item1_wins`. **Zero additional forward passes** — the number was already computed. The
+   binary DV is retained so the preregistered primary remains computable and the two
+   analyses can be compared on the same trials.
+2. **Align the elicitation framings (A3.12).** `θ` is measured with the *choice* question
+   and the DV asks about *preference*; they agree only 66–75% on easy pairs. Measuring `θ`
+   with the DV's own question removes a known attenuation of `λ`.
+3. **Bind matching on the analysis scale (A3.13).** 41–60% of matched sets exceed the
+   tolerance on the measurement the model actually uses, and llama's effect moved 0.68 SESOI
+   when they were removed.
+
+### Required before any re-run
+
+**A pilot on one model, comparing both DVs on the same trials.** Re-run Pass C for a single
+model with `p_item1` persisted, fit the primary both ways, and report the ratio of standard
+errors. That figure decides whether Stage 0-bis is worth running at all, and it must be
+measured rather than argued.
+
+**The continuous DV is a new primary and needs its own preregistration.** It changes the
+likelihood, so the priors, the SESOI's units and §9.2's thresholds all have to be restated
+on the new scale before any Stage 0-bis data is collected. Amendment 4 is post-hoc and
+cannot carry that; it is a separate preregistration, written blind, and Stage 0's result
+stands as reported regardless of what it finds.

@@ -188,3 +188,59 @@ def test_the_shared_pre_row_must_be_emitted_once_per_cell(cfg):
     duplicated = pd.concat([frame, frame[frame["condition"] == PRE_SENTINEL]])
     with pytest.raises(RuntimeError, match="pre rows"):
         _validate(cfg, duplicated)
+
+
+# ---------------------------------------------------------------------------
+# A4.5: the graded DV
+
+
+@pytest.mark.parametrize("index,margin,expected", [
+    (0, 0.0, 0.50), (1, 0.0, 0.50),          # a tie is 0.5 whichever way argmax broke it
+    (0, 0.5, 0.75), (1, 0.5, 0.25),
+    (0, 1.0, 1.00), (1, 1.0, 0.00),
+])
+def test_p_slot1_recovers_the_two_label_distribution_exactly(index, margin, expected):
+    """`item1_wins` keeps the SIGN of the model's preference and discards its STRENGTH.
+
+    Nothing is approximated in the recovery: read_choice renormalises over the labels, so
+    with two of them p(top) = (1+margin)/2 and the pair (index, margin) determines the
+    distribution exactly. The strength was computed on every trial and thrown away before
+    it reached the artifact (A4.5).
+    """
+    from src.experiments.pass_c import p_slot1
+
+    assert float(p_slot1(index, margin)) == pytest.approx(expected)
+
+
+def test_the_graded_readout_agrees_with_the_argmax_it_replaces():
+    """The graded value must never contradict the binary one, or the two analyses of the
+    same trial would disagree about which item the model preferred."""
+    import numpy as np
+
+    from src.experiments.pass_c import p_slot1
+
+    rng = np.random.default_rng(0)
+    idx = rng.integers(0, 2, 500)
+    margin = rng.uniform(0.0, 1.0, 500)
+    p = p_slot1(idx, margin)
+
+    slot1_preferred = p > 0.5
+    assert np.array_equal(slot1_preferred, idx == 0), (
+        "the graded readout and the argmax disagree on the winner")
+    # ...and it carries strictly more: the same winner spans the full confidence range.
+    won = p[idx == 0]
+    assert won.min() < 0.6 and won.max() > 0.95, (
+        "the graded value is not actually varying; it would add nothing over the argmax")
+
+
+def test_pass_c_persists_the_graded_dv():
+    """It costs no forward passes -- the number is already computed. It was discarded."""
+    import inspect
+
+    from src.experiments import pass_c
+
+    src = inspect.getsource(pass_c.run_pass_c)
+    assert '"p_item1"' in src, "the graded pre readout is not persisted"
+    assert 'frame.loc[idx, "p_item1"]' in src, "the graded post readout is not persisted"
+    # the binary DV must SURVIVE: it is the preregistered primary's observable
+    assert '"item1_wins"' in src, "item1_wins was removed; the preregistered DV needs it"

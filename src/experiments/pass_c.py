@@ -149,9 +149,23 @@ def run_pass_c(
 
         base = {k: v for k, v in cell.items() if k != "_t"}
         # The shared baseline, emitted ONCE -- not once per condition.
+        # The GRADED readout, persisted beside the binary one. `item1_wins` is an argmax:
+        # it keeps the sign of the model's preference and discards its strength, which is a
+        # dichotomisation of the outcome. Section 13 item 9 rejected dichotomising the
+        # REGRESSOR for costing ~36% of the variance, and then the outcome was dichotomised
+        # anyway; 3.1 states "expected values ... never argmax" and 3.5 exempts only the
+        # CHOICE, which is a discrete commitment. The DV is a measurement. See A4.5.
+        #
+        # This costs no forward passes -- the number is already computed and was thrown
+        # away before it reached the artifact.
+        pre_p1 = float(p_slot1(pre["index"][i], pre["margin"][i]))
+        if s1 != cell["item1_id"]:
+            pre_p1 = 1.0 - pre_p1
+        cell["pre_p_item1"] = pre_p1
         rows.append({**base, "condition": PRE_SENTINEL, "timepoint": "pre",
                      "designated_item_id": cell["item1_id"],
                      "item1_wins": cell["pre_item1_wins"],
+                     "p_item1": pre_p1,
                      "readout_mass": float(pre["mass"][i]),
                      "readout_valid": bool(pre["valid"][i])})
 
@@ -182,12 +196,25 @@ def run_pass_c(
     slot_pick = post["index"]
     s1_is_item1 = (frame.loc[idx, "slot1_item_id"] == frame.loc[idx, "item1_id"]).to_numpy()
     frame.loc[idx, "item1_wins"] = (slot_pick == 0) == s1_is_item1
+    post_p1 = p_slot1(slot_pick, post["margin"])
+    frame.loc[idx, "p_item1"] = np.where(s1_is_item1, post_p1, 1.0 - post_p1)
     frame.loc[idx, "readout_mass"] = post["mass"]
     frame.loc[idx, "readout_valid"] = post["valid"]
     frame["item1_wins"] = frame["item1_wins"].astype(bool)
 
     _validate(cfg, frame)
     return write_parquet(frame, artifact_path(cfg), prov)
+
+
+def p_slot1(index, margin):
+    """Renormalised probability on SLOT 1, recovered from the argmax and its margin.
+
+    `read_choice` renormalises over the option labels, so with two labels
+    p(top) = (1 + margin)/2 and p(other) = (1 - margin)/2. Nothing is approximated here:
+    the pair (index, margin) determines the two-label distribution exactly.
+    """
+    top = (1.0 + np.asarray(margin, dtype=float)) / 2.0
+    return np.where(np.asarray(index) == 0, top, 1.0 - top)
 
 
 def _read(runner: Runner, msgs: list, label_map, cfg: RunConfig, desc: str) -> dict:
