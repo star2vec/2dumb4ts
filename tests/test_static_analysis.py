@@ -76,3 +76,45 @@ def test_every_slow_test_file_forces_single_core_sampling():
     slow_files = [p.name for p in (ROOT / "tests").glob("test_*.py")
                   if "mark.slow" in p.read_text(encoding="utf-8")]
     assert len(slow_files) >= 5, f"only {len(slow_files)} slow files found"
+
+
+def test_status_write_emits_the_newest_result_per_model():
+    """The --write loop iterated ALL results into a filename keyed on (stage, model), so
+    last-write-wins emitted the OLDEST. With stale artifact dirs present the git-tracked
+    results/ JSONs would have carried numbers predating every recent fix -- the "silently
+    reported superseded numbers" failure STATUS.md is generated to prevent, reproduced
+    inside the generator. Found by the run machine while staging a transmit.
+    """
+    import importlib.util
+
+    spec = importlib.util.spec_from_file_location("status", ROOT / "scripts" / "status.py")
+    status = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(status)
+
+    rows = [  # already newest-first, as _load_results guarantees
+        {"_stage": "analysis", "model": "gemma", "_when": "2026-07-28T10:00:00", "tag": "new"},
+        {"_stage": "analysis", "model": "gemma", "_when": "2026-07-26T10:00:00", "tag": "old"},
+        {"_stage": "analysis", "model": "llama", "_when": "2026-07-28T11:00:00", "tag": "new"},
+        {"_stage": "analysis", "model": "llama", "_when": "2026-07-26T09:00:00", "tag": "old"},
+        {"_stage": "pass_b", "model": "gemma", "_when": "2026-07-28T09:00:00", "tag": "new"},
+    ]
+    kept = status._newest_per_model(rows)
+    assert len(kept) == 3, "one per (stage, model)"
+    assert all(r["tag"] == "new" for r in kept), (
+        f"an older result survived de-duplication: {[r['tag'] for r in kept]}")
+
+    # NEGATIVE CONTROL: without dedup, last-write-wins gives the OLD one -- which is the
+    # bug. Demonstrated so this test cannot pass while the defect is reintroduced.
+    naive = {}
+    for r in rows:
+        naive[(r["_stage"], r["model"])] = r
+    assert naive[("analysis", "gemma")]["tag"] == "old"
+
+
+def test_status_reports_pass_c_and_keeps_its_fields():
+    """The keep-list predated Pass C, so the git-tracked summaries carried NO H1 result."""
+    src = (ROOT / "scripts" / "status.py").read_text(encoding="utf-8")
+    for field in ('"primary"', '"contrasts"', '"sesoi"', '"power"'):
+        assert field in src, f"status.py drops {field} from the transmitted summaries"
+    assert "def pass_c_table" in src, "STATUS.md has no Pass C table"
+    assert "_newest_per_model(results)" in src, "the write loop is not de-duplicated"

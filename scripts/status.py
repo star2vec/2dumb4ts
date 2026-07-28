@@ -41,12 +41,34 @@ def _load_results() -> list[dict]:
         d["_stage"] = parts[0] if parts else "?"
         d["_path"] = str(p.relative_to(REPO))
         d["_mtime"] = p.stat().st_mtime
+        # Order on the timestamp RECORDED IN THE ARTIFACT, not the file's mtime. A git
+        # checkout rewrites mtimes, so an mtime sort can silently invert on a fresh clone
+        # -- on the run machine, which is where the reported numbers come from. mtime is
+        # only a fallback for artifacts written before provenance carried created_utc.
+        d["_when"] = _get(d, "provenance", "created_utc") or ""
         rows.append(d)
-    # Newest first, so the de-duplication below keeps the CURRENT fit rather than
-    # whichever config hash happens to sort first. Getting this wrong silently
-    # reported superseded numbers, which is the exact failure mode this file exists
-    # to prevent.
-    return sorted(rows, key=lambda r: r["_mtime"], reverse=True)
+    return sorted(rows, key=lambda r: (r["_when"], r["_mtime"]), reverse=True)
+
+
+def _newest_per_model(rows: list[dict]) -> list[dict]:
+    """One result per (stage, model), the newest.
+
+    `_load_results` sorts newest-first and every table de-duplicates, but the --write loop
+    did not: it iterated ALL results newest-to-oldest into a filename keyed on
+    (stage, model), so last-write-wins emitted the OLDEST. With stale artifact directories
+    present -- three analysis results for gemma, two for llama -- the git-tracked results/
+    JSONs would have carried 07-26 numbers, predating every fix since. That is the
+    "silently reported superseded numbers" failure this file exists to prevent, reproduced
+    inside the file itself. Found by the run machine while staging a transmit.
+    """
+    seen, out = set(), []
+    for r in rows:
+        key = (r.get("_stage"), r.get("model"))
+        if key in seen:
+            continue
+        seen.add(key)
+        out.append(r)
+    return out
 
 
 def _get(d: dict, *path, default=None):
@@ -118,6 +140,35 @@ def readout_mass_table(results: list[dict]) -> pd.DataFrame:
             .pivot(index="model", columns="template", values="frac_invalid").round(3))
 
 
+def pass_c_table(results: list[dict]) -> pd.DataFrame:
+    """H1 per model, with the design figures that decide how to read it.
+
+    status.py had no Pass C table at all: the reporting layer was never extended past the
+    instrument, so the headline result was not in the generated record.
+    """
+    rows = []
+    for r in _newest_per_model(results):
+        pr, pw = r.get("primary"), r.get("power") or {}
+        if not pr:
+            continue
+        rows.append({
+            "model": r.get("model"),
+            "device": _get(r, "provenance", "device"),
+            "outcome": r.get("outcome"),
+            "lambda_median": pr.get("median"),
+            "hdi_low": pr.get("hdi_low"),
+            "hdi_high": pr.get("hdi_high"),
+            "P(<0)": pr.get("p_negative"),
+            "sesoi": r.get("sesoi"),
+            "mde/sesoi": pw.get("mde_over_sesoi"),
+            "equiv_reachable": pw.get("equivalence_reachable"),
+            "decision": pr.get("decision"),
+        })
+    if not rows:
+        return pd.DataFrame()
+    return pd.DataFrame(rows).sort_values("model")
+
+
 def render(results: list[dict]) -> str:
     from datetime import datetime, timezone
 
@@ -137,6 +188,28 @@ def render(results: list[dict]) -> str:
           f"- smoke artifacts present: {any(smoke)}",
           "- `assert_reportable` requires CUDA + bf16 + pinned revision + clean tree; "
           "anything from a dev machine is non-reportable by construction.", ""]
+
+    c = pass_c_table(results)
+    if not c.empty:
+        n_pass = int((c["decision"] == "pass").sum())
+        directional = int((c["P(<0)"].fillna(0) >= 0.95).sum())
+        entered = n_pass >= 1 and directional >= 2
+        L += ["## Pass C -- H1 (primary: lambda_chose - lambda_yoked, predicted NEGATIVE)", "",
+              c.round(4).to_markdown(index=False), "",
+              f"- models with a full 9.2 pass: **{n_pass}**",
+              f"- models directional at P(lambda<0) >= 0.95: **{directional}**",
+              f"- **A3.7 project gate: Stage 1 {'ENTERED' if entered else 'NOT entered'}** "
+              "(needs one full pass AND two directional)",
+              "",
+              "`inconclusive` is the MODAL outcome by design, not a surprise: A3.3 puts it "
+              "at ~48% even when the effect is real and exactly at the SESOI, and ~70% "
+              "under a true null. Read it against the MDE, not against zero.",
+              "",
+              "A credible effect in the WRONG (positive) direction scores `inconclusive` "
+              "under 9.2 as written, since `pass` requires the HDI to exclude 0 in the "
+              "PREDICTED direction and `fail` requires the whole HDI inside the ROPE. That "
+              "is the rule as preregistered; it is reported here rather than amended.",
+              ""]
 
     a = absolute_table(results)
     if not a.empty:
@@ -178,7 +251,7 @@ def main() -> int:
     if args.write:
         (REPO / "STATUS.md").write_text(text, encoding="utf-8")
         OUT.mkdir(exist_ok=True)
-        for r in results:
+        for r in _newest_per_model(results):
             name = f"{r['_stage']}__{r.get('model','unknown')}.json"
             # Trim to the reported quantities; the full artifact stays under
             # artifacts/. This is what makes the numbers greppable in git.
@@ -187,9 +260,17 @@ def main() -> int:
                              "gates", "theta", "beta", "reliability_gate",
                              "excess_consistency_slope", "operating_window",
                              "readout_mass", "readout_mass_by_template",
-                             "order_invariance_reported", "test_retest")}
+                             "order_invariance_reported", "test_retest",
+                             # Pass C. The keep-list predated it, so the git-tracked
+                             # summaries carried NO H1 result at all -- the entire payload
+                             # of a Pass C snapshot was being dropped on the floor.
+                             "primary", "contrasts", "sesoi", "power",
+                             "structure_factor_agreement", "pairs",
+                             "instrument_validation")}
             (OUT / name).write_text(json.dumps(keep, indent=2, default=str), encoding="utf-8")
-        print(f"\nwrote STATUS.md and {len(results)} summary file(s) to results/")
+        kept = _newest_per_model(results)
+        print(f"\nwrote STATUS.md and {len(kept)} summary file(s) to results/ "
+              f"(de-duplicated from {len(results)} artifact result files)")
     return 0
 
 
