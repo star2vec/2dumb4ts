@@ -40,8 +40,7 @@ sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
 
 from src.analysis import spread_model  # noqa: E402
 from src.config import load_config  # noqa: E402
-from src.experiments import pass_c as stage_c  # noqa: E402
-from src.provenance import read_parquet  # noqa: E402
+from src.provenance import find_artifact, read_parquet  # noqa: E402
 
 
 def _contrast(idata) -> np.ndarray:
@@ -77,6 +76,9 @@ def main(argv=None) -> int:
     ap = argparse.ArgumentParser(description=__doc__)
     ap.add_argument("--config", required=True)
     ap.add_argument("--artifacts", default=None)
+    ap.add_argument("--trials", default=None,
+                    help="explicit trials parquet; default is the newest "
+                         "that carries the columns this script needs")
     ap.add_argument("--sampler-cores", type=int, default=None)
     ap.add_argument("--out", default=None)
     args = ap.parse_args(argv)
@@ -88,15 +90,15 @@ def main(argv=None) -> int:
         cfg = cfg.model_copy(update={"analysis": cfg.analysis.model_copy(
             update={"sampler_cores": args.sampler_cores})})
 
-    path = stage_c.artifact_path(cfg)
-    if not path.exists():
-        print(f"no trials at {path}\nRe-run Pass C: the graded readout was discarded when "
-              "the existing trials were collected (A4.5).")
+    try:
+        path = find_artifact(cfg.artifact_dir("pass_c").parent, "trials_*.parquet",
+                             requires=("p_item1", "item1_wins"), explicit=args.trials)
+    except FileNotFoundError as exc:
+        print(f"{exc}\nRe-run Pass C: the graded readout was discarded when the existing "
+              "trials were collected (A4.5).")
         return 1
     trials = read_parquet(path)
-    if "p_item1" not in trials.columns:
-        print(f"{path.name} carries no p_item1; it predates A4.5. Re-run Pass C.")
-        return 1
+    print(f"  trials: {path.name}")
 
     design = spread_model.prepare(cfg, trials)
     p = trials["p_item1"].to_numpy(dtype=float)

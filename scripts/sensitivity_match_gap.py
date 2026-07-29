@@ -32,8 +32,7 @@ sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
 from src.analysis import spread_model  # noqa: E402
 from src.config import load_config  # noqa: E402
 from src.experiments import pass_b as stage_b  # noqa: E402
-from src.experiments import pass_c as stage_c  # noqa: E402
-from src.provenance import read_parquet  # noqa: E402
+from src.provenance import find_artifact, read_parquet  # noqa: E402
 
 
 def _primary(cfg, trials: pd.DataFrame, sesoi: float, label: str) -> dict:
@@ -61,6 +60,9 @@ def main(argv=None) -> int:
     ap = argparse.ArgumentParser(description=__doc__)
     ap.add_argument("--config", required=True)
     ap.add_argument("--artifacts", default=None)
+    ap.add_argument("--trials", default=None,
+                    help="explicit trials parquet; default is the newest "
+                         "that carries the columns this script needs")
     ap.add_argument("--sampler-cores", type=int, default=None)
     ap.add_argument("--out", default=None, help="write the comparison as JSON")
     args = ap.parse_args(argv)
@@ -73,7 +75,11 @@ def main(argv=None) -> int:
             update={"sampler_cores": args.sampler_cores})})
 
     pairs = read_parquet(stage_b.artifact_path(cfg))
-    trials = read_parquet(stage_c.artifact_path(cfg))
+    trials_path = find_artifact(
+        cfg.artifact_dir("pass_c").parent, "trials_*.parquet",
+        requires=("item1_wins",), explicit=args.trials)
+    trials = read_parquet(trials_path)
+    print(f"  trials: {trials_path.name}")
     sigma_item = float(pairs["sigma_item"].iloc[0])
     sesoi = cfg.analysis.sesoi_sigma_fraction * sigma_item
 

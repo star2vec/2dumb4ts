@@ -263,3 +263,63 @@ def test_every_expensive_artifact_is_keyed_on_the_code_that_writes_it():
     # for all of them and the check means nothing.
     assert len({pass_b.source_digest(), pass_c.source_digest(),
                 spread_model.source_digest()}) == 3
+
+
+def test_read_only_scripts_resolve_trials_by_content_not_by_the_live_path():
+    """A cheap gate must not depend on the expensive job it gates.
+
+    Adding pre_prompt_digest to Pass C moved its artifact path, and every consumer
+    resolving through `artifact_path()` silently retargeted to a file only a FUTURE run
+    would create. decompose_confidence.py -- the seconds-long check that decides whether
+    the activation study runs at all -- could no longer find trials sitting on disk. Found
+    by the run machine.
+
+    artifact_path answers "where would this code write it", which is right for the pipeline
+    and wrong for anything reading what already exists.
+    """
+    import ast
+
+    scripts = ROOT / "scripts"
+    readers = ["decompose_confidence.py", "check_confidence_is_graded.py",
+               "pilot_graded_dv.py", "sensitivity_match_gap.py"]
+    for name in readers:
+        src = (scripts / name).read_text(encoding="utf-8")
+        assert "find_artifact(" in src, f"{name} does not resolve trials by content"
+        assert "stage_c.artifact_path(cfg)" not in src, (
+            f"{name} still resolves trials through the live write path")
+        assert '"--trials"' in src, f"{name} offers no explicit override"
+        ast.parse(src)
+
+    # collect_activations is the EXCEPTION and must stay one: it verifies a digest that
+    # only the run writing it produced, so it must read that exact artifact.
+    coll = (scripts / "collect_activations.py").read_text(encoding="utf-8")
+    assert "stage_c.artifact_path(cfg)" in coll, (
+        "collect_activations must read the run that wrote the digest it verifies")
+
+
+def test_find_artifact_picks_by_recorded_time_and_refuses_when_columns_are_absent(tmp_path):
+    """NEGATIVE CONTROL: it must REFUSE rather than return something without the columns,
+    and must order on the RECORDED timestamp, not filesystem mtime a checkout rewrites."""
+    import pandas as pd
+
+    from src.provenance import PROV_PREFIX, find_artifact
+
+    def write(name, cols, when):
+        df = pd.DataFrame({c: [1.0, 2.0] for c in cols})
+        df[f"{PROV_PREFIX}created_utc"] = when
+        df[f"{PROV_PREFIX}device"] = "cuda"
+        df.to_parquet(tmp_path / name, index=False)
+
+    write("trials_old.parquet", ["item1_wins", "p_item1"], "2026-07-26T00:00:00")
+    write("trials_new.parquet", ["item1_wins", "p_item1"], "2026-07-29T00:00:00")
+    write("trials_nocol.parquet", ["item1_wins"], "2026-07-30T00:00:00")
+
+    got = find_artifact(tmp_path, "trials_*.parquet", requires=("p_item1",))
+    assert got.name == "trials_new.parquet", got.name
+
+    with pytest.raises(FileNotFoundError, match="carries"):
+        find_artifact(tmp_path, "trials_*.parquet", requires=("does_not_exist",))
+
+    explicit = find_artifact(tmp_path, "trials_*.parquet", requires=("p_item1",),
+                             explicit=tmp_path / "trials_old.parquet")
+    assert explicit.name == "trials_old.parquet", "an explicit path must win"

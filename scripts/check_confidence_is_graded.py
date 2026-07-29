@@ -32,14 +32,16 @@ sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
 
 from src.analysis.spread_model import PRE_SENTINEL  # noqa: E402
 from src.config import load_config  # noqa: E402
-from src.experiments import pass_c as stage_c  # noqa: E402
-from src.provenance import read_parquet  # noqa: E402
+from src.provenance import find_artifact, read_parquet  # noqa: E402
 
 
 def main(argv=None) -> int:
     ap = argparse.ArgumentParser(description=__doc__)
     ap.add_argument("--config", required=True)
     ap.add_argument("--artifacts", default=None)
+    ap.add_argument("--trials", default=None,
+                    help="explicit trials parquet; default is the newest "
+                         "that carries the columns this script needs")
     ap.add_argument("--bins", type=int, default=6)
     args = ap.parse_args(argv)
 
@@ -47,7 +49,11 @@ def main(argv=None) -> int:
     if args.artifacts:
         cfg = cfg.model_copy(update={"artifacts_dir": Path(args.artifacts)})
 
-    trials = read_parquet(stage_c.artifact_path(cfg))
+    trials_path = find_artifact(
+        cfg.artifact_dir("pass_c").parent, "trials_*.parquet",
+        requires=("p_item1",), explicit=args.trials)
+    trials = read_parquet(trials_path)
+    print(f"  trials: {trials_path.name}")
     if "p_item1" not in trials:
         print("trials carry no p_item1; re-run Pass C (A4.5).")
         return 1

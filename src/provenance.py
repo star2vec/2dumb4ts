@@ -271,6 +271,60 @@ def assert_reportable(prov: Provenance) -> None:
         )
 
 
+def find_artifact(directory, pattern: str, *, requires=(), explicit=None):
+    """Locate an EXISTING artifact by what it contains, not by what the code would write.
+
+    `artifact_path()` answers "where would this code put it", which is right for the
+    pipeline and wrong for a read-only analysis script. Bumping a module's source digest
+    moves that path, and every consumer resolving through it silently retargets to a file
+    only a future run will create -- so an analysis of data already on disk fails, or worse,
+    a cheap gate is made to depend on the expensive job it was supposed to gate.
+
+    That happened: adding `pre_prompt_digest` to Pass C for the activation study moved the
+    trials path, and `decompose_confidence.py` -- the seconds-long check that decides
+    whether the activation study runs at all -- could no longer find the trials sitting
+    right there.
+
+    Selection: files matching `pattern` under `directory` that carry every column in
+    `requires`, newest by the RECORDED `created_utc` rather than filesystem mtime, which a
+    checkout rewrites.
+    """
+    directory = Path(directory)
+    if explicit is not None:
+        path = Path(explicit)
+        if not path.exists():
+            raise FileNotFoundError(f"no artifact at {path}")
+        return path
+    if not directory.exists():
+        raise FileNotFoundError(f"no artifact directory at {directory}")
+
+    candidates = []
+    for path in sorted(directory.rglob(pattern)):
+        try:
+            cols = set(pd.read_parquet(path, columns=None).columns)
+        except Exception:  # noqa: BLE001 - an unreadable file is simply not a candidate
+            continue
+        missing = set(requires) - cols
+        if missing:
+            candidates.append((path, sorted(missing), None))
+            continue
+        try:
+            when = provenance_of(pd.read_parquet(path)).get("created_utc", "")
+        except ProvenanceError:
+            when = ""
+        candidates.append((path, [], when))
+
+    usable = [(w or "", p) for p, miss, w in candidates if not miss]
+    if not usable:
+        detail = "\n".join(f"    {p.name}: missing {miss}" for p, miss, _ in candidates)
+        raise FileNotFoundError(
+            f"no artifact under {directory} matching {pattern!r} carries {list(requires)}."
+            + (f"\n  found but unusable:\n{detail}" if detail else "")
+        )
+    usable.sort(reverse=True)
+    return usable[0][1]
+
+
 def provenance_of(frame: pd.DataFrame) -> dict:
     """Extract the (necessarily constant) provenance block from an artifact."""
     cols = [c for c in frame.columns if c.startswith(PROV_PREFIX)]
