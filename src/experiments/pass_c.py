@@ -152,6 +152,14 @@ def run_pass_c(
                 # designate that choice.
                 choice_msgs.append(choice_messages(t, fa, fb, cfg))
 
+    # The digest of the rendered PRE prompts, in cell order. Recorded so a later
+    # activation replay can prove it re-rendered the same prompts rather than merely
+    # asserting it -- "identical prompts" is the entire basis for attaching activations to
+    # these trials, and without a recorded digest the claim is unfalsifiable.
+    pre_digest = hashlib.sha256(
+        "\x00".join(runner.render(m) for m in pre_msgs).encode("utf-8")
+    ).hexdigest()[:16]
+
     pre = _read(runner, pre_msgs, label_map, cfg, "pass C pre")
     cho = _read(runner, choice_msgs, label_map, cfg, "pass C choice")
 
@@ -224,6 +232,7 @@ def run_pass_c(
     frame.loc[idx, "readout_valid"] = post["valid"]
     frame["item1_wins"] = frame["item1_wins"].astype(bool)
 
+    frame["pre_prompt_digest"] = pre_digest
     _validate(cfg, frame)
     return write_parquet(frame, artifact_path(cfg), prov)
 

@@ -123,6 +123,37 @@ class Runner:
             self.n_forward += len(batch)
         return torch.cat(out, dim=0)
 
+    @torch.no_grad()
+    def last_hidden_states(self, prompts: list[str]) -> torch.Tensor:
+        """Hidden states at the readout position, every layer. [n, n_layers, hidden]
+
+        The SAME position `last_logits` reads, under the same left padding, so an
+        activation and the DV taken from it describe one forward pass at one token.
+
+        Batched at `batch_size` like everything else, but the transient cost is different:
+        `output_hidden_states` materialises [batch, seq, hidden] for every layer during the
+        forward, not just the position kept. On the run machine's 8 GB card holding ~5 GB of
+        weights that is the binding constraint, so callers collecting activations should
+        drop the batch size rather than assume the DV's value carries over.
+        """
+        out = []
+        for start in range(0, len(prompts), self.batch_size):
+            batch = prompts[start : start + self.batch_size]
+            enc = self.tokenizer(batch, return_tensors="pt", padding=True,
+                                 add_special_tokens=False).to(self.device)
+            mask = enc["attention_mask"]
+            position_ids = mask.long().cumsum(-1) - 1
+            position_ids = position_ids.masked_fill(mask == 0, 1)
+            hs = self.model(
+                input_ids=enc["input_ids"], attention_mask=mask,
+                position_ids=position_ids, output_hidden_states=True,
+            ).hidden_states
+            # hidden_states is (n_layers + 1) tensors of [batch, seq, hidden]; keep the
+            # final position of each and stack to [batch, n_layers + 1, hidden].
+            out.append(torch.stack([h[:, -1, :] for h in hs], dim=1).cpu())
+            self.n_forward += len(batch)
+        return torch.cat(out, dim=0)
+
     # -- readouts -----------------------------------------------------------
 
     def rate(self, message_lists: list[list[dict[str, str]]]) -> Readout:

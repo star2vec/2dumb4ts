@@ -65,6 +65,16 @@ A **replay** pass: the identical Pass C **pre** prompts, re-run to capture hidde
 No new stimuli, no new conditions, no manipulation. The prompt digest is asserted to match
 the recorded Pass C prompts, or the run aborts.
 
+**Implementation note, added while building it.** `pass_c` did not record a prompt digest,
+so the assertion above would have had nothing to compare against and would have been
+nominal. `pass_c` now writes `pre_prompt_digest` — a hash of its rendered pre prompts in
+cell order — and `scripts/collect_activations.py` re-renders through the **same builder
+functions** and refuses to write unless the two match. Rebuilding from the builders rather
+than reading the trials frame back is deliberate: a digest over the file would only prove
+the file is unchanged, not that the prompts still render the same way. The digest therefore
+lands in the same Pass C re-run that adds `p_item1`, which is why that re-run is a
+prerequisite rather than merely convenient.
+
 | | |
 |---|---|
 | rows | Pass C **pre** only — 200 pairs × 5 templates × 2 orders = **2,000 per model** |
