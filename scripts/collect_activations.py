@@ -59,6 +59,11 @@ def _cells(cfg, pairs):
                     "item1_id": p["item1_id"], "item2_id": p["item2_id"],
                     "slot1_item_id": s1, "diff_analysis": p["diff_analysis"],
                     "difficulty": p["difficulty"],
+                    # SIGNED theta, carried through from Pass B. |diff| is unsigned and
+                    # cannot say WHICH item is preferred, so without these the positive
+                    # control cannot be run and a magnitude result is uninterpretable
+                    # (preregistration_probe.md §5).
+                    "theta_item1": p["theta_item1"], "theta_item2": p["theta_item2"],
                     "_msgs": pre_dv_messages(t, framed[s1], framed[s2], cfg),
                 })
     return out
@@ -89,6 +94,10 @@ def main(argv=None) -> int:
     recorded = str(trials["pre_prompt_digest"].iloc[0])
 
     pairs = read_parquet(stage_b.artifact_path(cfg))
+    if not {"theta_item1", "theta_item2"} <= set(pairs.columns):
+        print(f"{stage_b.artifact_path(cfg).name} carries no signed theta; it predates "
+              "6c705fc. The positive control needs it -- rebuild Pass B.")
+        return 1
     cells = _cells(cfg, pairs)
     print(f"{cfg.model.name}   {len(cells)} pre cells rebuilt from the builders")
 
@@ -129,6 +138,8 @@ def main(argv=None) -> int:
         item2_id=np.array([m["item2_id"] for m in meta]),
         slot1_item_id=np.array([m["slot1_item_id"] for m in meta]),
         diff_analysis=np.array([m["diff_analysis"] for m in meta], dtype=float),
+        theta_item1=np.array([m["theta_item1"] for m in meta], dtype=float),
+        theta_item2=np.array([m["theta_item2"] for m in meta], dtype=float),
         difficulty=np.array([m["difficulty"] for m in meta]),
         prompt_digest=np.array([digest]),
         provenance=np.array([json.dumps(prov.model_dump(), default=str)]),

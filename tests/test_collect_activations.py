@@ -42,9 +42,11 @@ def test_the_pre_cells_are_rebuilt_in_pass_c_order():
     items = ["destinations/a", "destinations/b", "destinations/c", "destinations/d"]
     pairs = pd.DataFrame([
         {"pair_id": "d/p0", "item1_id": items[0], "item2_id": items[1],
-         "diff_analysis": 0.2, "difficulty": "difficult"},
+         "diff_analysis": 0.2, "difficulty": "difficult",
+         "theta_item1": 0.5, "theta_item2": 0.3},
         {"pair_id": "d/p1", "item1_id": items[2], "item2_id": items[3],
-         "diff_analysis": 1.5, "difficulty": "easy"},
+         "diff_analysis": 1.5, "difficulty": "easy",
+         "theta_item1": -0.2, "theta_item2": 1.3},
     ])
     framed = {i: f"a trip to {i[-1].upper()}" for i in items}
 
@@ -70,6 +72,9 @@ def test_the_pre_cells_are_rebuilt_in_pass_c_order():
     assert cells[0]["slot1_item_id"] == items[0]
     assert cells[1]["slot1_item_id"] == items[1]
     assert all("_msgs" in c and len(c["_msgs"]) == 1 for c in cells)
+    # signed theta must survive to every row, or the positive control cannot be run
+    assert all({"theta_item1", "theta_item2"} <= set(c) for c in cells)
+    assert cells[0]["theta_item1"] == 0.5 and cells[0]["theta_item2"] == 0.3
 
 
 def test_a_drifted_prompt_changes_the_digest():
@@ -139,3 +144,24 @@ def test_the_script_refuses_when_the_digest_does_not_match(tmp_path, monkeypatch
     # the write must come after the check, not before
     assert src.index("digest != recorded") < src.index("np.savez_compressed")
     assert hasattr(mod, "_cells")
+
+
+def test_signed_theta_is_carried_through_for_the_positive_control():
+    """|diff| is unsigned and cannot say WHICH item is preferred.
+
+    Without signed theta the sign(diff) control cannot be run, and preregistration_probe.md
+    §5 makes a magnitude result uninterpretable without it. The collector must carry it and
+    must refuse if Pass B predates it -- found by writing the consumer, which is the only
+    reason it was noticed.
+    """
+    src = (ROOT / "scripts" / "collect_activations.py").read_text(encoding="utf-8")
+    assert '"theta_item1": p["theta_item1"]' in src, "signed theta not read from pairs"
+    assert "theta_item1=np.array(" in src, "signed theta not written to the npz"
+    assert "rebuild Pass B" in src, "a Pass B predating signed theta must be refused"
+
+    runner = (ROOT / "scripts" / "run_probe.py").read_text(encoding="utf-8")
+    assert "REFUSING" in runner and "POSITIVE CONTROL" in runner, (
+        "the probe runner must refuse rather than report a magnitude result alone")
+    # and the layer must be chosen by the CONTROL, not by the question
+    assert 'max(rows, key=lambda r: r["sign"]["rho_pair"])' in runner, (
+        "the layer is being selected on the outcome")
