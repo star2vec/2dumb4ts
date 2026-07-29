@@ -2453,3 +2453,82 @@ Both are reportable. The **elicitation** version is the more useful of the two t
 building pairwise LLM evaluation, because it says what to change rather than only what
 fails. Recording this before the number arrives, so neither outcome can be presented as the
 one that was hoped for.
+
+## A4.9 A4.7 is overturned. The readout is 81% position bias.
+
+The decomposition ran and reversed the finding. Reported in full because A4.7 and A4.8 are
+in the record and were wrong.
+
+| component | median \|·\| | share of variance |
+|---|---|---|
+| **position `β`** | **3.69** | **81%** |
+| preference `d` | 1.19 | 19% |
+| raw readout | 4.00 | — |
+
+| | |
+|---|---|
+| Spearman(`\|diff\|`, raw readout) | +0.136 |
+| **Spearman(`\|diff\|`, `\|d\|`) — position removed** | **+0.500** (p = 2.8e-64) |
+| median `\|d\|` across `\|diff\|` bins | 0.75, 0.75, 0.78, 1.50, 1.78, **2.55** |
+| readout-mass ↔ `\|d\|` | +0.017 (not a renormalisation artifact) |
+| preference flips with option order | **77.8%** |
+
+**A4.7's conclusion was wrong.** The model's confidence *does* carry graded preference, and
+it tracks the independently measured Bradley-Terry gap at ρ = 0.500 with a clean monotonic
+rise of ~3.4× across the range. A4.7 correlated `|diff|` against the **raw** readout, which
+is four-fifths position, and measured position.
+
+### A4.8's arithmetic, and two compounding errors
+
+A4.8 argued position was 5% of the variance and could not matter. Both of its inputs were
+wrong.
+
+1. **It used the wrong `β`.** A4.8 took `β` from the **Bradley-Terry fit** — Pass A, which
+   asks *"which would you choose"* — and reasoned about the **DV**, which asks *"which do
+   you prefer"*. The DV's measured `|β|` is **3.69**, not ~1.3. **This is A3.12's framing
+   mismatch, committed while arguing that a framing-related finding was robust.**
+2. **It inferred `var(d)` from `median|readout|`, which assumed the conclusion.** Taking
+   `σ = 4.00/0.6745` presumes the readout's spread *is* `d`. If instead `|β| = 3.69` with a
+   small `d` riding on it, `|d ± β|` spans 2.50–4.88 and the median is ~4.0 **with no large
+   `var(d)` at all**. The step that "proved" `d` dominates was the step that assumed it.
+
+Actual: `var(d) ≈ 3.1`, `β² ≈ 13.6`, **position 81%**.
+
+### The gate: the probe study STOPS
+
+A4.8 fixed the stop condition before the result existed:
+
+> *"If `|d|` tracks `|diff|` at ρ ≥ 0.3, that arithmetic is wrong and JOB 2 does not start."*
+
+ρ = 0.500. **Both clauses triggered, and the rule is followed.**
+
+`preregistration_probe.md` asks whether magnitude is *represented but not expressed*. It is
+**expressed** — ρ = 0.500 in the output itself. The question has no referent, and the
+activation collection and probe are **cancelled**, not deferred. A later message of mine
+said "Jobs 2 and 3 unchanged"; that was written before this result and does not override a
+stop condition set in advance. The run machine was right to refuse to guess which way it
+swung.
+
+**What remains worth running:** the Pass C re-run for **llama and qwen-1.5b only**, to
+decompose their readouts too. Not for the probe — to establish whether an 81% position share
+is general or specific to gemma. That is now the open question.
+
+### What survives, and what the finding actually is
+
+- **A4.2 stands.** Realised precision was 3.4–5.4× worse than predicted. That was measured,
+  not inferred.
+- **A4.7's information argument survives; its explanation does not.** A Bernoulli observation
+  at p = 0.982 carries `W = 0.018` against the assumed 0.25 — an 11× information loss — and
+  that is true **whatever makes p extreme**. What changes is the cause: the readout is
+  saturated by **position**, not by preference-blindness. A4.7's claim that "the difficulty
+  manipulation does not produce uncertainty in the DV" is **withdrawn**; it does, and `|d|`
+  tracks it at ρ = 0.500.
+- **The paradigm is less broken than A4.7 concluded.** The difficulty signal is present in
+  the DV. It is buried under a position term three times its size.
+
+**The finding, restated honestly and more usefully than the one it replaces:** a pairwise
+preference readout from an instruction-tuned model is **~80% position bias**; the preferred
+item flips with option order on **78%** of trials; and averaging the two orders recovers a
+graded preference correlating **0.500** with an independent estimate. Anyone running pairwise
+LLM evaluation without order-averaging is measuring mostly slot position — and this quantifies
+what that costs.
