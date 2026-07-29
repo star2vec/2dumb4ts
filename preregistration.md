@@ -2532,3 +2532,62 @@ item flips with option order on **78%** of trials; and averaging the two orders 
 graded preference correlating **0.500** with an independent estimate. Anyone running pairwise
 LLM evaluation without order-averaging is measuring mostly slot position — and this quantifies
 what that costs.
+
+## A4.10 The cross-model decomposition: position share is model-specific
+
+All three models, PRE rows, position separated algebraically from preference.
+
+| model | median `\|d\|` | median `\|β\|` | β/d | raw | ρ(`\|diff\|`,`\|d\|`) | `\|d\|` rise | flip rate |
+|---|---|---|---|---|---|---|---|
+| gemma-2-2b | 1.19 | 3.69 | **3.1×** | 4.00 | 0.500 | 3.4× | 77.8% |
+| llama-3.2-3b | 0.88 | 1.69 | 1.9× | 1.50 | 0.492 | 3.5× | 71.6% |
+| qwen2.5-1.5b | 0.63 | 0.75 | **1.2×** | 1.00 | **0.263** | 1.7× | 54.2% |
+
+**A4.9's 81% is gemma's, not a property of instruction-tuned models.** The position-to-
+preference ratio runs 3.1× → 1.9× → 1.2×, and raw confidence tracks it (4.00 ≫ 1.50 > 1.00).
+gemma is the extreme case, and A4.9 stated its figure without that qualification.
+
+**Preference is graded in two of three.** gemma ρ = 0.500 and llama ρ = 0.492, both with
+clean ~3.5× monotonic rises, so A4.7's "not graded" was a position artifact in both.
+**qwen-1.5b is the exception**: ρ = 0.263 is below the 0.3 bar with a weak, non-monotonic
+rise. Its preference component only faintly tracks the Bradley-Terry gap.
+
+### Does position bias explain A4.2's precision shortfall? Not on its own.
+
+Paired against the measured shortfalls:
+
+| model | β/d | W = p(1−p) | W-implied SE inflation | **measured (A4.2)** |
+|---|---|---|---|---|
+| gemma | 3.1× | 0.0177 | 3.76× | **5.38×** |
+| llama | 1.9× | 0.1491 | 1.29× | **1.05×** |
+| qwen-1.5b | 1.2× | 0.1966 | 1.13× | **3.44×** |
+
+The gemma-vs-llama comparison looks convincing and **qwen-1.5b breaks it**: it is the *least*
+position-dominated model and has the *middle* shortfall. Spearman on three points is +0.50
+for the position ratio and −0.50 for W — one swap from anything.
+
+**A two-criterion description does fit**, and it is offered as description, not mechanism:
+
+| model | saturated? | regressor valid? | measured |
+|---|---|---|---|
+| gemma | **yes** (p = 0.982) | ok (ρ 0.500) | 5.38× |
+| llama | ok (p = 0.818) | ok (ρ 0.492) | **1.05×** |
+| qwen-1.5b | ok (p = 0.731) | **no** (ρ 0.263) | 3.44× |
+
+Each model failing exactly one criterion has a shortfall; the one failing neither matched
+prediction almost exactly. Two failure routes — an outcome too saturated to carry
+information, and a regressor that does not track the outcome's difficulty.
+
+**This must not be reported as an established mechanism. n = 3, two proposed factors, and
+the assignment was chosen after seeing all six numbers.** Three points can be fitted by
+almost any two-factor story, and this one was not predicted in advance. It is recorded as
+the hypothesis the data suggests, and testing it requires models that were not used to
+build it.
+
+### No further runs are needed for this question
+
+The realised SEs are already in A4.2 — gemma 0.5525, llama 0.1241, qwen-1.5b 0.4202, from
+the Stage 0 binary fits. The comparison above uses them. A graded-DV pilot on the other two
+models would answer a **different** question — how much the graded readout would help each
+model — which is largely mooted now that A4.7 is overturned and the graded DV is not being
+adopted.
