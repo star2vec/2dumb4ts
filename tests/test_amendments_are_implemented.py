@@ -260,3 +260,45 @@ def test_a2_2_reliability_threshold_lives_in_config_and_is_0_70(config):
     for stage in ("pass_a", "pass_b", "pass_c"):
         assert strict.hash(stage) == cfg.hash(stage)
     assert strict.hash() != cfg.hash(), "the run identity must record the gate threshold"
+
+
+# ---------------------------------------------------------------------------
+# the probe preregistration
+
+
+def test_the_probe_prereg_states_its_blindness_scope_and_its_controls():
+    """It was written from a post-hoc hypothesis, so the preregistration is the ONLY
+    protection against the usual failure and has to be specific enough to fail."""
+    doc = (Path(__file__).resolve().parents[1] / "preregistration_probe.md").read_text(
+        encoding="utf-8")
+
+    for required, why in [
+        ("generated post-hoc from A4.7", "the hypothesis' origin must be declared"),
+        ("hold out ITEMS, not rows", "the item-identity confound is the study's hinge"),
+        ("sign(", "the positive control must be named"),
+        ("effective n = 200", "10 rows per pair share one target; n is pairs"),
+        ("bootstrap over pairs", "row-level intervals would be overstated"),
+        ("inner", "alpha selected on item-respecting inner folds or the confound leaks"),
+        ("Uninterpretable", "a double null must not be read as evidence"),
+    ]:
+        assert required in doc, f"probe prereg omits: {why}"
+
+    # NEGATIVE CONTROL: the retracted R4 figures must not have crept back in as a
+    # justification for clustering. The clustering is right for a structural reason.
+    assert "0.529" in doc and "retracted" in doc.lower(), (
+        "R4 must be cited AS RETRACTED where clustering is justified, or a future reader "
+        "will take the ICC at face value")
+    assert "1.070" in doc, "the figure that replaced the retracted ICC must be given"
+
+
+def test_the_probe_preregs_storage_arithmetic_is_right():
+    """It decides that no layer subsetting is needed; if it is wrong the design changes."""
+    doc = (Path(__file__).resolve().parents[1] / "preregistration_probe.md").read_text(
+        encoding="utf-8")
+    for hid, layers, kb in ((2304, 27, 122), (1536, 29, 87), (3072, 29, 174)):
+        assert abs(hid * layers * 2 / 1024 - kb) < 2, f"{hid}x{layers} is not {kb} KB"
+        assert f"{hid}" in doc and f"{kb} KB" in doc
+    total_mb = sum(h * ll * 2 * 2000 / 1024**2 for h, ll in
+                   ((2304, 27), (1536, 29), (3072, 29)))
+    assert 700 < total_mb < 800, total_mb
+    assert "747 MB" in doc, "the stated total does not match the arithmetic"
