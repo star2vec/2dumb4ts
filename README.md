@@ -28,18 +28,51 @@ the **wrong direction**, and it does not survive a preregistered robustness rest
 (A4.4).
 
 **The important part is why.** The study could not have detected an effect at the smallest
-size it declared interesting, and the cause is diagnosed rather than guessed:
+size it declared interesting:
 
 - Realised precision was **3.4–5.4× worse** than the blind power analysis predicted (A4.2).
-- The design selects near-equal item pairs on the instrument scale `θ`, and gets them. **The
-  outcome measure then answers those same pairs at 97.7% confidence** (A4.7). The power
-  calculation assumed difficult pairs sit near p = 0.5 "by construction"; they do not. That
-  alone costs **11× the information per observation**.
+- The readout is saturated. On gemma the model answers at **p = 0.982**, so a trial carries
+  `W = p(1−p) = 0.018` against the 0.25 the power calculation assumed — an **11× information
+  loss per observation**, which holds whatever makes `p` extreme.
 - Instrument and outcome are elicited by **different questions** and agree only 66–75% even
   on easy pairs (A3.12).
 
 So **H1 is untested, not disconfirmed** — and the obstacle is a design property, not a
 sample size. More data does not fix it.
+
+**Why the readout is saturated turned out to be the interesting question**, and the first
+two answers were wrong. A4.7 concluded the models could not express graded preference at
+all; A4.9 overturned it. Every pair is asked in **both option orders**, so
+`logit p = d + β·s` separates algebraically — and once position is removed, preference does
+track the instrument. See A4.9–A4.10, and the summary below.
+
+---
+
+---
+
+## The finding that outlived the hypothesis
+
+Separating the readout into preference (`d`) and position (`β`), across all three models:
+
+| model | median \|d\| | median \|β\| | β/d | ρ(\|diff\|, \|d\|) | flips with option order |
+|---|---|---|---|---|---|
+| gemma-2-2b | 1.19 | 3.69 | **3.1×** | 0.500 | 77.8% |
+| llama-3.2-3b | 0.88 | 1.69 | 1.9× | 0.492 | 71.6% |
+| qwen2.5-1.5b | 0.63 | 0.75 | 1.2× | **0.263** | 54.2% |
+
+> A pairwise preference readout from an instruction-tuned model carries a **position term of
+> the same order as, or several times larger than, the preference signal** — 1.2× to 3.1×
+> here. The preferred item **flips with option order on 54–78% of trials**. Averaging both
+> orders separates them exactly and recovers a graded preference correlating **0.26–0.50**
+> with an independent Bradley-Terry estimate.
+
+Anyone running pairwise LLM evaluation without order-averaging is measuring substantially
+slot position. This is measured on three models, it does not depend on any mechanism, and it
+is the one claim here that survived every check that overturned the others.
+
+**qwen2.5-1.5b is the exception worth noting:** at ρ = 0.263 its preference component barely
+tracks its own instrument — a different failure from gemma's saturation, and one that was
+invisible until all three were decomposed.
 
 ---
 

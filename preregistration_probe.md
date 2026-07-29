@@ -1,5 +1,27 @@
 # Preregistration — is preference magnitude represented but not expressed?
 
+> # ⛔ CANCELLED — 2026-07-29, before any activation was collected
+>
+> **The premise is false.** This study existed to explain why the output "cannot express
+> graded preference" (A4.7). A4.9 decomposed the readout by option order and found that
+> premise was **position bias**: on gemma the position term is 81% of the readout, and once
+> removed, preference correlates with the instrument at ρ = 0.500 rather than 0.093. The
+> output *does* express graded preference. There is nothing here to explain.
+>
+> §1 below asserts p = 0.977, ρ = 0.093, and "position bias accounts for only 5%" (A4.8).
+> **All three are refuted** — see `RETRACTIONS.md` R7 and A4.9–A4.10. They are left in place,
+> not corrected, because a preregistration edited after its result is no longer a
+> preregistration. This is the record of what was believed when it was written.
+>
+> **Nothing was collected.** The gate in A4.9 fired before the run. `src/analysis/probe.py`,
+> `scripts/collect_activations.py`, and `scripts/run_probe.py` are built and tested and are
+> retained unused — the item-held-out folds and the positive control are reusable if a
+> future study earns one.
+>
+> *The one thing worth keeping from this document* is §4: `|diff|` is a property of the item
+> pair, so a probe can score well by recognising which pair it is. That confound is real
+> regardless of the premise that motivated it.
+
 **Standalone. Not Stage 1, not Stage 0-bis.** Written 2026-07-29, before any activation has
 been collected or read.
 

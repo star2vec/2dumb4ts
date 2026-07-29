@@ -1,7 +1,7 @@
 # Retractions
 
 Every claim reported to the project owner that was later refuted, with what refuted
-it. Kept because four have now occurred, and because the pattern they share is
+it. Kept because seven have now occurred, and because the pattern they share is
 reporting a number faster than verifying it.
 
 None of these reached a paper, a preprint, or the run machine's confirmatory record.
@@ -9,10 +9,44 @@ All were caught internally. That is the system working, but the frequency is the
 problem, not the catching.
 
 **The structural fix is `scripts/status.py`.** Reported numbers are generated from
-artifacts, not typed. Three of the four below involved a number that was transcribed
-or transferred by hand.
+artifacts, not typed. Three of these involved a number that was transcribed or transferred
+by hand.
+
+**R7 is the one to read.** It is the only entry where the refuted claim had already been
+built on — an entire preregistered study existed to explain an artifact — and the only one
+where the error survived an explicit defence (A4.8) before a direct measurement killed it.
+Its lesson is narrower than "verify before reporting": *when a result is surprising, the
+next move is one more measurement, not one more argument.*
 
 ---
+
+## R7 — "the models cannot express graded preference" (A4.7)
+
+- **Reported:** that on pairs the instrument places at `|Δθ| < 0.16` the model answers
+  *"which do you prefer?"* at **p = 0.977**, that stated confidence tracks measured
+  preference at only **ρ = 0.093**, and — A4.8, defending it — that position bias accounts
+  for **5%** of the readout's variance, so saturation was not an artifact of the
+  elicitation's geometry.
+- **Refuted by:** decomposing the readout instead of arguing about it. Every pair is asked
+  in both option orders, so `logit p = d + β·s` separates **algebraically** — no model, no
+  estimate. On gemma the position term is **81%** of the readout, not 5%. Once removed, the
+  preference component correlates with the instrument at **ρ = 0.500**, not 0.093.
+  Preference is graded; the *readout* was measuring slot position.
+- **Cause:** two compounding errors in A4.8, both committed while defending A4.7. It reasoned
+  about the DV's position term using **Pass A's β** — a different elicitation answering a
+  different question — and inferred `var(d)` from `median|readout|`, which assumes the
+  conclusion it was testing. The framing mismatch was A3.12's own finding, and A4.8 committed
+  it while arguing that a framing-related result was robust.
+- **Scope of the damage.** A4.7 was not a stray number: it generated `preregistration_probe.md`
+  in full, and that study — activation collection on three models, probes at every layer — was
+  designed to explain something that was not happening. It is **cancelled by A4.9's gate**,
+  before any activation was collected. The cost was a preregistration and a day.
+- **What caught it.** Not a sharper argument — one more check on data already in hand. Every
+  confident piece of reasoning offered in defence of A4.7 was wrong; the decomposition took
+  minutes and needed no new run.
+- **Corrected once more by A4.10.** A4.9 stated the 81% without qualification. Across all three
+  models the position share is **3.1× / 1.9× / 1.2×** (gemma / llama / qwen-1.5b), so 81% is
+  gemma's, not a property of instruction-tuned models. The general claim is the *range*.
 
 ## R6 — hidden-state cache sized at 5.9 GB
 
